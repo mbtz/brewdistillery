@@ -1,7 +1,61 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-22T14:06:56.981133Z",
+  "generated_at": "2026-01-22T14:22:59.914038Z",
   "tasks": [
+    {
+      "id": "sv-6eh",
+      "title": "Specify formula naming + class normalization",
+      "status": "closed",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:34.802485Z",
+      "updated_at": "2026-01-22T14:22:59.904687Z",
+      "body": "DoD:\\n- Transformation rules + validation.\\n- At least 8 examples (acronyms, digits, dashes, underscores).\\nNotes: PRD B6 (status: open).",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-22T14:22:41.722319Z",
+      "closed_at": "2026-01-22T14:22:59.904687Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-yyt",
+      "title": "Implement metadata detection (Rust + Node/Go/Python presets)",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:42:45.876364Z",
+      "updated_at": "2026-01-22T14:19:35.383882Z",
+      "body": "Acceptance:\\n- detects name/desc/version/bin/license/homepage from supported manifests\\n- handles conflicts with prompts or non-interactive errors\\n- falls back to git remote + prompts when no manifest",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-22T14:16:27.126394Z",
+      "closed_at": "2026-01-22T14:19:35.383882Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-7dd",
+      "title": "Implement formula name normalization helpers",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-22T14:10:03.870044Z",
+      "updated_at": "2026-01-22T14:11:03.991722Z",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-22T14:10:10.984949Z",
+      "closed_at": "2026-01-22T14:11:03.991722Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-zrb",
+      "title": "EPIC: Formula & Templates",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:32.372907Z",
+      "updated_at": "2026-01-22T14:10:06.142436Z",
+      "body": "Scope: formula naming, template rendering, validation, multi-bin behavior.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
     {
       "id": "sv-hnm",
       "title": "Lock .distill/config.toml schema + example",
@@ -128,16 +182,6 @@
       "comments_count": 0
     },
     {
-      "id": "sv-yyt",
-      "title": "Implement metadata detection (Rust + Node/Go/Python presets)",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-22T13:42:45.876364Z",
-      "updated_at": "2026-01-22T13:42:48.994044Z",
-      "body": "Acceptance:\\n- detects name/desc/version/bin/license/homepage from supported manifests\\n- handles conflicts with prompts or non-interactive errors\\n- falls back to git remote + prompts when no manifest",
-      "comments_count": 0
-    },
-    {
       "id": "sv-v70",
       "title": "Implement formula template rendering (multi-bin + per-OS/arch)",
       "status": "open",
@@ -145,16 +189,6 @@
       "created_at": "2026-01-22T13:42:37.738369Z",
       "updated_at": "2026-01-22T13:42:39.989792Z",
       "body": "Acceptance:\\n- renders Formula/<name>.rb from config + metadata\\n- supports multi-bin installs and per-OS/arch asset blocks\\n- validates output against template rules before writing",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-zrb",
-      "title": "EPIC: Formula & Templates",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:31:32.372907Z",
-      "updated_at": "2026-01-22T13:42:39.989792Z",
-      "body": "Scope: formula naming, template rendering, validation, multi-bin behavior.\\nDoD: Epics only; child tasks define acceptance criteria.",
       "comments_count": 0
     },
     {
@@ -515,16 +549,6 @@
       "created_at": "2026-01-22T13:31:34.992177Z",
       "updated_at": "2026-01-22T13:31:35.152570Z",
       "body": "DoD:\\n- Default template + override contract.\\n- Validation checks list.\\n- Ruby output examples (single/multi-bin, universal/per-target).\\nNotes: PRD B7 (status: open).",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-6eh",
-      "title": "Specify formula naming + class normalization",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:31:34.802485Z",
-      "updated_at": "2026-01-22T13:31:34.966357Z",
-      "body": "DoD:\\n- Transformation rules + validation.\\n- At least 8 examples (acronyms, digits, dashes, underscores).\\nNotes: PRD B6 (status: open).",
       "comments_count": 0
     },
     {
