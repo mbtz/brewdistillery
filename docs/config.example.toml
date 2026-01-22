@@ -1,0 +1,50 @@
+schema_version = 1
+
+[project]
+name = "brewdistillery"
+description = "Homebrew formula initialization and release helper"
+homepage = "https://github.com/acme/brewdistillery"
+license = "MIT"
+bin = ["bd"]
+
+[cli]
+owner = "acme"
+repo = "brewdistillery"
+remote = "https://github.com/acme/brewdistillery.git"
+path = "/path/to/brewdistillery"
+
+[tap]
+owner = "acme"
+repo = "homebrew-brewdistillery"
+remote = "https://github.com/acme/homebrew-brewdistillery.git"
+path = "/path/to/homebrew-brewdistillery"
+formula = "brewdistillery"
+formula_path = "/path/to/homebrew-brewdistillery/Formula/brewdistillery.rb"
+
+[artifact]
+owner = "acme"
+repo = "brewdistillery"
+strategy = "release-asset"
+asset_template = "brewdistillery-{version}-{os}-{arch}.tar.gz"
+
+[artifact.targets."darwin-arm64"]
+asset_template = "brewdistillery-{version}-macos-arm64.tar.gz"
+
+[artifact.targets."linux-amd64"]
+asset_template = "brewdistillery-{version}-linux-x86_64.tar.gz"
+
+[release]
+tag_format = "{version}"
+commit_message_template = "feature: Updated formula for version '{version}'"
+
+[version_update]
+mode = "cargo"
+cargo_package = "brewdistillery"
+
+[host]
+provider = "github"
+api_base = "https://api.github.com"
+
+[template]
+path = ".distill/formula.tmpl"
+install_block = "bin.install \"bd\""

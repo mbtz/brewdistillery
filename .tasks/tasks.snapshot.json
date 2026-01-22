@@ -1,7 +1,22 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-22T14:03:09.265453Z",
+  "generated_at": "2026-01-22T14:06:56.981133Z",
   "tasks": [
+    {
+      "id": "sv-hnm",
+      "title": "Lock .distill/config.toml schema + example",
+      "status": "closed",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:33.845823Z",
+      "updated_at": "2026-01-22T14:06:56.970384Z",
+      "body": "DoD:\\n- Schema doc + minimal example.\\n- Migration rules for unknown fields.\\nNotes: PRD A2 (status: in_progress).",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-22T14:05:59.006375Z",
+      "closed_at": "2026-01-22T14:06:56.970384Z",
+      "comments_count": 0
+    },
     {
       "id": "sv-33j",
       "title": "Implement config IO + validation for .distill/config.toml",
@@ -550,16 +565,6 @@
       "created_at": "2026-01-22T13:31:34.037041Z",
       "updated_at": "2026-01-22T13:31:34.197535Z",
       "body": "DoD:\\n- Final table of required fields per command.\\n- Autodetect sources per field.\\n- Exact error text + exit codes.\\nNotes: PRD A3 (status: in_progress).",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-hnm",
-      "title": "Lock .distill/config.toml schema + example",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:31:33.845823Z",
-      "updated_at": "2026-01-22T13:31:34.007328Z",
-      "body": "DoD:\\n- Schema doc + minimal example.\\n- Migration rules for unknown fields.\\nNotes: PRD A2 (status: in_progress).",
       "comments_count": 0
     },
     {
