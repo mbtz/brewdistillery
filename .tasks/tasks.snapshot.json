@@ -1,0 +1,606 @@
+{
+  "schema_version": "sv.tasks.v1",
+  "generated_at": "2026-01-22T13:43:17.778769Z",
+  "tasks": [
+    {
+      "id": "sv-8bd",
+      "title": "EPIC: Testing & Docs",
+      "status": "open",
+      "priority": "P2",
+      "created_at": "2026-01-22T13:31:33.036334Z",
+      "updated_at": "2026-01-22T13:43:17.769127Z",
+      "body": "Scope: testing matrix + documentation outputs.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-xb8",
+      "title": "Write CLI docs + examples (init/release/doctor)",
+      "status": "open",
+      "priority": "P2",
+      "created_at": "2026-01-22T13:43:15.152041Z",
+      "updated_at": "2026-01-22T13:43:17.769127Z",
+      "body": "Acceptance:\\n- README or docs cover quickstart and non-interactive examples\\n- includes config.toml sample and formula output snippet\\n- documents exit codes and common error messages",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-v88",
+      "title": "Implement automated tests for init/release/doctor flows",
+      "status": "open",
+      "priority": "P2",
+      "created_at": "2026-01-22T13:43:08.755445Z",
+      "updated_at": "2026-01-22T13:43:11.604054Z",
+      "body": "Acceptance:\\n- unit tests for config + template rendering\\n- integration tests cover init/release happy paths with fixtures\\n- CI-friendly tests avoid network via mocks",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-7rd",
+      "title": "Implement bd doctor checks + optional brew audit",
+      "status": "open",
+      "priority": "P2",
+      "created_at": "2026-01-22T13:43:01.023877Z",
+      "updated_at": "2026-01-22T13:43:03.846170Z",
+      "body": "Acceptance:\\n- validates config completeness, formula consistency, repo state\\n- runs brew audit only when requested and reports actionable output\\n- exits with defined error code on failures",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-bp2",
+      "title": "EPIC: UX & Safety",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:32.877452Z",
+      "updated_at": "2026-01-22T13:43:03.846170Z",
+      "body": "Scope: prompt flows, preview/confirm UX, error strategy, atomic writes.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-gxy",
+      "title": "EPIC: Host & API",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:32.706063Z",
+      "updated_at": "2026-01-22T13:42:55.907839Z",
+      "body": "Scope: GitHub API tap creation + host abstraction trait.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-zy5",
+      "title": "Implement GitHub host client (release discovery, assets, tap creation)",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:42:52.582731Z",
+      "updated_at": "2026-01-22T13:42:55.907839Z",
+      "body": "Acceptance:\\n- uses GitHub API for releases and tap repo creation\\n- supports authenticated token via env and handles rate/permission errors\\n- provides download helpers for checksum acquisition",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-mf7",
+      "title": "EPIC: Identity & Config",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:32.187194Z",
+      "updated_at": "2026-01-22T13:42:48.994044Z",
+      "body": "Scope: identity resolution + config schema + metadata detection.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-yyt",
+      "title": "Implement metadata detection (Rust + Node/Go/Python presets)",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:42:45.876364Z",
+      "updated_at": "2026-01-22T13:42:48.994044Z",
+      "body": "Acceptance:\\n- detects name/desc/version/bin/license/homepage from supported manifests\\n- handles conflicts with prompts or non-interactive errors\\n- falls back to git remote + prompts when no manifest",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-v70",
+      "title": "Implement formula template rendering (multi-bin + per-OS/arch)",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:42:37.738369Z",
+      "updated_at": "2026-01-22T13:42:39.989792Z",
+      "body": "Acceptance:\\n- renders Formula/<name>.rb from config + metadata\\n- supports multi-bin installs and per-OS/arch asset blocks\\n- validates output against template rules before writing",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-zrb",
+      "title": "EPIC: Formula & Templates",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:32.372907Z",
+      "updated_at": "2026-01-22T13:42:39.989792Z",
+      "body": "Scope: formula naming, template rendering, validation, multi-bin behavior.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-4v5",
+      "title": "Implement release idempotency + git commit/tag/push flow",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:42:26.929332Z",
+      "updated_at": "2026-01-22T13:42:32.614790Z",
+      "body": "Acceptance:\\n- detects formula already at target version and requires --force to reapply\\n- commits and tags per config with --no-push support\\n- handles existing tag/release per idempotency rules",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-xf8",
+      "title": "EPIC: Release & Artifacts",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:32.540537Z",
+      "updated_at": "2026-01-22T13:42:32.614790Z",
+      "body": "Scope: release discovery, asset selection, checksums, idempotency, git flow.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-zfz",
+      "title": "Implement bd release pipeline (discovery, assets, formula update)",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:42:18.797982Z",
+      "updated_at": "2026-01-22T13:42:21.454401Z",
+      "body": "Acceptance:\\n- discovers GitHub release per configured tag/version rules\\n- selects assets per OS/arch config + overrides\\n- updates formula URL/SHA/version and writes preview",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-33n",
+      "title": "EPIC: Init Workflow",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:41:13.061876Z",
+      "updated_at": "2026-01-22T13:42:11.456344Z",
+      "body": "Implementation tasks for bd init interactive and non-interactive flows, tap setup, and formula bootstrap.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-tdq",
+      "title": "Implement bd init --import-formula merge path",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:42:08.910861Z",
+      "updated_at": "2026-01-22T13:42:11.456344Z",
+      "body": "Acceptance:\\n- reads existing Formula/*.rb and extracts fields per merge policy\\n- config fills gaps only; formula remains source-of-truth\\n- non-interactive mode refuses overwrite without --force",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-7df",
+      "title": "Implement bd init tap repo handling (path, auto-clone, brew tap-new)",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:42:01.541120Z",
+      "updated_at": "2026-01-22T13:42:04.141513Z",
+      "body": "Acceptance:\\n- resolves tap path rules and auto-clones when needed\\n- supports optional brew tap-new scaffold (flagged)\\n- errors when brew missing/offline with actionable message",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-8yf",
+      "title": "Implement bd init --non-interactive validation + overwrite guards",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:41:52.915251Z",
+      "updated_at": "2026-01-22T13:41:57.677281Z",
+      "body": "Acceptance:\\n- enforces required fields (config/flags) when non-interactive\\n- respects --force/--yes for overwrite and exits with clear error otherwise\\n- no partial writes on validation failure",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-2tt",
+      "title": "Implement bd init interactive flow (detect, prompt, preview, write)",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:41:44.640538Z",
+      "updated_at": "2026-01-22T13:41:47.011706Z",
+      "body": "Acceptance:\\n- detects metadata from manifests + git remote\\n- prompts for missing fields and shows defaults\\n- previews config/formula writes and confirms before applying",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-hyr",
+      "title": "Implement preview/diff engine for multi-repo writes",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:41:38.697810Z",
+      "updated_at": "2026-01-22T13:41:41.305552Z",
+      "body": "Acceptance:\\n- generates unified diff for changed files before write/commit\\n- lists target repos and files to be modified\\n- supports --dry-run with no filesystem writes",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-33j",
+      "title": "Implement config IO + validation for .distill/config.toml",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:41:29.349370Z",
+      "updated_at": "2026-01-22T13:41:33.494941Z",
+      "body": "Acceptance:\\n- load/save config with atomic writes and temp files\\n- resolve config path under .distill/ with override flag support\\n- enforce schema defaults and surface missing required fields",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-wry",
+      "title": "EPIC: CLI Core",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:41:08.374466Z",
+      "updated_at": "2026-01-22T13:41:33.494941Z",
+      "body": "Foundation implementation tasks for the Rust CLI (arg parsing, shared context, error handling).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-nbr",
+      "title": "Implement Rust CLI scaffold (init/release/ship/doctor)",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:41:20.364171Z",
+      "updated_at": "2026-01-22T13:41:25.287441Z",
+      "body": "Acceptance:\\n- clap app defines subcommands and shared/global flags per PRD\\n- shared app context wires config loading + repo detection\\n- errors map to exit codes via central enum",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-07j",
+      "title": "EPIC: Decisions locked (v0)",
+      "status": "closed",
+      "priority": "P2",
+      "created_at": "2026-01-22T13:35:46.544209Z",
+      "updated_at": "2026-01-22T13:36:20.716693Z",
+      "body": "Scope: capture PRD decisions already finalized so planning is complete.\\nDoD: closed tasks exist for each locked decision in PRD.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-9zs",
+      "title": "Document version/tag normalization decision",
+      "status": "closed",
+      "priority": "P2",
+      "created_at": "2026-01-22T13:36:05.609340Z",
+      "updated_at": "2026-01-22T13:36:20.716693Z",
+      "body": "PRD closed item #25: normalize leading v in tags; formula version uses normalized string.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-4g9",
+      "title": "Document checksum policy decision",
+      "status": "closed",
+      "priority": "P2",
+      "created_at": "2026-01-22T13:36:01.431019Z",
+      "updated_at": "2026-01-22T13:36:18.481586Z",
+      "body": "PRD closed item #24: download asset and compute SHA256 locally; ignore checksum assets in v0.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-z0s",
+      "title": "Document cross-platform asset decision",
+      "status": "closed",
+      "priority": "P2",
+      "created_at": "2026-01-22T13:35:58.713739Z",
+      "updated_at": "2026-01-22T13:36:14.641521Z",
+      "body": "PRD closed item #23: per-OS/arch sections supported; universal asset allowed.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-hx6",
+      "title": "Document release artifact default + source tarball strategy",
+      "status": "closed",
+      "priority": "P2",
+      "created_at": "2026-01-22T13:35:52.637515Z",
+      "updated_at": "2026-01-22T13:36:12.476935Z",
+      "body": "PRD closed item #22: default release assets; source tarball is explicit strategy (no implicit fallback).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-9d1",
+      "title": "Document tap layout enforcement + tap-new rules",
+      "status": "closed",
+      "priority": "P2",
+      "created_at": "2026-01-22T13:35:49.645698Z",
+      "updated_at": "2026-01-22T13:36:09.948949Z",
+      "body": "PRD closed item #21: tap layout enforcement (separate tap repo only), creation flow (brew tap-new vs manual), detection rules.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-t6d",
+      "title": "Define documentation outputs",
+      "status": "open",
+      "priority": "P2",
+      "created_at": "2026-01-22T13:31:38.688266Z",
+      "updated_at": "2026-01-22T13:31:38.858623Z",
+      "body": "DoD:\\n- Docs list + owner/source (generated vs hand-written).\\nNotes: PRD F20 (status: open).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-b8d",
+      "title": "Plan testing matrix",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:38.495521Z",
+      "updated_at": "2026-01-22T13:31:38.661033Z",
+      "body": "DoD:\\n- Test matrix table (init/release/doctor).\\n- Minimal harness outline.\\nNotes: PRD F19 (status: open).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-3tr",
+      "title": "Specify preview/diff output for multi-repo changes",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:38.296330Z",
+      "updated_at": "2026-01-22T13:31:38.469313Z",
+      "body": "DoD:\\n- Diff format examples + ordering rules.\\n- Dry-run output contract.\\nNotes: PRD E18b (status: open).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-wgt",
+      "title": "Define preview/confirm UX + atomic writes",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:38.107511Z",
+      "updated_at": "2026-01-22T13:31:38.270402Z",
+      "body": "DoD:\\n- Atomic write + rollback spec.\\n- Temp file strategy.\\nNotes: PRD E18 (status: open).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-hp2",
+      "title": "Define error strategy + exit codes/messages",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:37.921534Z",
+      "updated_at": "2026-01-22T13:31:38.080819Z",
+      "body": "DoD:\\n- Error catalog with exact messages + exit codes.\\nNotes: PRD E17 (status: open).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-13b",
+      "title": "Define bd doctor checks + audit modes",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:37.718882Z",
+      "updated_at": "2026-01-22T13:31:37.892681Z",
+      "body": "DoD:\\n- Validation checklist + mapping to exit codes.\\nNotes: PRD E16 (status: open).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-d7t",
+      "title": "Design bd init prompt flow + mapping",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:37.529488Z",
+      "updated_at": "2026-01-22T13:31:37.689716Z",
+      "body": "DoD:\\n- Prompt sequence + field defaults.\\n- Preview examples + overwrite decision points.\\n- --yes/--force semantics + brew tap-new fallback behavior.\\nNotes: PRD E15 (status: open).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-4nc",
+      "title": "Define host abstraction trait",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:37.336014Z",
+      "updated_at": "2026-01-22T13:31:37.501909Z",
+      "body": "DoD:\\n- Trait/interface shape + required methods.\\n- Versioning plan for future providers.\\nNotes: PRD D14 (status: open).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-eeh",
+      "title": "Specify GitHub API tap creation flow",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:37.150927Z",
+      "updated_at": "2026-01-22T13:31:37.308768Z",
+      "body": "DoD:\\n- Required scopes list.\\n- API flow steps/diagram.\\n- Fallback behavior when token missing.\\nNotes: PRD D13 (status: open).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-r3k",
+      "title": "Decide git integration approach",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:36.956441Z",
+      "updated_at": "2026-01-22T13:31:37.120807Z",
+      "body": "DoD:\\n- Decision rationale (libgit2 vs shell).\\n- Remote selection rules + error code mapping.\\nNotes: PRD C12 (status: open).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-61v",
+      "title": "Design release orchestration + idempotency",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:36.765605Z",
+      "updated_at": "2026-01-22T13:31:36.929204Z",
+      "body": "DoD:\\n- Step-by-step flow + idempotency matrix.\\n- Dry-run output sample.\\n- Exact error messages/exit codes for common failures.\\nNotes: PRD C11 (status: open).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-fw1",
+      "title": "Define version/tag precedence + validation",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:36.575105Z",
+      "updated_at": "2026-01-22T13:31:36.737201Z",
+      "body": "DoD:\\n- Precedence rules + examples.\\n- Semver validation (prerelease/build allowed).\\n- Exit code mapping for mismatches.\\nNotes: PRD C10f (status: in_progress).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-8s5",
+      "title": "Define checksum acquisition strategy",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:36.377661Z",
+      "updated_at": "2026-01-22T13:31:36.546197Z",
+      "body": "DoD:\\n- Algorithm + size/time limits.\\n- Retry/backoff policy.\\n- Error messages for download/verify failures.\\nNotes: PRD C10e (status: in_progress).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-apm",
+      "title": "Specify cross-platform asset config + formula output",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:36.189188Z",
+      "updated_at": "2026-01-22T13:31:36.350702Z",
+      "body": "DoD:\\n- Config schema impact + validation rules.\\n- Formula output examples for universal/per-OS/per-OS+arch.\\nNotes: PRD C10d (status: in_progress).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-963",
+      "title": "Scope version update strategies + workspace rules",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:36.004341Z",
+      "updated_at": "2026-01-22T13:31:36.162789Z",
+      "body": "DoD:\\n- Mode definitions (none/cargo/regex).\\n- Config schema additions.\\n- Examples incl. Cargo workspace policy + regex update.\\nNotes: PRD C10c (status: in_progress).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-872",
+      "title": "Define release discovery policy (GitHub Release)",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:35.810237Z",
+      "updated_at": "2026-01-22T13:31:35.976171Z",
+      "body": "DoD:\\n- Rules for drafts/prereleases/latest selection.\\n- Examples.\\n- Exact error messages for missing releases/assets.\\nNotes: PRD C10b (status: in_progress).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-rae",
+      "title": "Specify asset selection rules + OS/arch normalization",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:35.611564Z",
+      "updated_at": "2026-01-22T13:31:35.781340Z",
+      "body": "DoD:\\n- Matching algorithm with asset_name/asset_template precedence.\\n- OS/arch normalization table.\\n- Failure message examples.\\nNotes: PRD C10 (status: open).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-wgz",
+      "title": "Define formula version handling rules",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:35.370430Z",
+      "updated_at": "2026-01-22T13:31:35.586862Z",
+      "body": "DoD:\\n- Examples + validation rules for explicit version stanza.\\nNotes: PRD B9 (status: in_progress).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-7vf",
+      "title": "Define multi-binary support capture",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:35.181376Z",
+      "updated_at": "2026-01-22T13:31:35.341772Z",
+      "body": "DoD:\\n- Prompt flow sketch for multiple bins.\\n- Config schema impact.\\nNotes: PRD B8 (status: in_progress).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-s26",
+      "title": "Define formula template(s) + validation",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:34.992177Z",
+      "updated_at": "2026-01-22T13:31:35.152570Z",
+      "body": "DoD:\\n- Default template + override contract.\\n- Validation checks list.\\n- Ruby output examples (single/multi-bin, universal/per-target).\\nNotes: PRD B7 (status: open).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-6eh",
+      "title": "Specify formula naming + class normalization",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:34.802485Z",
+      "updated_at": "2026-01-22T13:31:34.966357Z",
+      "body": "DoD:\\n- Transformation rules + validation.\\n- At least 8 examples (acronyms, digits, dashes, underscores).\\nNotes: PRD B6 (status: open).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-1s5",
+      "title": "Define non-Rust metadata detection presets",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:34.600527Z",
+      "updated_at": "2026-01-22T13:31:34.774257Z",
+      "body": "DoD:\\n- Manifest list (Node/Go/Python/etc).\\n- Field mapping + bin detection table.\\n- Conflict resolution rules + required prompts.\\nNotes: PRD A5b (status: open).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-d72",
+      "title": "Define Rust-first metadata detection",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:34.412152Z",
+      "updated_at": "2026-01-22T13:31:34.572808Z",
+      "body": "DoD:\\n- Cargo.toml parsing rules.\\n- Bin target detection + defaults.\\n- License/homepage fallback rules.\\n- Edge cases: workspace, multi-bin, missing fields.\\nNotes: PRD A5 (status: open).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-mjn",
+      "title": "Specify --import-formula merge/overwrite policy",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:34.228097Z",
+      "updated_at": "2026-01-22T13:31:34.385236Z",
+      "body": "DoD:\\n- Field-level merge table (formula wins for formula fields).\\n- Explicit overwrite prompts.\\n- Non-interactive overwrite policy.\\nNotes: PRD A4 (status: in_progress).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-n6c",
+      "title": "Finalize non-interactive contract per command",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:34.037041Z",
+      "updated_at": "2026-01-22T13:31:34.197535Z",
+      "body": "DoD:\\n- Final table of required fields per command.\\n- Autodetect sources per field.\\n- Exact error text + exit codes.\\nNotes: PRD A3 (status: in_progress).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-hnm",
+      "title": "Lock .distill/config.toml schema + example",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:33.845823Z",
+      "updated_at": "2026-01-22T13:31:34.007328Z",
+      "body": "DoD:\\n- Schema doc + minimal example.\\n- Migration rules for unknown fields.\\nNotes: PRD A2 (status: in_progress).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-h1v",
+      "title": "Define git remote selection + ambiguity rules",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:33.647570Z",
+      "updated_at": "2026-01-22T13:31:33.817055Z",
+      "body": "DoD:\\n- Remote selection order for CLI/tap/artifact repos.\\n- Non-interactive failure behavior.\\n- Exact error messages.\\nNotes: PRD A1c (status: open).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-64g",
+      "title": "Specify tap repo path resolution + auto-clone",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:33.389128Z",
+      "updated_at": "2026-01-22T13:31:33.615952Z",
+      "body": "DoD:\\n- Default path rules + temp dir naming.\\n- Auto-clone behavior when tap remote is known.\\n- Cleanup behavior and required config/flags.\\nNotes: PRD A1b (status: in_progress).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-g2x",
+      "title": "Define repo identity model (CLI/tap/artifact)",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:33.199278Z",
+      "updated_at": "2026-01-22T13:31:33.362467Z",
+      "body": "DoD:\\n- Mapping table (identity -> config fields + flags).\\n- Precedence rules (flags > config > autodetect > prompts).\\n- Examples: single-repo + split-repo.\\nNotes: PRD A1 (status: in_progress).",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-sf1",
+      "title": "TMP test",
+      "status": "open",
+      "priority": "P4",
+      "created_at": "2026-01-22T13:30:30.481452Z",
+      "updated_at": "2026-01-22T13:30:30.481452Z",
+      "body": "tmp",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-8jh",
+      "title": "EPIC: Identity & Config",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:30:09.170840Z",
+      "updated_at": "2026-01-22T13:30:09.170840Z",
+      "body": "Scope: identity resolution + config schema + metadata detection.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    }
+  ]
+}
