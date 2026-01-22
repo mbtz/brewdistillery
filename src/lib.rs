@@ -3,4 +3,7 @@ pub mod commands;
 pub mod config;
 pub mod context;
 pub mod errors;
+pub mod formula;
+pub mod preview;
 pub mod repo_detect;
+pub mod version;
