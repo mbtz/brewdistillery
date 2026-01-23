@@ -1851,3 +1851,80 @@ If you want me to continue, pick one:
 2) Begin implementing `bd init` interactive flow (`sv-2tt`) with prompts + preview scaffolding.
 ```
 
+## 2026-01-23T11:41:11Z
+
+- run_id: 78ed35f9-8f7b-4d43-bfdc-fc86d8576a6c
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T11:31:55Z
+- finished_at: 2026-01-23T11:41:11Z
+- exit_code: 0
+
+```
++
++fn render_asset_template(template: &str, name: &str, version: &str) -> Option<String> {
++    if template.contains("{os}") || template.contains("{arch}") {
++        return None;
++    }
++
++    let mut output = template.to_string();
++    if output.contains("{name}") {
++        output = output.replace("{name}", name);
++    }
++    if output.contains("{version}") {
++        output = output.replace("{version}", version);
++    }
++
++    let trimmed = output.trim();
++    if trimmed.is_empty() {
++        None
++    } else {
++        Some(trimmed.to_string())
++    }
++}
++
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+@@ -354,7 +476,8 @@
+         let dir = tempdir().unwrap();
+         let ctx = base_context(dir.path());
+         let mut args = base_args();
+-        args.tap_path = Some(dir.path().join("tap"));
++        let tap_path = dir.path().join("tap");
++        args.tap_path = Some(tap_path.clone());
+         args.host_owner = Some("acme".to_string());
+         args.host_repo = Some("brewtool".to_string());
+ 
+@@ -364,6 +487,12 @@
+         assert_eq!(config.project.name.as_deref(), Some("brewtool"));
+         assert_eq!(config.tap.formula.as_deref(), Some("brewtool"));
+         assert_eq!(config.cli.owner.as_deref(), Some("acme"));
++
++        let formula_path = tap_path.join("Formula").join("brewtool.rb");
++        let formula = fs::read_to_string(formula_path).unwrap();
++        assert!(formula.contains("class Brewtool < Formula"));
++        assert!(formula.contains("version \"1.2.3\""));
++        assert!(formula.contains("sha256 \"TODO\""));
+     }
+ 
+     #[test]
+
+tokens used
+79 702
+Non‑interactive `bd init` now scaffolds a formula file alongside the config, validates `--version` as semver, and protects against overwrites unless `--force/--yes` is set. It renders a placeholder formula using a GitHub release download URL (based on owner/repo/version and `artifact.asset_name`/`asset_template` when usable) and a `sha256 "TODO"` so the release flow can replace it later. Changes are in `src/commands/init.rs`. The init tests now assert formula output too.
+
+I also created the P0 README task requested in USER_FEEDBACK (`sv-0yt`) and closed `sv-dbs` after implementing the scaffold.
+
+Tests: `cargo test`
+
+If you want me to continue, pick one:
+1) Start `sv-0yt` and draft the early‑install/usage README.
+2) Move on to `sv-2tt` (interactive init flow with prompts + preview).
+```
+
