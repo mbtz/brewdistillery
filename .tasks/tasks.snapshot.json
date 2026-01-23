@@ -1,7 +1,32 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-23T11:13:31.139752Z",
+  "generated_at": "2026-01-23T11:20:29.584796Z",
   "tasks": [
+    {
+      "id": "sv-a9s",
+      "title": "Implement release asset selection helper",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-23T11:17:57.314898Z",
+      "updated_at": "2026-01-23T11:20:29.575215Z",
+      "body": "Build asset selection utility for release assets: exact name, template rendering, OS/arch matching, checksum exclusion, and deterministic tie-breaking with tests.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T11:18:02.531326Z",
+      "closed_at": "2026-01-23T11:20:29.575215Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-xf8",
+      "title": "EPIC: Release & Artifacts",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:32.540537Z",
+      "updated_at": "2026-01-23T11:17:59.881658Z",
+      "body": "Scope: release discovery, asset selection, checksums, idempotency, git flow.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
     {
       "id": "sv-x0t",
       "title": "Write README early-build install + usage instructions",
@@ -137,16 +162,6 @@
       "branch": "main",
       "started_at": "2026-01-22T14:33:39.600912Z",
       "closed_at": "2026-01-22T14:34:48.117083Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-xf8",
-      "title": "EPIC: Release & Artifacts",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:31:32.540537Z",
-      "updated_at": "2026-01-22T14:33:37.079099Z",
-      "body": "Scope: release discovery, asset selection, checksums, idempotency, git flow.\\nDoD: Epics only; child tasks define acceptance criteria.",
       "comments_count": 0
     },
     {
