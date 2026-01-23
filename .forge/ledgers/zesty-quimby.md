@@ -3002,3 +3002,80 @@ Next steps (pick one):
 2) Start `sv-tdq` to implement `--import-formula` merge path.
 ```
 
+## 2026-01-23T13:26:50Z
+
+- run_id: 53c8cc61-81f9-48ed-afc7-9d5113e14df1
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T13:18:23Z
+- finished_at: 2026-01-23T13:26:50Z
+- exit_code: 0
+
+```
++        .collect::<Vec<_>>();
++
++    if remotes.is_empty() {
++        return Err(AppError::GitState("git remote not configured".to_string()));
++    }
++
++    if remotes.iter().any(|remote| *remote == "origin") {
++        return Ok("origin".to_string());
++    }
++
++    if remotes.len() == 1 {
++        return Ok(remotes[0].to_string());
++    }
++
++    Err(AppError::GitState(
++        "multiple git remotes found; configure origin or use a single remote".to_string(),
++    ))
++}
++
++fn run_git(repo: &Path, args: &[&str]) -> Result<std::process::Output, AppError> {
++    let output = Command::new("git")
++        .arg("-C")
++        .arg(repo)
++        .args(args)
++        .output()
++        .map_err(|err| AppError::GitState(format!("failed to run git: {err}")))?;
++
++    if output.status.success() {
++        return Ok(output);
++    }
++
++    let stdout = String::from_utf8_lossy(&output.stdout);
++    let stderr = String::from_utf8_lossy(&output.stderr);
++    let mut message = format!("git command failed: git {}", args.join(" "));
++    if !stdout.trim().is_empty() || !stderr.trim().is_empty() {
++        message.push_str(":\n");
++        if !stdout.trim().is_empty() {
++            message.push_str(stdout.trim());
++            message.push('\n');
++        }
++        if !stderr.trim().is_empty() {
++            message.push_str(stderr.trim());
++        }
++    }
++    Err(AppError::GitState(message))
++}
++
+ fn extract_formula_version(content: &str) -> Option<String> {
+     for line in content.lines() {
+         let trimmed = line.trim();
+
+tokens used
+216 301
+Added release-side git workflow (clean checks, commit formula updates, tagging + push with `--no-push`/`--skip-tag`) and tied it to config templates; also expanded early-install/usage guidance in the README. Key code is in `src/commands/release.rs`, docs in `README.md`.
+
+Tests: `cargo test -q`
+
+If you want to try the new flow:
+1) Run `bd release --dry-run` in a real repo to see the preview without writes.
+2) Set `release.tag_format` or `release.commit_message_template` in `.distill/config.toml` to customize tagging/commit messages.
+```
+
