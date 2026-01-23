@@ -11,6 +11,8 @@ Homebrew formula initialization and release helper. This is an early, in-progres
 
 ## Install (early build)
 
+Homebrew installation is not available yet. Use one of the source-based options below.
+
 Requirements:
 - Rust toolchain (rustup + cargo, stable)
 - Git (for cloning this repo)
@@ -62,7 +64,11 @@ Uninstall:
 cargo uninstall brewdistillery
 ```
 
-## Quick start
+## Usage (early testing)
+
+If you did not install the binary, run via `cargo run --` instead of `bd`.
+
+Quick start:
 
 ```
 bd --help
@@ -90,8 +96,14 @@ bd init --non-interactive \
   --version 0.1.0
 ```
 
-This writes `.distill/config.toml` in the CLI repo. Formula generation and tap
-scaffolding are not implemented yet.
+This writes `.distill/config.toml` in the CLI repo and a placeholder formula in the
+tap path. Tap scaffolding and git automation are still in progress.
+
+Release testing (no git commit/tag/push yet):
+
+```
+bd release --version 0.1.0 --dry-run
+```
 
 ## Current capabilities
 
