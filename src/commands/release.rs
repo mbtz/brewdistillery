@@ -14,6 +14,8 @@ use std::process::Command;
 use tempfile::{Builder as TempBuilder, TempDir};
 
 const DEFAULT_ASSET_MAX_BYTES: u64 = 200 * 1024 * 1024;
+const DEFAULT_TARBALL_URL_TEMPLATE: &str =
+    "https://github.com/{owner}/{repo}/archive/refs/tags/{tag}.tar.gz";
 
 #[derive(Debug)]
 struct ReleaseContext {
@@ -33,6 +35,7 @@ struct ReleaseContext {
     host_repo: String,
     host_api_base: Option<String>,
     tag_format: Option<String>,
+    tarball_url_template: Option<String>,
     commit_message_template: Option<String>,
     install_block: Option<String>,
     template_path: Option<PathBuf>,
@@ -65,54 +68,87 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
 
     let resolved = resolve_release_context(ctx, args, tap_root.path.as_ref())?;
 
-    if resolved.artifact_strategy != "release-asset" {
-        return Err(AppError::InvalidInput(format!(
-            "artifact.strategy '{}' is not supported yet (use 'release-asset')",
-            resolved.artifact_strategy
-        )));
-    }
-
     let client = GitHubClient::from_env(resolved.host_api_base.as_deref())?;
     let version_tag = resolve_version_tag(args.version.as_deref(), args.tag.as_deref())?;
 
-    let release = if let Some(tag) = version_tag.tag.as_deref() {
-        client.release_by_tag(
-            &resolved.host_owner,
-            &resolved.host_repo,
-            tag,
-            args.include_prerelease,
-        )?
-    } else {
-        client.latest_release(
-            &resolved.host_owner,
-            &resolved.host_repo,
-            args.include_prerelease,
-        )?
-    };
+    let (version, tag_to_create, asset_matrix) = match resolved.artifact_strategy.as_str() {
+        "release-asset" => {
+            let release = if let Some(tag) = version_tag.tag.as_deref() {
+                client.release_by_tag(
+                    &resolved.host_owner,
+                    &resolved.host_repo,
+                    tag,
+                    args.include_prerelease,
+                )?
+            } else {
+                client.latest_release(
+                    &resolved.host_owner,
+                    &resolved.host_repo,
+                    args.include_prerelease,
+                )?
+            };
 
-    let release_version = normalized_version_from_tag(&release.tag_name)?;
-    if let Some(expected) = version_tag.version.as_deref() {
-        if expected != release_version {
-            return Err(AppError::InvalidInput(format!(
-                "GitHub release tag '{}' does not match requested version '{}'",
-                release.tag_name, expected
-            )));
+            let release_version = normalized_version_from_tag(&release.tag_name)?;
+            if let Some(expected) = version_tag.version.as_deref() {
+                if expected != release_version {
+                    return Err(AppError::InvalidInput(format!(
+                        "GitHub release tag '{}' does not match requested version '{}'",
+                        release.tag_name, expected
+                    )));
+                }
+            }
+
+            let version = version_tag
+                .version
+                .clone()
+                .unwrap_or(release_version);
+            let tag_to_create = if args.skip_tag {
+                None
+            } else {
+                Some(resolve_tag_name(
+                    &version,
+                    &version_tag,
+                    resolved.tag_format.as_deref(),
+                    &release.tag_name,
+                )?)
+            };
+
+            let asset_matrix = build_assets(&client, &release, &resolved, &version, args.dry_run)?;
+            (version, tag_to_create, asset_matrix)
         }
-    }
-
-    let version = version_tag
-        .version
-        .clone()
-        .unwrap_or(release_version);
-    let tag_to_create = if args.skip_tag {
-        None
-    } else {
-        Some(resolve_tag_name(
-            &version,
-            &version_tag,
-            resolved.tag_format.as_deref(),
-            &release.tag_name,
-        )?)
+        "source-tarball" => {
+            validate_source_tarball_inputs(&resolved)?;
+            let (version, source_tag) = resolve_source_tarball_version_and_tag(
+                &client,
+                &resolved,
+                &version_tag,
+                args.include_prerelease,
+            )?;
+            let tarball = build_tarball_asset(
+                &client,
+                &resolved,
+                &version,
+                &source_tag,
+                args.dry_run,
+            )?;
+            let tag_to_create = if args.skip_tag {
+                None
+            } else {
+                Some(resolve_tag_name(
+                    &version,
+                    &version_tag,
+                    resolved.tag_format.as_deref(),
+                    &source_tag,
+                )?)
+            };
+            (version, tag_to_create, AssetMatrix::Universal(tarball))
+        }
+        _ => {
+            return Err(AppError::InvalidInput(format!(
+                "artifact.strategy '{}' is not supported yet (use 'release-asset' or 'source-tarball')",
+                resolved.artifact_strategy
+            )))
+        }
     };
 
     ensure_formula_target(&resolved.formula_path, &version, args.force)?;
@@ -126,8 +162,6 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
             ensure_clean_repo(cli_root, "cli repo")?;
         }
     }
-
-    let asset_matrix = build_assets(&client, &release, &resolved, &version, args.dry_run)?;
 
     let spec = FormulaSpec {
         name: resolved.formula_name.clone(),
@@ -314,6 +348,7 @@ fn resolve_release_context(
         host_repo,
         host_api_base: config.host.api_base.clone(),
         tag_format: config.release.tag_format.clone(),
+        tarball_url_template: config.release.tarball_url_template.clone(),
         commit_message_template: config.release.commit_message_template.clone(),
         install_block: config.template.install_block.clone(),
         template_path: config.template.path.clone(),
@@ -741,6 +776,159 @@ fn build_assets(
     }
 }
 
+fn validate_source_tarball_inputs(resolved: &ReleaseContext) -> Result<(), AppError> {
+    if resolved.asset_name.is_some() || resolved.asset_template.is_some() {
+        return Err(AppError::InvalidInput(
+            "source-tarball strategy does not support asset_name or asset_template".to_string(),
+        ));
+    }
+    if !resolved.targets.is_empty() {
+        return Err(AppError::InvalidInput(
+            "source-tarball strategy does not support artifact.targets".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+fn resolve_source_tarball_version_and_tag(
+    client: &GitHubClient,
+    resolved: &ReleaseContext,
+    version_tag: &ResolvedVersionTag,
+    include_prerelease: bool,
+) -> Result<(String, String), AppError> {
+    let mut release_tag: Option<String> = None;
+    let version = if let Some(version) = version_tag.version.clone() {
+        version
+    } else {
+        let release = client.latest_release(
+            &resolved.host_owner,
+            &resolved.host_repo,
+            include_prerelease,
+        )?;
+        release_tag = Some(release.tag_name.clone());
+        normalized_version_from_tag(&release.tag_name)?
+    };
+
+    let source_tag = resolve_source_tarball_tag(
+        version_tag,
+        resolved.tag_format.as_deref(),
+        release_tag.as_deref(),
+        &version,
+    )?;
+
+    Ok((version, source_tag))
+}
+
+fn resolve_source_tarball_tag(
+    version_tag: &ResolvedVersionTag,
+    tag_format: Option<&str>,
+    release_tag: Option<&str>,
+    version: &str,
+) -> Result<String, AppError> {
+    if let Some(tag) = version_tag.tag.as_deref() {
+        return Ok(tag.to_string());
+    }
+
+    if let Some(tag) = release_tag.map(str::trim).filter(|value| !value.is_empty()) {
+        return Ok(tag.to_string());
+    }
+
+    if let Some(format) = tag_format.map(str::trim).filter(|value| !value.is_empty()) {
+        if format.contains("{version}") {
+            return Ok(format.replace("{version}", version));
+        }
+        return Ok(format.to_string());
+    }
+
+    if version.trim().is_empty() {
+        return Err(AppError::InvalidInput(
+            "source-tarball requires a non-empty version".to_string(),
+        ));
+    }
+
+    Ok(version.to_string())
+}
+
+fn build_tarball_asset(
+    client: &GitHubClient,
+    resolved: &ReleaseContext,
+    version: &str,
+    tag: &str,
+    dry_run: bool,
+) -> Result<FormulaAsset, AppError> {
+    let url = render_tarball_url(
+        resolved.tarball_url_template.as_deref(),
+        &resolved.host_owner,
+        &resolved.host_repo,
+        tag,
+        version,
+    )?;
+
+    let sha256 = if dry_run {
+        println!("dry-run: would download {}", url);
+        "DRY-RUN".to_string()
+    } else {
+        client.download_sha256(&url, Some(DEFAULT_ASSET_MAX_BYTES))?
+    };
+
+    Ok(FormulaAsset { url, sha256 })
+}
+
+fn render_tarball_url(
+    template: Option<&str>,
+    owner: &str,
+    repo: &str,
+    tag: &str,
+    version: &str,
+) -> Result<String, AppError> {
+    let owner = owner.trim();
+    let repo = repo.trim();
+    if owner.is_empty() || repo.is_empty() {
+        return Err(AppError::InvalidInput(
+            "tarball_url_template requires host owner and repo".to_string(),
+        ));
+    }
+
+    let template = template
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(DEFAULT_TARBALL_URL_TEMPLATE);
+
+    let mut output = template.to_string();
+
+    if output.contains("{owner}") {
+        output = output.replace("{owner}", owner);
+    }
+    if output.contains("{repo}") {
+        output = output.replace("{repo}", repo);
+    }
+    if output.contains("{tag}") {
+        if tag.trim().is_empty() {
+            return Err(AppError::InvalidInput(
+                "tarball_url_template requires {tag}".to_string(),
+            ));
+        }
+        output = output.replace("{tag}", tag);
+    }
+    if output.contains("{version}") {
+        if version.trim().is_empty() {
+            return Err(AppError::InvalidInput(
+                "tarball_url_template requires {version}".to_string(),
+            ));
+        }
+        output = output.replace("{version}", version);
+    }
+
+    let trimmed = output.trim();
+    if trimmed.is_empty() {
+        return Err(AppError::InvalidInput(
+            "tarball_url_template rendered empty output".to_string(),
+        ));
+    }
+
+    Ok(trimmed.to_string())
+}
+
 fn select_asset_for_release(
     client: &GitHubClient,
     release: &Release,
@@ -955,5 +1143,49 @@ end
         let formula = PathBuf::from("/tmp/homebrew-brewtool/Formula/brewtool.rb");
         let root = tap_root_from_formula_path(&formula).unwrap();
         assert_eq!(root, PathBuf::from("/tmp/homebrew-brewtool"));
+    }
+
+    #[test]
+    fn renders_default_tarball_url() {
+        let url = render_tarball_url(
+            None,
+            "acme",
+            "brewtool",
+            "v1.2.3",
+            "1.2.3",
+        )
+        .unwrap();
+        assert_eq!(
+            url,
+            "https://github.com/acme/brewtool/archive/refs/tags/v1.2.3.tar.gz"
+        );
+    }
+
+    #[test]
+    fn renders_custom_tarball_template() {
+        let url = render_tarball_url(
+            Some("https://example.com/{owner}/{repo}/releases/{tag}/{version}.tgz"),
+            "acme",
+            "brewtool",
+            "v1.2.3",
+            "1.2.3",
+        )
+        .unwrap();
+        assert_eq!(
+            url,
+            "https://example.com/acme/brewtool/releases/v1.2.3/1.2.3.tgz"
+        );
+    }
+
+    #[test]
+    fn source_tarball_tag_prefers_explicit_tag() {
+        let version_tag = ResolvedVersionTag {
+            version: Some("1.2.3".to_string()),
+            tag: Some("v1.2.3".to_string()),
+            normalized_tag: Some("1.2.3".to_string()),
+        };
+
+        let tag = resolve_source_tarball_tag(&version_tag, None, None, "1.2.3").unwrap();
+        assert_eq!(tag, "v1.2.3");
     }
 }

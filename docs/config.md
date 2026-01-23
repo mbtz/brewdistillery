@@ -67,7 +67,8 @@ See `docs/asset-selection.md` for the selection rules and OS/arch normalization.
 
 ### [release]
 - `tag_format` (string): tag formatting template (default is plain version).
-- `tarball_url_template` (string): template for source tarball URLs.
+- `tarball_url_template` (string): template for source tarball URLs. Placeholders:
+  `{owner}`, `{repo}`, `{tag}`, `{version}`. Defaults to GitHub tag tarball URL.
 - `commit_message_template` (string): commit message template for tap updates.
 
 ### [version_update]
