@@ -1,7 +1,22 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-23T13:34:08.188722Z",
+  "generated_at": "2026-01-23T13:43:38.924712Z",
   "tasks": [
+    {
+      "id": "sv-tdq",
+      "title": "Implement bd init --import-formula merge path",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:42:08.910861Z",
+      "updated_at": "2026-01-23T13:43:38.913245Z",
+      "body": "Acceptance:\\n- reads existing Formula/*.rb and extracts fields per merge policy\\n- config fills gaps only; formula remains source-of-truth\\n- non-interactive mode refuses overwrite without --force",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T13:37:51.393787Z",
+      "closed_at": "2026-01-23T13:43:38.913245Z",
+      "comments_count": 0
+    },
     {
       "id": "sv-2tt",
       "title": "Implement bd init interactive flow (detect, prompt, preview, write)",
@@ -774,16 +789,6 @@
       "created_at": "2026-01-22T13:31:32.706063Z",
       "updated_at": "2026-01-22T13:42:55.907839Z",
       "body": "Scope: GitHub API tap creation + host abstraction trait.\\nDoD: Epics only; child tasks define acceptance criteria.",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-tdq",
-      "title": "Implement bd init --import-formula merge path",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-22T13:42:08.910861Z",
-      "updated_at": "2026-01-22T13:42:11.456344Z",
-      "body": "Acceptance:\\n- reads existing Formula/*.rb and extracts fields per merge policy\\n- config fills gaps only; formula remains source-of-truth\\n- non-interactive mode refuses overwrite without --force",
       "comments_count": 0
     },
     {

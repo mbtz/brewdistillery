@@ -292,8 +292,16 @@ fn run_interactive(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError> {
 }
 
 fn run_non_interactive(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError> {
-    let mut resolved = resolve_required(ctx, args)?;
+    let mut resolved = resolve_required(ctx, args, args.import_formula)?;
     resolve_tap_repo(ctx, args, &mut resolved)?;
+
+    let mut imported = None;
+    if args.import_formula {
+        let loaded = load_imported_formula(&ctx.config, &resolved)?;
+        apply_imported_formula(&mut resolved, &loaded)?;
+        ensure_import_fields(&resolved)?;
+        imported = Some(loaded);
+    }
 
     let mut next_config = ctx.config.clone();
     apply_resolved(&mut next_config, &resolved);
@@ -301,14 +309,24 @@ fn run_non_interactive(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError
     let rendered = render_config(&next_config, &ctx.config_path)?;
     let existing = read_optional(&ctx.config_path)?;
 
-    let formula_path = resolve_formula_path(&resolved, &next_config);
-    let formula_content = match formula_path.as_ref() {
-        Some(_) => Some(render_formula(&resolved, &next_config)?),
-        None => None,
-    };
-    let existing_formula = match formula_path.as_ref() {
-        Some(path) => read_optional(path)?,
-        None => None,
+    let (formula_path, formula_content, existing_formula) = if args.import_formula {
+        let imported = imported.as_ref().expect("imported formula required");
+        (
+            Some(imported.path.clone()),
+            None,
+            Some(imported.content.clone()),
+        )
+    } else {
+        let formula_path = resolve_formula_path(&resolved, &next_config);
+        let formula_content = match formula_path.as_ref() {
+            Some(_) => Some(render_formula(&resolved, &next_config)?),
+            None => None,
+        };
+        let existing_formula = match formula_path.as_ref() {
+            Some(path) => read_optional(path)?,
+            None => None,
+        };
+        (formula_path, formula_content, existing_formula)
     };
 
     if let Some(existing) = existing.as_deref() {
@@ -354,7 +372,11 @@ fn run_non_interactive(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError
     Ok(())
 }
 
-fn resolve_required(ctx: &AppContext, args: &InitArgs) -> Result<ResolvedInit, AppError> {
+fn resolve_required(
+    ctx: &AppContext,
+    args: &InitArgs,
+    allow_formula_missing: bool,
+) -> Result<ResolvedInit, AppError> {
     let metadata = ctx.repo.metadata.as_ref();
     let mut missing = Vec::new();
 
@@ -364,7 +386,9 @@ fn resolve_required(ctx: &AppContext, args: &InitArgs) -> Result<ResolvedInit, A
         metadata.and_then(|meta| meta.description.as_ref()),
     )
     .unwrap_or_else(|| {
-        missing.push("description".to_string());
+        if !allow_formula_missing {
+            missing.push("description".to_string());
+        }
         String::new()
     });
 
@@ -374,7 +398,9 @@ fn resolve_required(ctx: &AppContext, args: &InitArgs) -> Result<ResolvedInit, A
         metadata.and_then(|meta| meta.homepage.as_ref()),
     )
     .unwrap_or_else(|| {
-        missing.push("homepage".to_string());
+        if !allow_formula_missing {
+            missing.push("homepage".to_string());
+        }
         String::new()
     });
 
@@ -384,7 +410,9 @@ fn resolve_required(ctx: &AppContext, args: &InitArgs) -> Result<ResolvedInit, A
         metadata.and_then(|meta| meta.license.as_ref()),
     )
     .unwrap_or_else(|| {
-        missing.push("license".to_string());
+        if !allow_formula_missing {
+            missing.push("license".to_string());
+        }
         String::new()
     });
 
@@ -398,7 +426,9 @@ fn resolve_required(ctx: &AppContext, args: &InitArgs) -> Result<ResolvedInit, A
             resolved.version.unwrap_or(value)
         }
         None => {
-            missing.push("version".to_string());
+            if !allow_formula_missing {
+                missing.push("version".to_string());
+            }
             String::new()
         }
     };
@@ -442,7 +472,9 @@ fn resolve_required(ctx: &AppContext, args: &InitArgs) -> Result<ResolvedInit, A
             .or_else(|| metadata.and_then(|meta| meta.name.as_ref())),
     )
     .unwrap_or_else(|| {
-        missing.push("formula-name".to_string());
+        if !allow_formula_missing {
+            missing.push("formula-name".to_string());
+        }
         String::new()
     });
 
@@ -452,12 +484,12 @@ fn resolve_required(ctx: &AppContext, args: &InitArgs) -> Result<ResolvedInit, A
         normalize_formula_name(&formula_source)?
     };
 
-    if formula_name.is_empty() {
+    if formula_name.is_empty() && !allow_formula_missing {
         missing.push("formula-name".to_string());
     }
 
     let bins = resolve_bins(args, &ctx.config, metadata);
-    if bins.is_empty() {
+    if bins.is_empty() && !allow_formula_missing {
         missing.push("bin-name".to_string());
     }
 
@@ -500,6 +532,232 @@ fn resolve_required(ctx: &AppContext, args: &InitArgs) -> Result<ResolvedInit, A
         asset_template,
         allow_overwrite: args.force || args.yes,
     })
+}
+
+#[derive(Debug, Default, Clone)]
+struct ParsedFormula {
+    desc: Option<String>,
+    homepage: Option<String>,
+    license: Option<String>,
+    version: Option<String>,
+    bins: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+struct ImportedFormula {
+    path: PathBuf,
+    content: String,
+    name: String,
+    parsed: ParsedFormula,
+}
+
+fn load_imported_formula(config: &Config, resolved: &ResolvedInit) -> Result<ImportedFormula, AppError> {
+    let formula_path = if let Some(path) = config.tap.formula_path.clone() {
+        path
+    } else if !resolved.formula_name.trim().is_empty() {
+        let tap_path = resolved.tap_path.as_ref().ok_or_else(|| {
+            AppError::MissingConfig(
+                "missing tap path; set --tap-path or --tap-remote to import formula".to_string(),
+            )
+        })?;
+        tap_path
+            .join("Formula")
+            .join(format!("{}.rb", resolved.formula_name))
+    } else {
+        let tap_path = resolved.tap_path.as_ref().ok_or_else(|| {
+            AppError::MissingConfig(
+                "missing tap path; set --tap-path or --tap-remote to import formula".to_string(),
+            )
+        })?;
+        let formula_dir = tap_path.join("Formula");
+        if !formula_dir.exists() {
+            return Err(AppError::InvalidInput(format!(
+                "tap formula directory not found at {}",
+                formula_dir.display()
+            )));
+        }
+        let mut candidates = Vec::new();
+        for entry in fs::read_dir(&formula_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.extension().and_then(|ext| ext.to_str()) == Some("rb") {
+                candidates.push(path);
+            }
+        }
+        match candidates.len() {
+            0 => {
+                return Err(AppError::InvalidInput(format!(
+                    "no formula files found in {}",
+                    formula_dir.display()
+                )))
+            }
+            1 => candidates.remove(0),
+            _ => {
+                return Err(AppError::InvalidInput(
+                    "multiple formula files found; pass --formula-name to select one"
+                        .to_string(),
+                ))
+            }
+        }
+    };
+
+    if !formula_path.exists() {
+        return Err(AppError::InvalidInput(format!(
+            "formula not found at {}",
+            formula_path.display()
+        )));
+    }
+    if formula_path.is_dir() {
+        return Err(AppError::InvalidInput(format!(
+            "formula path is a directory: {}",
+            formula_path.display()
+        )));
+    }
+
+    let content = fs::read_to_string(&formula_path)?;
+    let parsed = parse_formula_fields(&content);
+    let name = formula_path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .map(|value| normalize_formula_name(value))
+        .transpose()?
+        .ok_or_else(|| {
+            AppError::InvalidInput(format!(
+                "failed to derive formula name from {}",
+                formula_path.display()
+            ))
+        })?;
+
+    Ok(ImportedFormula {
+        path: formula_path,
+        content,
+        name,
+        parsed,
+    })
+}
+
+fn apply_imported_formula(
+    resolved: &mut ResolvedInit,
+    imported: &ImportedFormula,
+) -> Result<(), AppError> {
+    if !resolved.formula_name.trim().is_empty() && resolved.formula_name != imported.name {
+        return Err(AppError::InvalidInput(format!(
+            "formula name '{}' does not match existing formula '{}'",
+            resolved.formula_name, imported.name
+        )));
+    }
+
+    resolved.formula_name = imported.name.clone();
+
+    if let Some(value) = imported.parsed.desc.as_ref() {
+        resolved.description = value.clone();
+    }
+    if let Some(value) = imported.parsed.homepage.as_ref() {
+        resolved.homepage = value.clone();
+    }
+    if let Some(value) = imported.parsed.license.as_ref() {
+        resolved.license = value.clone();
+    }
+    if let Some(value) = imported.parsed.version.as_ref() {
+        let resolved_version = resolve_version_tag(Some(value.as_str()), None)?;
+        resolved.version = resolved_version.version.unwrap_or_else(|| value.clone());
+    }
+    if !imported.parsed.bins.is_empty() {
+        resolved.bins = normalize_bins(imported.parsed.bins.clone());
+    }
+
+    Ok(())
+}
+
+fn ensure_import_fields(resolved: &ResolvedInit) -> Result<(), AppError> {
+    let mut missing = Vec::new();
+    if resolved.formula_name.trim().is_empty() {
+        missing.push("formula-name".to_string());
+    }
+    if resolved.description.trim().is_empty() {
+        missing.push("description".to_string());
+    }
+    if resolved.homepage.trim().is_empty() {
+        missing.push("homepage".to_string());
+    }
+    if resolved.license.trim().is_empty() {
+        missing.push("license".to_string());
+    }
+    if resolved.version.trim().is_empty() {
+        missing.push("version".to_string());
+    }
+    if resolved.bins.is_empty() {
+        missing.push("bin-name".to_string());
+    }
+    if !missing.is_empty() {
+        missing.sort();
+        missing.dedup();
+        return Err(AppError::MissingConfig(format!(
+            "missing required fields for --import-formula: {}",
+            missing.join(", ")
+        )));
+    }
+    Ok(())
+}
+
+fn parse_formula_fields(content: &str) -> ParsedFormula {
+    let mut parsed = ParsedFormula::default();
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if parsed.desc.is_none() && trimmed.starts_with("desc ") {
+            parsed.desc = first_quoted_value(trimmed);
+            continue;
+        }
+        if parsed.homepage.is_none() && trimmed.starts_with("homepage ") {
+            parsed.homepage = first_quoted_value(trimmed);
+            continue;
+        }
+        if parsed.license.is_none() && trimmed.starts_with("license ") {
+            parsed.license = first_quoted_value(trimmed);
+            continue;
+        }
+        if parsed.version.is_none() && trimmed.starts_with("version ") {
+            parsed.version = first_quoted_value(trimmed);
+            continue;
+        }
+        if trimmed.contains("bin.install") {
+            parsed.bins.extend(extract_quoted_strings(trimmed));
+        }
+    }
+
+    parsed
+}
+
+fn first_quoted_value(input: &str) -> Option<String> {
+    extract_quoted_strings(input).into_iter().next()
+}
+
+fn extract_quoted_strings(input: &str) -> Vec<String> {
+    let mut values = Vec::new();
+    let mut chars = input.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch == '"' || ch == '\'' {
+            let quote = ch;
+            let mut value = String::new();
+            while let Some(next) = chars.next() {
+                if next == quote {
+                    break;
+                }
+                if next == '\\' {
+                    if let Some(escaped) = chars.next() {
+                        value.push(escaped);
+                    }
+                } else {
+                    value.push(next);
+                }
+            }
+            let trimmed = value.trim();
+            if !trimmed.is_empty() {
+                values.push(trimmed.to_string());
+            }
+        }
+    }
+    values
 }
 
 fn resolve_tap_repo(
@@ -1188,6 +1446,55 @@ mod tests {
 
         args.force = true;
         run_non_interactive(&ctx, &args).unwrap();
+    }
+
+    #[test]
+    fn import_formula_prefers_formula_fields() {
+        let dir = tempdir().unwrap();
+        let ctx = base_context(dir.path());
+        let tap_path = dir.path().join("tap");
+        let formula_dir = tap_path.join("Formula");
+        fs::create_dir_all(&formula_dir).unwrap();
+        let formula_path = formula_dir.join("brewtool.rb");
+        let content = r#"class Brewtool < Formula
+  desc "From formula"
+  homepage "https://formula.example"
+  url "https://example.com/brewtool-9.9.9.tar.gz"
+  sha256 "abc"
+  license "Apache-2.0"
+  version "9.9.9"
+
+  def install
+    bin.install "brewtool", "brewtool-helper"
+  end
+end
+"#;
+
+        fs::write(&formula_path, content).unwrap();
+
+        let mut args = base_args();
+        args.import_formula = true;
+        args.tap_path = Some(tap_path);
+        args.host_owner = Some("acme".to_string());
+        args.host_repo = Some("brewtool".to_string());
+
+        run_non_interactive(&ctx, &args).unwrap();
+
+        let config = Config::load(&ctx.config_path).unwrap();
+        assert_eq!(config.project.description.as_deref(), Some("From formula"));
+        assert_eq!(
+            config.project.homepage.as_deref(),
+            Some("https://formula.example")
+        );
+        assert_eq!(config.project.license.as_deref(), Some("Apache-2.0"));
+        assert_eq!(
+            config.project.bin,
+            vec!["brewtool".to_string(), "brewtool-helper".to_string()]
+        );
+        assert_eq!(config.tap.formula.as_deref(), Some("brewtool"));
+
+        let formula_after = fs::read_to_string(&formula_path).unwrap();
+        assert_eq!(formula_after, content);
     }
 
     #[test]
