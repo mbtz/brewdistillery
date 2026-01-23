@@ -6,8 +6,8 @@ Homebrew formula initialization and release helper. This is an early, in-progres
 
 - Early development (pre-Homebrew). Expect incomplete behavior.
 - CLI commands are available (`bd init`, `bd release`, `bd doctor`), but some workflows are still stubbed.
-- `bd init` is non-interactive only for now and writes `.distill/config.toml` plus a placeholder formula.
-- `bd release` fetches GitHub releases, selects assets, computes SHA256, and updates the formula with a preview (no git commit/tag/push yet).
+- `bd init` is interactive by default (use `--non-interactive` for CI) and writes `.distill/config.toml` plus a starter formula.
+- `bd release` fetches GitHub releases, selects assets, computes SHA256, updates the formula with a preview, and commits/pushes by default (use `--no-push` or `--skip-tag`).
 
 ## Install (early build)
 
@@ -97,9 +97,9 @@ bd release --help
 bd doctor --help
 ```
 
-If you want to test against a real repo, run `bd init --non-interactive` from inside
-the CLI repository (public GitHub remotes only in v0). Metadata detection currently
-supports `Cargo.toml`, `package.json`, `pyproject.toml`, and `go.mod`.
+If you want to test against a real repo, run `bd init` from inside the CLI repository
+(public GitHub remotes only in v0). Metadata detection currently supports `Cargo.toml`,
+`package.json`, `pyproject.toml`, and `go.mod`.
 
 Example (explicit fields):
 
@@ -134,7 +134,7 @@ bd init --non-interactive --dry-run \
   --version 0.1.0
 ```
 
-Release testing (no git commit/tag/push yet):
+Release testing (writes formula + commit by default; use `--dry-run` or `--no-push`):
 
 ```
 bd release --version 0.1.0 --dry-run
@@ -146,9 +146,9 @@ requested version. If asset selection fails, pass `--asset-name` or
 
 ## Current capabilities
 
-- `bd init --non-interactive`: writes `.distill/config.toml` and a placeholder formula file.
-- `bd release`: fetches the GitHub release, selects assets, computes SHA256, and updates the formula with a preview (no git commit/tag/push yet).
-- `bd doctor`: CLI wiring only (checks are still stubbed).
+- `bd init` (interactive or `--non-interactive`): writes `.distill/config.toml` and a starter formula file with preview support.
+- `bd release`: fetches the GitHub release, selects assets, computes SHA256, updates the formula, and commits/pushes to the tap (use `--no-push` and `--skip-tag` to opt out).
+- `bd doctor`: validates required config fields, checks tap/formula paths, and optionally runs `brew audit --new-formula`.
 
 If you run into missing fields in non-interactive mode, provide explicit flags for
 all required inputs (see `bd init --help`).
