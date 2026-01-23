@@ -6,4 +6,4 @@
 - Confirmed uncommitted ledger changes should be committed as a separate chore (resolved 2026-01-23).
 
 ## Decisions needed
-- None.
+- Unrelated change detected in `.forge/ledgers/zesty-quimby.md`. Should I include it in a separate chore commit or leave it untouched?

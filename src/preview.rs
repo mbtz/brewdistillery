@@ -1,7 +1,9 @@
 use crate::errors::AppError;
 use similar::TextDiff;
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
+use tempfile::{NamedTempFile, PersistError};
 
 #[derive(Debug, Clone)]
 pub struct PlannedWrite {
@@ -29,10 +31,7 @@ pub fn preview_and_apply(plans: &[RepoPlan], dry_run: bool) -> Result<PreviewOut
     if !dry_run {
         for plan in plans {
             for write in &plan.writes {
-                if let Some(parent) = write.path.parent() {
-                    fs::create_dir_all(parent)?;
-                }
-                fs::write(&write.path, &write.content)?;
+                write_atomic(&write.path, &write.content)?;
             }
         }
     }
@@ -100,6 +99,37 @@ fn read_optional(path: &Path) -> Result<Option<String>, AppError> {
         return Ok(None);
     }
     Ok(Some(fs::read_to_string(path)?))
+}
+
+fn write_atomic(path: &Path, content: &str) -> Result<(), AppError> {
+    let parent = path.parent().ok_or_else(|| {
+        AppError::InvalidInput(format!("invalid path for write: {}", path.display()))
+    })?;
+    fs::create_dir_all(parent)?;
+
+    let mut temp = NamedTempFile::new_in(parent)?;
+    temp.write_all(content.as_bytes())?;
+    temp.flush()?;
+    temp.as_file().sync_all()?;
+
+    persist_atomic(temp, path)?;
+    Ok(())
+}
+
+fn persist_atomic(temp: NamedTempFile, path: &Path) -> Result<(), AppError> {
+    match temp.persist(path) {
+        Ok(_) => Ok(()),
+        Err(PersistError { error, file }) => {
+            if path.exists() {
+                fs::remove_file(path)?;
+                file.persist(path)
+                    .map(|_| ())
+                    .map_err(|err| AppError::Io(err.error))
+            } else {
+                Err(AppError::Io(error))
+            }
+        }
+    }
 }
 
 #[cfg(test)]

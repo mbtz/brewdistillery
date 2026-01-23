@@ -4461,3 +4461,157 @@ Next steps (pick one):
 2) Start the next highest-priority open task (e.g., release asset selection or cross-platform formula assets).
 ```
 
+## 2026-01-23T15:27:32Z
+
+- run_id: 12c534a6-d907-4e42-971c-b4c057c0b8ae
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T15:25:11Z
+- finished_at: 2026-01-23T15:27:32Z
+- exit_code: 0
+
+```
+- Updated documentation in `README.md` to reflect changes.  
+- Made a separate chore commit addressing the ledger functionality.  
+- No tests were run or modified during this work.  
+- No changes made to `USER_TODO.md`.  
+
+Next steps:  
+1) Review the updated `README.md`.  
+2) Choose the next task from the task list to continue progress.
+codex
+Updated the early-install README guidance and tracked the work in sv tasks, plus committed the pre-existing ledger change as a separate chore.
+
+- Added a P0 task for README install/usage instructions and closed it after updates (`sv-j2d`), with task metadata stored in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`.
+- Clarified local clone install steps and added a quick `bd --help` check in `README.md`.
+- Committed the existing ledger update separately as `chore: update ledger`.
+
+Tests: not run.
+
+Next steps (pick one):
+1) Review the README wording for any preferred tweaks.
+2) Start the next highest-priority open task (e.g., release asset selection or cross-platform assets).
+file update:
+diff --git a/README.md b/README.md
+index 025c295edc2aff64058244a4d12666020d71a2aa..0dd924b546c3c1160a39f093bb80b751b1860362
+--- a/README.md
++++ b/README.md
+@@ -19,6 +19,12 @@
+ - Homebrew (optional; only needed for `bd doctor --audit` or `bd init --tap-new`)
+ - Binary name is `bd` (crate name is `brewdistillery`).
+ 
++Already have a local clone? Install from the workspace:
++
++```
++cargo install --path . --locked --bin bd
++```
++
+ Recommended quick path (clone + local install):
+ 
+ ```
+@@ -36,6 +42,7 @@
+ cargo install --path . --locked
+ # or explicitly:
+ cargo install --path . --locked --bin bd
++bd --help
+ ```
+ 
+ Binary path:
+
+tokens used
+23 182
+Updated the early-install README guidance and tracked the work in sv tasks, plus committed the pre-existing ledger change as a separate chore.
+
+- Added a P0 task for README install/usage instructions and closed it after updates (`sv-j2d`), with task metadata stored in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`.
+- Clarified local clone install steps and added a quick `bd --help` check in `README.md`.
+- Committed the existing ledger update separately as `chore: update ledger`.
+
+Tests: not run.
+
+Next steps (pick one):
+1) Review the README wording for any preferred tweaks.
+2) Start the next highest-priority open task (e.g., release asset selection or cross-platform assets).
+```
+
+## 2026-01-23T15:32:30Z
+
+- run_id: 9d81197e-46f6-4cbe-bff8-ffbbe120ee85
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T15:28:02Z
+- finished_at: 2026-01-23T15:32:30Z
+- exit_code: 0
+
+```
+-                fs::write(&write.path, &write.content)?;
++                write_atomic(&write.path, &write.content)?;
+             }
+         }
+     }
+@@ -102,6 +101,37 @@
+     Ok(Some(fs::read_to_string(path)?))
+ }
+ 
++fn write_atomic(path: &Path, content: &str) -> Result<(), AppError> {
++    let parent = path.parent().ok_or_else(|| {
++        AppError::InvalidInput(format!("invalid path for write: {}", path.display()))
++    })?;
++    fs::create_dir_all(parent)?;
++
++    let mut temp = NamedTempFile::new_in(parent)?;
++    temp.write_all(content.as_bytes())?;
++    temp.flush()?;
++    temp.as_file().sync_all()?;
++
++    persist_atomic(temp, path)?;
++    Ok(())
++}
++
++fn persist_atomic(temp: NamedTempFile, path: &Path) -> Result<(), AppError> {
++    match temp.persist(path) {
++        Ok(_) => Ok(()),
++        Err(PersistError { error, file }) => {
++            if path.exists() {
++                fs::remove_file(path)?;
++                file.persist(path)
++                    .map(|_| ())
++                    .map_err(|err| AppError::Io(err.error))
++            } else {
++                Err(AppError::Io(error))
++            }
++        }
++    }
++}
++
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+
+tokens used
+98 961
+Switched preview writes to an atomic temp‑file persist so init/release previews don’t leave partial files if a write fails. This is in `src/preview.rs`.
+
+- Closed task `sv-wgt` (preview/confirm UX + atomic writes).
+- Created new task `sv-6aq` for README install/usage instructions per `USER_FEEDBACK.md`.
+- Updated `USER_TODO.md` with a question about an unexpected ledger change.
+
+Tests: `cargo test -q`
+
+**Need your input**
+- `.forge/ledgers/zesty-quimby.md` has unrelated changes. Should I commit it in a separate chore commit, or leave it untouched? (Tracked in `USER_TODO.md`.)
+
+Next steps (pick one):
+1) Tell me how to handle the ledger change, and I’ll proceed with commits + push.
+2) Ask me to start the new README task (`sv-6aq`).
+```
+
