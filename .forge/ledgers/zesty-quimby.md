@@ -2233,3 +2233,80 @@ Next steps (pick one)
 3) Start `sv-64g` to define tap path resolution + auto-clone behavior.
 ```
 
+## 2026-01-23T12:00:18Z
+
+- run_id: 15851ad3-fe92-49e9-9163-dad2de8f5c18
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T11:57:30Z
+- finished_at: 2026-01-23T12:00:18Z
+- exit_code: 0
+
+```
+2) Start task sv-64g for feature enhancements.  
+3) Review other open tasks to prioritize next work.
+codex
+Using sv-issue-tracking + workflow-pattern + session-protocol to add the README task, implement it, and run the git checklist.
+
+Updated the early-build README install/usage guidance and recorded the sv task lifecycle in `.tasks/` along with a separate chore commit for the ledger update. 
+- README changes: `README.md`
+- Task tracking updates: `.tasks/tasks.jsonl`, `.tasks/tasks.snapshot.json`
+
+Tests not run (docs/task-only change).
+
+Next steps (pick one):
+1) Start `sv-d7t` to design the `bd init` prompt flow + mapping.
+2) Start `sv-64g` to define tap path resolution + auto-clone behavior.
+3) Start `sv-7ye` to validate/close formula naming rules against existing docs.
+file update:
+diff --git a/README.md b/README.md
+index 1e8d7c93a8e64a689f64dfe7242c136a16b26af2..438b22e549b4beb46e5bf25581013a644daa6861
+--- a/README.md
++++ b/README.md
+@@ -12,7 +12,7 @@
+ ## Install (early build)
+ 
+ Requirements:
+-- Rust toolchain (rustup + cargo)
++- Rust toolchain (rustup + cargo, stable)
+ - Git (for cloning this repo)
+ 
+ Option A: build from source (release binary)
+@@ -93,6 +93,15 @@
+ This writes `.distill/config.toml` in the CLI repo. Formula generation and tap
+ scaffolding are not implemented yet.
+ 
++## Current capabilities
++
++- `bd init --non-interactive`: writes `.distill/config.toml` and a placeholder formula file.
++- `bd release`: validates `--version`/`--tag` and exits (no git or formula updates yet).
++- `bd doctor`: CLI wiring only (checks are still stubbed).
++
++If you run into missing fields in non-interactive mode, provide explicit flags for
++all required inputs (see `bd init --help`).
++
+ ## Config location
+ 
+ By default, config is read from and written to:
+
+tokens used
+36 079
+Using sv-issue-tracking + workflow-pattern + session-protocol to add the README task, implement it, and run the git checklist.
+
+Updated the early-build README install/usage guidance and recorded the sv task lifecycle in `.tasks/` along with a separate chore commit for the ledger update. 
+- README changes: `README.md`
+- Task tracking updates: `.tasks/tasks.jsonl`, `.tasks/tasks.snapshot.json`
+
+Tests not run (docs/task-only change).
+
+Next steps (pick one):
+1) Start `sv-d7t` to design the `bd init` prompt flow + mapping.
+2) Start `sv-64g` to define tap path resolution + auto-clone behavior.
+3) Start `sv-7ye` to validate/close formula naming rules against existing docs.
+```
+
