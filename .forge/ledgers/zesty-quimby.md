@@ -3464,3 +3464,79 @@ Next steps (pick one):
 3) Draft error strategy + exit code catalog (sv-hp2).
 ```
 
+## 2026-01-23T14:01:41Z
+
+- run_id: 300a938a-476e-4252-b5a7-c62f3a3b598c
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T13:58:13Z
+- finished_at: 2026-01-23T14:01:41Z
+- exit_code: 0
+
+```
+**Tests**
+- Not run (docs and task-only updates)
+
+**Next steps**
+1) Pick next P0 tasks: sv-apm (cross-platform asset config and formula output) or sv-872 (release discovery policy)
+2) Implement matching logic in Rust after spec finalization
+
+No explicit user actions needed.
+codex
+Added a release asset selection spec (with OS/arch normalization and error messaging) and linked it from the config schema doc, then closed sv-rae. Also created and closed the P0 README install/usage task from USER_FEEDBACK since `README.md` already covers early-build install and usage.
+
+**Changes**
+- `docs/asset-selection.md` new spec: selection precedence, heuristics, multi-target behavior, OS/arch table, and failure messages.
+- `docs/config.md` reference to the new asset selection rules doc.
+- `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json` updated for sv-rae and sv-4ht lifecycle changes.
+
+**Commits**
+- `chore: update ledger entry` (separate commit for pre-existing .forge change)
+- `docs: specify asset selection rules`
+
+**Tests**
+- Not run (docs/task updates only).
+
+**Next steps**
+1) Tackle sv-apm (cross-platform asset config + formula output examples).
+2) Tackle sv-872 (release discovery policy + error messaging).
+file update:
+diff --git a/docs/config.md b/docs/config.md
+index 10efc6d0332c47cb1299053def057d89899a3219..e8b1385b54d3ad8198afaf92a1a6d131d82e6ddf
+--- a/docs/config.md
++++ b/docs/config.md
+@@ -59,6 +59,7 @@
+   `mycli-{version}-{os}-{arch}.tar.gz`
+ - `asset_name` (string): explicit asset name override.
+ - `targets` (table-of-tables): per-target overrides for OS/arch splits.
++See `docs/asset-selection.md` for the selection rules and OS/arch normalization.
+ 
+ #### [artifact.targets.<target>]
+ - `asset_template` (string): target-specific template.
+
+tokens used
+53 039
+Added a release asset selection spec (with OS/arch normalization and error messaging) and linked it from the config schema doc, then closed sv-rae. Also created and closed the P0 README install/usage task from USER_FEEDBACK since `README.md` already covers early-build install and usage.
+
+**Changes**
+- `docs/asset-selection.md` new spec: selection precedence, heuristics, multi-target behavior, OS/arch table, and failure messages.
+- `docs/config.md` reference to the new asset selection rules doc.
+- `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json` updated for sv-rae and sv-4ht lifecycle changes.
+
+**Commits**
+- `chore: update ledger entry` (separate commit for pre-existing .forge change)
+- `docs: specify asset selection rules`
+
+**Tests**
+- Not run (docs/task updates only).
+
+**Next steps**
+1) Tackle sv-apm (cross-platform asset config + formula output examples).
+2) Tackle sv-872 (release discovery policy + error messaging).
+```
+
