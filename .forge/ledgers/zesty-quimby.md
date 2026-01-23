@@ -2310,3 +2310,80 @@ Next steps (pick one):
 3) Start `sv-7ye` to validate/close formula naming rules against existing docs.
 ```
 
+## 2026-01-23T12:07:59Z
+
+- run_id: c5002624-f048-400c-a27d-548c41953955
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T12:00:48Z
+- finished_at: 2026-01-23T12:07:59Z
+- exit_code: 0
+
+```
+}
+ 
+     #[test]
++    fn renders_install_block_override() {
++        let spec = FormulaSpec {
++            name: "brewtool".to_string(),
++            desc: "Brew tool".to_string(),
++            homepage: "https://example.com".to_string(),
++            license: "MIT".to_string(),
++            version: "1.2.3".to_string(),
++            bins: vec!["brewtool".to_string()],
++            assets: AssetMatrix::Universal(FormulaAsset {
++                url: "https://example.com/brewtool.tar.gz".to_string(),
++                sha256: "deadbeef".to_string(),
++            }),
++            install_block: Some("bin.install \"brewtool\"\nlibexec.install Dir[\"*\"]".to_string()),
++        };
++
++        let rendered = spec.render().unwrap();
++        assert!(rendered.contains("  def install\n    bin.install \"brewtool\"\n    libexec.install Dir[\"*\"]\n  end"));
++    }
++
++    #[test]
+     fn renders_per_target_formula() {
+         let spec = FormulaSpec {
+             name: "brewtool".to_string(),
+@@ -573,6 +628,7 @@
+                     },
+                 },
+             ]),
++            install_block: None,
+         };
+ 
+         let rendered = spec.render().unwrap();
+@@ -619,6 +675,7 @@
+             version: "1.2.3".to_string(),
+             bins: vec!["brewtool".to_string()],
+             assets: AssetMatrix::PerTarget(Vec::new()),
++            install_block: None,
+         };
+ 
+         let err = spec.render().unwrap_err();
+
+tokens used
+134 721
+Using sv-issue-tracking + workflow-pattern + session-protocol to track the task lifecycle, implement the change, and complete the git checklist.
+
+Added support for formula install block overrides so config-driven Ruby snippets replace the default `bin.install` rendering, and wired init to pass the override through. Updated tests to cover the new behavior in `src/formula.rs` and keep init scaffolding aligned in `src/commands/init.rs`.
+
+- Task: created and closed `sv-s2d` (formula install_block override).
+- Code: `src/formula.rs` renders/validates override blocks; `src/commands/init.rs` passes `config.template.install_block`.
+- Task tracking: `.tasks/tasks.jsonl`, `.tasks/tasks.snapshot.json`.
+- Separate chore commit: `.forge/ledgers/zesty-quimby.md` (pre-existing change).
+
+Tests run:
+- `cargo test`
+
+Next steps (pick one):
+1) Start `sv-zfz` to build the release pipeline (discovery, asset resolution, formula update).
+2) Start `sv-tdq` to implement `bd init --import-formula` merge behavior.
+```
+
