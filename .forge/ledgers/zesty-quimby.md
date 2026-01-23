@@ -2772,3 +2772,79 @@ Next steps (pick one):
 2) Start `sv-7df` to implement init tap repo handling (`brew tap-new`, path/clone).
 ```
 
+## 2026-01-23T12:59:24Z
+
+- run_id: 82701cbe-77aa-45e4-b361-4163852539bf
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T12:51:27Z
+- finished_at: 2026-01-23T12:59:24Z
+- exit_code: 0
+
+```
+I'll summarize added docs and closed tasks with file references (`docs/identity.md`, `docs/git-remotes.md`, `docs/tap-repo.md`, `/.tasks/tasks.jsonl`), note no tests run, mention the separate chore commit for the ledger, and suggest these next steps numerically: (1) enforce remote ambiguity in repo_detect, (2) implement init tap path handling (sv-7df), and (3) improve release orchestration idempotency (sv-61v).
+codex
+Added the missing architecture docs for repo identity, git remote selection, and tap path auto-clone, and closed the matching P0 tasks. Also split out the pre-existing ledger change into its own chore commit per your rule.
+
+Details
+- Repo identity model + precedence + examples in `docs/identity.md`.
+- Remote selection order, ambiguity handling, and canonical error messages in `docs/git-remotes.md`.
+- Tap path resolution + auto-clone/cleanup rules in `docs/tap-repo.md`.
+- Task status updates recorded in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`.
+- Separate chore commit for the unrelated ledger update in `.forge/ledgers/zesty-quimby.md`.
+
+Tasks
+- Closed: `sv-g2x`, `sv-h1v`, `sv-64g`.
+
+Tests
+- Not run (docs-only changes).
+
+Next steps (pick one)
+1) Implement the git-remote ambiguity behavior in code (align `src/repo_detect.rs` with `docs/git-remotes.md`).
+2) Start `sv-7df` to implement init tap repo handling (`--tap-path`, auto-clone, `brew tap-new`).
+3) Start `sv-61v` to design and wire release orchestration + idempotency.
+file update:
+diff --git a/docs/tap-repo.md b/docs/tap-repo.md
+index 1ef62974cc074f427d9411db741ca3efe3458bb7..dc18ef54ce0ccb619b4ec4702590aa994336a5db
+--- a/docs/tap-repo.md
++++ b/docs/tap-repo.md
+@@ -31,8 +31,8 @@
+ 5) `tap.remote` (auto-clone to a temp directory)
+ 
+ If none of the above are available, release fails with:
+-`tap.path or tap.remote is required to locate the tap repo`
+-(exit code 4).
++`missing required fields for --non-interactive: tap.path or tap.remote`
++(exit code 2).
+ 
+ ## Auto-clone behavior (release)
+ 
+
+tokens used
+86 160
+Added the missing architecture docs for repo identity, git remote selection, and tap path auto-clone, and closed the matching P0 tasks. Also split out the pre-existing ledger change into its own chore commit per your rule.
+
+Details
+- Repo identity model + precedence + examples in `docs/identity.md`.
+- Remote selection order, ambiguity handling, and canonical error messages in `docs/git-remotes.md`.
+- Tap path resolution + auto-clone/cleanup rules in `docs/tap-repo.md`.
+- Task status updates recorded in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`.
+- Separate chore commit for the unrelated ledger update in `.forge/ledgers/zesty-quimby.md`.
+
+Tasks
+- Closed: `sv-g2x`, `sv-h1v`, `sv-64g`.
+
+Tests
+- Not run (docs-only changes).
+
+Next steps (pick one)
+1) Implement the git-remote ambiguity behavior in code (align `src/repo_detect.rs` with `docs/git-remotes.md`).
+2) Start `sv-7df` to implement init tap repo handling (`--tap-path`, auto-clone, `brew tap-new`).
+3) Start `sv-61v` to design and wire release orchestration + idempotency.
+```
+
