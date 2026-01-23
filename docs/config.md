@@ -4,6 +4,13 @@ Path: `.distill/config.toml`
 
 This document describes the v1 config schema used by `brewdistillery`.
 
+## Precedence
+Resolution order for any configurable field:
+- CLI flags (highest)
+- `.distill/config.toml`
+- Repo autodetect (manifests, git remote)
+- Interactive prompts (fallback)
+
 ## Compatibility and migration
 - `schema_version` is optional today. If omitted, `brewdistillery` treats it as v1.
 - Unknown fields are preserved and round-tripped on save. This allows forward-compatible
