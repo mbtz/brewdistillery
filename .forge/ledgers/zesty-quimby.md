@@ -1467,3 +1467,80 @@ Decision needed
 I wrote this to `USER_TODO.md`. Let me know and I’ll continue with PRD-driven tasks and implementation.
 ```
 
+## 2026-01-23T11:10:40Z
+
+- run_id: 7b66cf0a-dd46-4130-a249-7a94d044ea18
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T11:03:11Z
+- finished_at: 2026-01-23T11:10:40Z
+- exit_code: 0
+
+```
++    }
++
++    #[test]
++    fn errors_when_config_missing() {
++        let dir = tempdir().unwrap();
++        let ctx = AppContext {
++            cwd: dir.path().to_path_buf(),
++            config_path: dir.path().join(".distill/config.toml"),
++            config: Config::default(),
++            repo: RepoInfo::default(),
++            verbose: 0,
++        };
++
++        let err = run(&ctx, &base_args()).unwrap_err();
++        assert!(matches!(err, AppError::MissingConfig(_)));
++    }
++
++    #[test]
++    fn errors_when_formula_missing() {
++        let dir = tempdir().unwrap();
++        let tap_path = dir.path().join("tap");
++        std::fs::create_dir_all(&tap_path).unwrap();
++
++        let mut config = base_config();
++        config.tap.path = Some(tap_path.clone());
++        let config_path = dir.path().join(".distill/config.toml");
++        config.save(&config_path).unwrap();
++
++        let ctx = AppContext {
++            cwd: dir.path().to_path_buf(),
++            config_path,
++            config,
++            repo: RepoInfo::default(),
++            verbose: 0,
++        };
++
++        let err = run(&ctx, &base_args()).unwrap_err();
++        assert!(matches!(err, AppError::InvalidInput(_)));
++    }
++}
+
+tokens used
+120 292
+Implemented baseline `bd doctor` validation with warnings/strict handling and optional `brew audit`, plus tests; recorded sv task updates and added a new README task from your feedback. Separate chore commit captured the ledger and USER_TODO change as instructed.
+
+- Validation logic now checks config completeness, tap identity/path, formula presence, and artifact config; `--strict` escalates warnings to errors; `--audit` runs `brew audit --new-formula` with captured output in `src/commands/doctor.rs`.
+- Added tests for missing config and missing formula cases in `src/commands/doctor.rs`.
+- Task tracking updated for the closed work and the new README task in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`.
+- Chore commit includes `.forge/ledgers/zesty-quimby.md` and `USER_TODO.md`.
+
+Tests:
+- `cargo test -q`
+
+Tasks:
+- Closed `sv-pxk` (Implement bd doctor baseline validation)
+- Created `sv-x0t` (Write README early-build install + usage instructions) under EPIC Testing & Docs
+
+Next steps:
+1) Start `sv-x0t` and update `README.md` with early-build install/usage details.
+2) Expand `bd doctor` checks to include more repo/state validations (follow-up to `sv-7rd`).
+```
+
