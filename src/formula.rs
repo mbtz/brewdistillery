@@ -146,6 +146,7 @@ pub struct FormulaSpec {
     pub version: String,
     pub bins: Vec<String>,
     pub assets: AssetMatrix,
+    pub install_block: Option<String>,
 }
 
 impl FormulaSpec {
@@ -174,18 +175,22 @@ impl FormulaSpec {
         );
         output.push('\n');
         output.push_str("  def install\n");
-        let bins = normalized_bins(&self.bins)?;
-        let install = if bins.len() == 1 {
-            format!("    bin.install \"{}\"\n", escape_ruby(&bins[0]))
+        if let Some(install_block) = self.install_block.as_deref() {
+            render_install_block(&mut output, install_block)?;
         } else {
-            let joined = bins
-                .iter()
-                .map(|bin| format!("\"{}\"", escape_ruby(bin)))
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!("    bin.install {joined}\n")
-        };
-        output.push_str(&install);
+            let bins = normalized_bins(&self.bins)?;
+            let install = if bins.len() == 1 {
+                format!("    bin.install \"{}\"\n", escape_ruby(&bins[0]))
+            } else {
+                let joined = bins
+                    .iter()
+                    .map(|bin| format!("\"{}\"", escape_ruby(bin)))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("    bin.install {joined}\n")
+            };
+            output.push_str(&install);
+        }
         output.push_str("  end\n");
         output.push_str("end\n");
         Ok(output)
@@ -229,10 +234,38 @@ impl FormulaSpec {
                 ));
             }
         }
+        if let Some(install_block) = self.install_block.as_deref() {
+            if install_block.trim().is_empty() {
+                return Err(AppError::InvalidInput(
+                    "template.install_block cannot be empty".to_string(),
+                ));
+            }
+        }
 
         validate_assets(&self.assets)?;
         Ok(())
     }
+}
+
+fn render_install_block(output: &mut String, install_block: &str) -> Result<(), AppError> {
+    if install_block.trim().is_empty() {
+        return Err(AppError::InvalidInput(
+            "template.install_block cannot be empty".to_string(),
+        ));
+    }
+
+    for line in install_block.lines() {
+        let trimmed = line.trim_end();
+        if trimmed.is_empty() {
+            output.push_str("    \n");
+        } else {
+            output.push_str("    ");
+            output.push_str(trimmed.trim_start());
+            output.push('\n');
+        }
+    }
+
+    Ok(())
 }
 
 fn render_assets(output: &mut String, assets: &AssetMatrix) -> Result<(), AppError> {
@@ -491,6 +524,7 @@ mod tests {
                 url: "https://example.com/brewtool.tar.gz".to_string(),
                 sha256: "deadbeef".to_string(),
             }),
+            install_block: None,
         };
 
         let rendered = spec.render().unwrap();
@@ -524,10 +558,31 @@ mod tests {
                 url: "https://example.com/brewtool.tar.gz".to_string(),
                 sha256: "deadbeef".to_string(),
             }),
+            install_block: None,
         };
 
         let rendered = spec.render().unwrap();
         assert!(rendered.contains("bin.install \"brewctl\", \"brewtool\""));
+    }
+
+    #[test]
+    fn renders_install_block_override() {
+        let spec = FormulaSpec {
+            name: "brewtool".to_string(),
+            desc: "Brew tool".to_string(),
+            homepage: "https://example.com".to_string(),
+            license: "MIT".to_string(),
+            version: "1.2.3".to_string(),
+            bins: vec!["brewtool".to_string()],
+            assets: AssetMatrix::Universal(FormulaAsset {
+                url: "https://example.com/brewtool.tar.gz".to_string(),
+                sha256: "deadbeef".to_string(),
+            }),
+            install_block: Some("bin.install \"brewtool\"\nlibexec.install Dir[\"*\"]".to_string()),
+        };
+
+        let rendered = spec.render().unwrap();
+        assert!(rendered.contains("  def install\n    bin.install \"brewtool\"\n    libexec.install Dir[\"*\"]\n  end"));
     }
 
     #[test]
@@ -573,6 +628,7 @@ mod tests {
                     },
                 },
             ]),
+            install_block: None,
         };
 
         let rendered = spec.render().unwrap();
@@ -619,6 +675,7 @@ mod tests {
             version: "1.2.3".to_string(),
             bins: vec!["brewtool".to_string()],
             assets: AssetMatrix::PerTarget(Vec::new()),
+            install_block: None,
         };
 
         let err = spec.render().unwrap_err();

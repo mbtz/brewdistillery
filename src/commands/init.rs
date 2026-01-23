@@ -349,6 +349,7 @@ fn render_formula(resolved: &ResolvedInit, config: &Config) -> Result<String, Ap
         version: resolved.version.clone(),
         bins: resolved.bins.clone(),
         assets: AssetMatrix::Universal(asset),
+        install_block: config.template.install_block.clone(),
     };
     spec.render()
 }
