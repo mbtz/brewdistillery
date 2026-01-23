@@ -1928,3 +1928,78 @@ If you want me to continue, pick one:
 2) Move on to `sv-2tt` (interactive init flow with prompts + preview).
 ```
 
+## 2026-01-23T11:45:31Z
+
+- run_id: 2b13fa15-4a65-4a6a-a713-4f754e2a4017
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T11:41:41Z
+- finished_at: 2026-01-23T11:45:31Z
+- exit_code: 0
+
+```
+thinking
+**Preparing chore commit message**
+exec
+/bin/zsh -lc 'git commit -m "chore: update codex ledger"' in /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery succeeded in 113ms:
+[main 3d9c8f5] chore: update codex ledger
+ 1 file changed, 77 insertions(+)
+
+thinking
+**Checking git status**
+exec
+/bin/zsh -lc 'git status -s' in /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery succeeded in 52ms:
+
+
+thinking
+**Pushing latest commits**
+
+Decided to push after adding and committing changes to complete the session-protocol steps before ending.
+exec
+/bin/zsh -lc 'git push' in /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery succeeded in 1.85s:
+To github.com:mbtz/brewdistillery.git
+   fb47b52..3d9c8f5  main -> main
+
+
+thinking
+**Summarizing final changes and next steps**
+
+Added a new documentation file capturing non-interactive contract details and inputs, closed task sv-n6c, and committed a chore change for the ledger. No tests were run since none were requested. Next steps are outlined for further work and testing.
+thinking
+**Suggesting next tasks and referencing docs**
+
+I'm proposing next steps to start implementing remaining priority tasks like sv-d7t (init prompt flow) or sv-g2x, noting the new documentation at `docs/non-interactive.md` and updated task statuses in `.tasks`.
+codex
+Implemented the non-interactive contract and closed the corresponding P0 task. The new `docs/non-interactive.md` defines required fields, autodetect sources, canonical error messages, and exit-code mapping for `bd init`, `bd release`, and `bd doctor`, with overwrite policy and CI notes. I also committed the pre-existing `.forge/ledgers/zesty-quimby.md` change as a separate chore commit per your instructions.
+
+- Added: `docs/non-interactive.md`
+- Updated task tracking: `.tasks/tasks.jsonl`, `.tasks/tasks.snapshot.json` (sv-n6c closed)
+- Chore commit: `.forge/ledgers/zesty-quimby.md`
+
+Tests: not run (not requested).
+
+If you want me to continue, pick one:
+1) Start `sv-d7t` (design `bd init` prompt flow + mapping).
+2) Start `sv-h1v` (git remote selection + ambiguity rules).
+3) Start `sv-64g` (tap path resolution + auto-clone rules).
+tokens used
+48 523
+Implemented the non-interactive contract and closed the corresponding P0 task. The new `docs/non-interactive.md` defines required fields, autodetect sources, canonical error messages, and exit-code mapping for `bd init`, `bd release`, and `bd doctor`, with overwrite policy and CI notes. I also committed the pre-existing `.forge/ledgers/zesty-quimby.md` change as a separate chore commit per your instructions.
+
+- Added: `docs/non-interactive.md`
+- Updated task tracking: `.tasks/tasks.jsonl`, `.tasks/tasks.snapshot.json` (sv-n6c closed)
+- Chore commit: `.forge/ledgers/zesty-quimby.md`
+
+Tests: not run (not requested).
+
+If you want me to continue, pick one:
+1) Start `sv-d7t` (design `bd init` prompt flow + mapping).
+2) Start `sv-h1v` (git remote selection + ambiguity rules).
+3) Start `sv-64g` (tap path resolution + auto-clone rules).
+```
+
