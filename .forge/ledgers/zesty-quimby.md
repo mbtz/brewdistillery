@@ -2541,3 +2541,80 @@ Next steps (pick one):
 2) Start `sv-7df` to add tap path auto-clone and `brew tap-new` handling.
 ```
 
+## 2026-01-23T12:36:41Z
+
+- run_id: b240f343-3cfe-4154-a644-3a646ccafcf9
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T12:30:24Z
+- finished_at: 2026-01-23T12:36:41Z
+- exit_code: 0
+
+```
++
++#[derive(Debug, Serialize)]
++struct CreateRepoRequest {
++    name: String,
++    private: bool,
++}
++
++#[derive(Debug, Clone, PartialEq, Eq)]
++pub struct CreatedRepo {
++    pub clone_url: String,
++    pub ssh_url: Option<String>,
++    pub html_url: Option<String>,
++    pub full_name: Option<String>,
++}
++
++impl From<GitHubRepo> for CreatedRepo {
++    fn from(value: GitHubRepo) -> Self {
++        Self {
++            clone_url: value.clone_url,
++            ssh_url: value.ssh_url,
++            html_url: value.html_url,
++            full_name: value.full_name,
++        }
++    }
++}
++
+ impl From<GitHubRelease> for Release {
+     fn from(value: GitHubRelease) -> Self {
+         Release {
+@@ -332,4 +524,19 @@
+         let selected = select_latest_release(releases).unwrap();
+         assert_eq!(selected.tag_name, "v1.1.0");
+     }
++
++    #[test]
++    fn detects_rate_limit_from_headers() {
++        let mut headers = HeaderMap::new();
++        headers.insert("x-ratelimit-remaining", "0".parse().unwrap());
++        assert!(is_rate_limited(&headers, "API rate limit exceeded"));
++    }
++
++    #[test]
++    fn formats_rate_limit_message_with_reset() {
++        let mut headers = HeaderMap::new();
++        headers.insert("x-ratelimit-reset", "1700000000".parse().unwrap());
++        let message = rate_limit_message(&headers);
++        assert!(message.contains("1700000000"));
++    }
+ }
+
+tokens used
+111 717
+Added GitHub tap repo creation support to the host client, including user/org handling, token requirements, and clearer permission/rate‑limit error messages; also added unit tests for rate‑limit detection. Closed sv‑s70 and sv‑zy5 with task tracking updates in `.tasks/`. Shipped a separate chore commit for the pre‑existing `.forge/ledgers/zesty-quimby.md` change as requested.
+
+Tests:
+- `cargo test -q`
+
+Next steps (pick one):
+1) Wire `GitHubClient::create_public_repo` into `bd init` (flag/flow decision needed for when to create).  
+2) Add a CLI flag for explicit tap‑repo creation and document it.
+```
+
