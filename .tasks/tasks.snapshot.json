@@ -1,7 +1,22 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-23T13:46:30.925574Z",
+  "generated_at": "2026-01-23T13:53:11.647589Z",
   "tasks": [
+    {
+      "id": "sv-b8d",
+      "title": "Plan testing matrix",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:38.495521Z",
+      "updated_at": "2026-01-23T13:53:11.637954Z",
+      "body": "DoD:\\n- Test matrix table (init/release/doctor).\\n- Minimal harness outline.\\nNotes: PRD F19 (status: open).",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T13:52:27.114787Z",
+      "closed_at": "2026-01-23T13:53:11.637954Z",
+      "comments_count": 0
+    },
     {
       "id": "sv-72p",
       "title": "Write README with install + usage for early testing",
@@ -884,16 +899,6 @@
       "created_at": "2026-01-22T13:31:38.688266Z",
       "updated_at": "2026-01-22T13:31:38.858623Z",
       "body": "DoD:\\n- Docs list + owner/source (generated vs hand-written).\\nNotes: PRD F20 (status: open).",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-b8d",
-      "title": "Plan testing matrix",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-22T13:31:38.495521Z",
-      "updated_at": "2026-01-22T13:31:38.661033Z",
-      "body": "DoD:\\n- Test matrix table (init/release/doctor).\\n- Minimal harness outline.\\nNotes: PRD F19 (status: open).",
       "comments_count": 0
     },
     {
