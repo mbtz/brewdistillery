@@ -27,12 +27,28 @@ pub enum MetadataSource {
     PackageJson,
     PyProject,
     GoMod,
+    GitRemote,
+    Mixed,
     Unknown,
 }
 
 impl Default for MetadataSource {
     fn default() -> Self {
         MetadataSource::Unknown
+    }
+}
+
+impl MetadataSource {
+    fn label(self) -> &'static str {
+        match self {
+            MetadataSource::Cargo => "Cargo.toml",
+            MetadataSource::PackageJson => "package.json",
+            MetadataSource::PyProject => "pyproject.toml",
+            MetadataSource::GoMod => "go.mod",
+            MetadataSource::GitRemote => "git remote",
+            MetadataSource::Mixed => "multiple sources",
+            MetadataSource::Unknown => "unknown",
+        }
     }
 }
 
@@ -60,23 +76,43 @@ fn find_git_root(start: &Path) -> Option<PathBuf> {
 }
 
 fn detect_metadata(root: &Path) -> Result<Option<ProjectMetadata>, AppError> {
-    let mut metadata = if let Some(meta) = detect_cargo_metadata(root)? {
-        Some(meta)
-    } else if let Some(meta) = detect_package_json_metadata(root)? {
-        Some(meta)
-    } else if let Some(meta) = detect_pyproject_metadata(root)? {
-        Some(meta)
-    } else {
-        detect_go_mod_metadata(root)?
-    };
+    let mut metas = Vec::new();
+    if let Some(meta) = detect_cargo_metadata(root)? {
+        metas.push(meta);
+    }
+    if let Some(meta) = detect_package_json_metadata(root)? {
+        metas.push(meta);
+    }
+    if let Some(meta) = detect_pyproject_metadata(root)? {
+        metas.push(meta);
+    }
+    if let Some(meta) = detect_go_mod_metadata(root)? {
+        metas.push(meta);
+    }
 
-    if let Some(meta) = metadata.as_mut() {
-        if meta.license.is_none() {
-            meta.license = detect_license_from_files(root);
+    if metas.is_empty() {
+        if let Some(meta) = metadata_from_git_remote(root) {
+            metas.push(meta);
         }
     }
 
-    Ok(metadata)
+    if metas.is_empty() {
+        return Ok(None);
+    }
+
+    let mut resolved = resolve_metadata(&metas)?;
+
+    if resolved.license.is_none() {
+        resolved.license = detect_license_from_files(root);
+    }
+    if resolved.homepage.is_none() {
+        resolved.homepage = detect_homepage_from_git(root);
+    }
+    if resolved.name.is_none() {
+        resolved.name = detect_name_from_git(root);
+    }
+
+    Ok(Some(resolved))
 }
 
 fn detect_cargo_metadata(root: &Path) -> Result<Option<ProjectMetadata>, AppError> {
@@ -151,12 +187,13 @@ fn detect_package_json_metadata(root: &Path) -> Result<Option<ProjectMetadata>, 
         .get("name")
         .and_then(|entry| entry.as_str())
         .map(|entry| entry.to_string());
+    let project_name = name.as_deref().map(unscoped_package_name);
 
     let mut bins = Vec::new();
     match value.get("bin") {
         Some(JsonValue::String(_)) => {
-            if let Some(name) = name.as_deref() {
-                bins.push(unscoped_package_name(name));
+            if let Some(name) = project_name.as_deref() {
+                bins.push(name.to_string());
             }
         }
         Some(JsonValue::Object(map)) => {
@@ -172,7 +209,7 @@ fn detect_package_json_metadata(root: &Path) -> Result<Option<ProjectMetadata>, 
     normalize_bins(&mut bins);
 
     Ok(Some(ProjectMetadata {
-        name,
+        name: project_name,
         description: value
             .get("description")
             .and_then(|entry| entry.as_str())
@@ -331,6 +368,225 @@ fn normalize_bins(bins: &mut Vec<String>) {
     bins.dedup();
 }
 
+fn resolve_metadata(metas: &[ProjectMetadata]) -> Result<ProjectMetadata, AppError> {
+    let source = if metas.len() == 1 {
+        metas[0].source
+    } else {
+        MetadataSource::Mixed
+    };
+
+    Ok(ProjectMetadata {
+        name: resolve_string_field("name", metas, |meta| meta.name.as_deref())?,
+        description: resolve_string_field("description", metas, |meta| meta.description.as_deref())?,
+        homepage: resolve_string_field("homepage", metas, |meta| meta.homepage.as_deref())?,
+        license: resolve_string_field("license", metas, |meta| meta.license.as_deref())?,
+        version: resolve_string_field("version", metas, |meta| meta.version.as_deref())?,
+        bin: resolve_bins_field(metas)?,
+        source,
+    })
+}
+
+fn resolve_string_field<F>(
+    field: &str,
+    metas: &[ProjectMetadata],
+    getter: F,
+) -> Result<Option<String>, AppError>
+where
+    F: Fn(&ProjectMetadata) -> Option<&str>,
+{
+    let mut values: Vec<(MetadataSource, String)> = Vec::new();
+    for meta in metas {
+        if let Some(value) = getter(meta) {
+            let trimmed = value.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            if !values.iter().any(|(_, existing)| existing == trimmed) {
+                values.push((meta.source, trimmed.to_string()));
+            }
+        }
+    }
+
+    if values.len() > 1 {
+        return Err(AppError::InvalidInput(format!(
+            "conflicting {field} detected: {}",
+            format_conflicts(&values)
+        )));
+    }
+
+    Ok(values.first().map(|(_, value)| value.clone()))
+}
+
+fn resolve_bins_field(metas: &[ProjectMetadata]) -> Result<Vec<String>, AppError> {
+    let mut values: Vec<(MetadataSource, Vec<String>)> = Vec::new();
+    for meta in metas {
+        if meta.bin.is_empty() {
+            continue;
+        }
+        let mut bins = meta.bin.clone();
+        normalize_bins(&mut bins);
+        if !values.iter().any(|(_, existing)| *existing == bins) {
+            values.push((meta.source, bins));
+        }
+    }
+
+    if values.len() > 1 {
+        return Err(AppError::InvalidInput(format!(
+            "conflicting bin lists detected: {}",
+            format_bins_conflicts(&values)
+        )));
+    }
+
+    Ok(values
+        .first()
+        .map(|(_, bins)| bins.clone())
+        .unwrap_or_default())
+}
+
+fn format_conflicts(values: &[(MetadataSource, String)]) -> String {
+    values
+        .iter()
+        .map(|(source, value)| format!("{}='{}'", source.label(), value))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn format_bins_conflicts(values: &[(MetadataSource, Vec<String>)]) -> String {
+    values
+        .iter()
+        .map(|(source, bins)| format!("{}=[{}]", source.label(), bins.join(", ")))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn metadata_from_git_remote(root: &Path) -> Option<ProjectMetadata> {
+    let remote = detect_git_remote_url(root)?;
+    let name = repo_name_from_remote(&remote);
+    let homepage = github_https_from_remote(&remote);
+    if name.is_none() && homepage.is_none() {
+        return None;
+    }
+
+    Some(ProjectMetadata {
+        name,
+        description: None,
+        homepage,
+        license: None,
+        version: None,
+        bin: Vec::new(),
+        source: MetadataSource::GitRemote,
+    })
+}
+
+fn detect_homepage_from_git(root: &Path) -> Option<String> {
+    let remote = detect_git_remote_url(root)?;
+    github_https_from_remote(&remote)
+}
+
+fn detect_name_from_git(root: &Path) -> Option<String> {
+    let remote = detect_git_remote_url(root)?;
+    repo_name_from_remote(&remote)
+}
+
+fn detect_git_remote_url(root: &Path) -> Option<String> {
+    let config_path = git_config_path(root)?;
+    let content = fs::read_to_string(config_path).ok()?;
+    let mut current_remote: Option<String> = None;
+    let mut first_url: Option<String> = None;
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("[remote \"") {
+            if let Some(remote) = rest.strip_suffix("\"]") {
+                current_remote = Some(remote.to_string());
+                continue;
+            }
+        }
+
+        if trimmed.starts_with('[') {
+            current_remote = None;
+            continue;
+        }
+
+        if let Some(remote) = current_remote.as_deref() {
+            if let Some(url) = trimmed.strip_prefix("url =") {
+                let url = url.trim().to_string();
+                if remote == "origin" {
+                    return Some(url);
+                }
+                if first_url.is_none() {
+                    first_url = Some(url);
+                }
+            }
+        }
+    }
+
+    first_url
+}
+
+fn git_config_path(root: &Path) -> Option<PathBuf> {
+    let git_path = root.join(".git");
+    if git_path.is_dir() {
+        return Some(git_path.join("config"));
+    }
+
+    if git_path.is_file() {
+        let content = fs::read_to_string(&git_path).ok()?;
+        for line in content.lines() {
+            let trimmed = line.trim();
+            if let Some(rest) = trimmed.strip_prefix("gitdir:") {
+                let path = rest.trim();
+                if path.is_empty() {
+                    continue;
+                }
+                let gitdir = PathBuf::from(path);
+                let resolved = if gitdir.is_absolute() {
+                    gitdir
+                } else {
+                    root.join(gitdir)
+                };
+                return Some(resolved.join("config"));
+            }
+        }
+    }
+
+    None
+}
+
+fn github_https_from_remote(remote: &str) -> Option<String> {
+    let trimmed = remote.trim();
+    let path = if let Some(rest) = trimmed.strip_prefix("git@github.com:") {
+        rest
+    } else if let Some(rest) = trimmed.strip_prefix("ssh://git@github.com/") {
+        rest
+    } else if let Some(rest) = trimmed.strip_prefix("https://github.com/") {
+        rest
+    } else if let Some(rest) = trimmed.strip_prefix("http://github.com/") {
+        rest
+    } else if let Some(rest) = trimmed.strip_prefix("git://github.com/") {
+        rest
+    } else {
+        return None;
+    };
+
+    let cleaned = path.trim_end_matches(".git").trim_end_matches('/');
+    if cleaned.is_empty() {
+        return None;
+    }
+
+    Some(format!("https://github.com/{cleaned}"))
+}
+
+fn repo_name_from_remote(remote: &str) -> Option<String> {
+    let https = github_https_from_remote(remote)?;
+    let name = https.rsplit('/').next()?;
+    if name.is_empty() {
+        None
+    } else {
+        Some(name.to_string())
+    }
+}
+
 fn detect_license_from_files(root: &Path) -> Option<String> {
     let candidates = [
         "LICENSE",
@@ -435,7 +691,7 @@ name = "brewctl"
         fs::write(dir.path().join("package.json"), package_json).unwrap();
 
         let meta = detect_metadata(dir.path()).unwrap().unwrap();
-        assert_eq!(meta.name.as_deref(), Some("@acme/brewtool"));
+        assert_eq!(meta.name.as_deref(), Some("brewtool"));
         assert_eq!(meta.bin, vec!["brewctl".to_string(), "brewtool".to_string()]);
         assert_eq!(meta.source, MetadataSource::PackageJson);
     }
@@ -486,5 +742,65 @@ brewpy = "brewpy:main"
 
         let meta = detect_metadata(dir.path()).unwrap().unwrap();
         assert_eq!(meta.license.as_deref(), Some("MIT"));
+    }
+
+    #[test]
+    fn uses_git_remote_for_homepage_fallback() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join(".git")).unwrap();
+        fs::write(
+            dir.path().join(".git/config"),
+            r#"[remote "origin"]
+    url = git@github.com:acme/brewtool.git
+"#,
+        )
+        .unwrap();
+
+        fs::write(dir.path().join("Cargo.toml"), "[package]\nname = \"brew\"\n").unwrap();
+
+        let meta = detect_metadata(dir.path()).unwrap().unwrap();
+        assert_eq!(
+            meta.homepage.as_deref(),
+            Some("https://github.com/acme/brewtool")
+        );
+    }
+
+    #[test]
+    fn falls_back_to_git_remote_when_no_manifest() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join(".git")).unwrap();
+        fs::write(
+            dir.path().join(".git/config"),
+            r#"[remote "origin"]
+    url = https://github.com/acme/brewtool.git
+"#,
+        )
+        .unwrap();
+
+        let meta = detect_metadata(dir.path()).unwrap().unwrap();
+        assert_eq!(meta.name.as_deref(), Some("brewtool"));
+        assert_eq!(
+            meta.homepage.as_deref(),
+            Some("https://github.com/acme/brewtool")
+        );
+        assert_eq!(meta.source, MetadataSource::GitRemote);
+    }
+
+    #[test]
+    fn errors_on_conflicting_metadata() {
+        let dir = tempdir().unwrap();
+        fs::write(
+            dir.path().join("Cargo.toml"),
+            "[package]\nname = \"brewtool\"\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.path().join("package.json"),
+            r#"{ "name": "other", "bin": { "other": "bin/other" } }"#,
+        )
+        .unwrap();
+
+        let err = detect_metadata(dir.path()).unwrap_err();
+        assert!(matches!(err, AppError::InvalidInput(_)));
     }
 }
