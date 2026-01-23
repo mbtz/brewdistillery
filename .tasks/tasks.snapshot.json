@@ -1,7 +1,37 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-23T11:52:58.342086Z",
+  "generated_at": "2026-01-23T11:56:14.873491Z",
   "tasks": [
+    {
+      "id": "sv-yd4",
+      "title": "Define non-Rust metadata detection presets",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-23T11:48:09.636642Z",
+      "updated_at": "2026-01-23T11:56:14.864586Z",
+      "body": "DoD: manifest list, field mapping table (Node/Go/Python), bin detection rules, conflict resolution, required prompts.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T11:55:33.412241Z",
+      "closed_at": "2026-01-23T11:56:14.864586Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-ah8",
+      "title": "Define repo metadata detection (Cargo + git fallbacks)",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-23T11:48:07.082769Z",
+      "updated_at": "2026-01-23T11:56:12.391939Z",
+      "body": "DoD: edge-case examples (workspaces, multi-bin, missing license/homepage), conflict resolution rules, and required prompts.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T11:55:31.131256Z",
+      "closed_at": "2026-01-23T11:56:12.391939Z",
+      "comments_count": 0
+    },
     {
       "id": "sv-0yt",
       "title": "Write README install/usage for early builds",
@@ -30,26 +60,6 @@
       "branch": "main",
       "started_at": "2026-01-23T11:48:31.822962Z",
       "closed_at": "2026-01-23T11:48:37.832942Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-yd4",
-      "title": "Define non-Rust metadata detection presets",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-23T11:48:09.636642Z",
-      "updated_at": "2026-01-23T11:48:09.636642Z",
-      "body": "DoD: manifest list, field mapping table (Node/Go/Python), bin detection rules, conflict resolution, required prompts.",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-ah8",
-      "title": "Define repo metadata detection (Cargo + git fallbacks)",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-23T11:48:07.082769Z",
-      "updated_at": "2026-01-23T11:48:07.082769Z",
-      "body": "DoD: edge-case examples (workspaces, multi-bin, missing license/homepage), conflict resolution rules, and required prompts.",
       "comments_count": 0
     },
     {

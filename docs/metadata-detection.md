@@ -4,22 +4,26 @@ This document describes how `brewdistillery` derives project metadata from
 common manifest files. The detector uses a best-effort, first-match strategy
 and leaves missing fields unset so the init flow can prompt or require flags.
 
-## Precedence
+## Precedence and conflict handling
 
-The detector scans the repository root in this order and stops at the first
-match that yields metadata:
+The detector scans the repository root for all supported manifests:
 
 1) `Cargo.toml`
 2) `package.json`
 3) `pyproject.toml`
 4) `go.mod`
 
-If none of these are present or parseable, metadata detection returns `None`
-for all fields and the init flow must prompt or require flags.
+If none of these are present or parseable, metadata detection falls back to
+git remote inference (name + homepage). If the git remote is missing or
+non-GitHub, metadata detection returns `None` for all fields and the init
+flow must prompt or require flags.
 
 Conflict resolution:
-- When multiple manifests exist, the first match in the precedence list wins.
-  The detector does not merge fields across manifests.
+- When multiple manifests exist, the detector attempts to merge fields.
+- If two sources provide different non-empty values for the same field
+  (e.g., different `name` values), detection fails with a conflict error.
+- If two sources provide different bin lists, detection fails with a conflict
+  error listing the sources and their bin lists.
 
 ## Shared behavior
 
@@ -28,9 +32,25 @@ Conflict resolution:
 - License fallback: if a manifest does not provide a license, the detector
   checks for well-known license filenames and infers SPDX values from the
   filename (see License detection).
+- Homepage fallback: if no manifest provides a homepage, the detector uses the
+  GitHub remote URL (if available).
+- Name fallback: if no manifest provides a name, the detector uses the repo
+  name from the GitHub remote (if available).
 - Partial results: any field may be missing; callers should treat missing
   values as prompts in interactive mode and required flags in non-interactive
   mode.
+
+## Field mapping summary
+
+| Manifest | Name | Description | Homepage | License | Version | Bin detection |
+| --- | --- | --- | --- | --- | --- | --- |
+| `Cargo.toml` | `package.name` or `workspace.package.name` | `package.description` | `package.homepage` | `package.license` | `package.version` | `[[bin]].name` entries; fallback to `package.name` |
+| `package.json` | `name` (unscoped) | `description` | `homepage` | `license` | `version` | `bin` string -> name; `bin` object -> keys |
+| `pyproject.toml` `[project]` | `project.name` | `project.description` | `project.urls` (Homepage/home/Repository) | `project.license` | `project.version` | `[project.scripts]` keys |
+| `pyproject.toml` `[tool.poetry]` | `tool.poetry.name` | `tool.poetry.description` | `tool.poetry.homepage` | `tool.poetry.license` | `tool.poetry.version` | `[tool.poetry.scripts]` keys |
+| `go.mod` | module path basename | (none) | (none) | (none) | (none) | module name |
+
+Missing fields are left unset for prompts or required flags.
 
 ## Rust (Cargo)
 
@@ -114,6 +134,15 @@ Fields:
 If the `module` line is missing or empty, Go metadata detection is treated as
 absent.
 
+## Conflict resolution examples
+
+- `Cargo.toml` has `package.name = "brewtool"` and `package.json` has
+  `name = "other"`: detection fails with a conflict error for `name`.
+- `package.json` defines `bin = { "brewtool": "...", "brewctl": "..." }`
+  while `pyproject.toml` defines `project.scripts = { "brewtool": "..." }`:
+  detection fails with a conflict error for bin lists (since the bin lists
+  differ).
+
 ## License detection (fallback)
 
 If a manifest does not provide a license, the detector checks the repo root
@@ -137,6 +166,15 @@ Filename-to-SPDX mapping:
 
 If conflicting license filenames are found (e.g. both MIT and Apache),
 license detection returns `None` and the init flow should prompt.
+
+## Edge cases
+
+- Cargo workspaces: only the root `Cargo.toml` is parsed; workspace member
+  manifests are ignored.
+- Multi-bin projects: multiple `[[bin]]` entries (Cargo) or `bin` objects
+  (Node) produce a normalized, de-duplicated bin list.
+- Missing license/homepage: if not provided by any manifest, the detector
+  attempts a license filename match and a GitHub remote homepage fallback.
 
 ## Notes for prompting
 
