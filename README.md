@@ -16,7 +16,7 @@ Homebrew installation is not available yet. Use one of the source-based options 
 Requirements:
 - Rust toolchain (rustup + cargo, stable)
 - Git (for cloning this repo)
-- Homebrew (optional; only needed for `bd doctor --audit`)
+- Homebrew (optional; only needed for `bd doctor --audit` or `bd init --tap-new`)
 
 Option A: build from source (release binary)
 
@@ -35,15 +35,7 @@ Add it to your PATH (optional):
 install -m 755 target/release/bd /usr/local/bin/bd
 ```
 
-Option B: run from source (no install)
-
-```
-git clone <this-repo>
-cd brewdistillery
-cargo run -- --help
-```
-
-Option C: install locally with cargo
+Option B: install locally with cargo
 
 ```
 cd brewdistillery
@@ -52,6 +44,14 @@ cargo install --path .
 
 Binary path:
 - `~/.cargo/bin/bd`
+
+Option C: run from source (no install)
+
+```
+git clone <this-repo>
+cd brewdistillery
+cargo run -- --help
+```
 
 Verify the install:
 
@@ -99,6 +99,21 @@ bd init --non-interactive \
 
 This writes `.distill/config.toml` in the CLI repo and a placeholder formula in the
 tap path. Tap scaffolding and git automation are still in progress.
+
+Dry-run init (no writes):
+
+```
+bd init --non-interactive --dry-run \
+  --tap-path ../homebrew-brewtool \
+  --host-owner acme \
+  --host-repo brewtool \
+  --formula-name brewtool \
+  --description "Brew tool" \
+  --homepage "https://github.com/acme/brewtool" \
+  --license MIT \
+  --bin-name brewtool \
+  --version 0.1.0
+```
 
 Release testing (no git commit/tag/push yet):
 

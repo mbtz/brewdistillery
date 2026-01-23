@@ -7,7 +7,7 @@ use crate::formula::{AssetMatrix, FormulaAsset, FormulaSpec, Os, Arch, TargetAss
 use crate::host::github::GitHubClient;
 use crate::host::{HostClient, Release};
 use crate::preview::{preview_and_apply, PlannedWrite, RepoPlan};
-use crate::version::resolve_version_tag;
+use crate::version::{resolve_version_tag, ResolvedVersionTag};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -30,6 +30,8 @@ struct ReleaseContext {
     host_owner: String,
     host_repo: String,
     host_api_base: Option<String>,
+    tag_format: Option<String>,
+    commit_message_template: Option<String>,
     install_block: Option<String>,
 }
 
@@ -95,9 +97,32 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         }
     }
 
-    let version = version_tag.version.unwrap_or(release_version);
+    let version = version_tag
+        .version
+        .clone()
+        .unwrap_or(release_version);
+    let tag_to_create = if args.skip_tag {
+        None
+    } else {
+        Some(resolve_tag_name(
+            &version,
+            &version_tag,
+            resolved.tag_format.as_deref(),
+            &release.tag_name,
+        )?)
+    };
 
     ensure_formula_target(&resolved.formula_path, &version, args.force)?;
+
+    if !args.allow_dirty {
+        ensure_clean_repo(&resolved.tap_root, "tap repo")?;
+        if tag_to_create.is_some() {
+            let cli_root = ctx.repo.git_root.as_ref().ok_or_else(|| {
+                AppError::GitState("cli repo is not a git repository".to_string())
+            })?;
+            ensure_clean_repo(cli_root, "cli repo")?;
+        }
+    }
 
     let asset_matrix = build_assets(&client, &release, &resolved, &version, args.dry_run)?;
 
@@ -125,6 +150,40 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
 
     let preview = preview_and_apply(&[plan], args.dry_run)?;
     print_preview(&preview);
+
+    if args.dry_run {
+        drop(tap_root);
+        return Ok(());
+    }
+
+    let commit_message = build_commit_message(
+        resolved.commit_message_template.as_deref(),
+        &resolved.formula_name,
+        &version,
+    );
+
+    if !preview.changed_files.is_empty() {
+        commit_formula_update(
+            &resolved.tap_root,
+            &resolved.formula_path,
+            &commit_message,
+        )?;
+        if !args.no_push {
+            push_repo(&resolved.tap_root)?;
+        }
+    } else {
+        println!("release: no formula changes to commit");
+    }
+
+    if let Some(tag_name) = tag_to_create.as_deref() {
+        let cli_root = ctx.repo.git_root.as_ref().ok_or_else(|| {
+            AppError::GitState("cli repo is not a git repository".to_string())
+        })?;
+        create_tag(cli_root, tag_name)?;
+        if !args.no_push {
+            push_tag(cli_root, tag_name)?;
+        }
+    }
 
     drop(tap_root);
     Ok(())
@@ -246,6 +305,8 @@ fn resolve_release_context(
         host_owner,
         host_repo,
         host_api_base: config.host.api_base.clone(),
+        tag_format: config.release.tag_format.clone(),
+        commit_message_template: config.release.commit_message_template.clone(),
         install_block: config.template.install_block.clone(),
     })
 }
@@ -363,6 +424,171 @@ fn ensure_formula_target(
     }
 
     Ok(())
+}
+
+fn resolve_tag_name(
+    version: &str,
+    version_tag: &ResolvedVersionTag,
+    tag_format: Option<&str>,
+    release_tag: &str,
+) -> Result<String, AppError> {
+    if let Some(tag) = version_tag.tag.as_ref() {
+        return Ok(tag.clone());
+    }
+
+    if let Some(format) = tag_format {
+        let trimmed = format.trim();
+        if trimmed.is_empty() {
+            return Ok(version.to_string());
+        }
+        if trimmed.contains("{version}") {
+            return Ok(trimmed.replace("{version}", version));
+        }
+        return Ok(trimmed.to_string());
+    }
+
+    if !release_tag.trim().is_empty() {
+        return Ok(release_tag.trim().to_string());
+    }
+
+    Ok(version.to_string())
+}
+
+fn build_commit_message(template: Option<&str>, formula: &str, version: &str) -> String {
+    let default = format!(
+        "feature: Updated formula for version '{version}'"
+    );
+    let template = template.map(str::trim).filter(|value| !value.is_empty());
+    let Some(template) = template else {
+        return default;
+    };
+    let mut output = template.replace("{version}", version);
+    if output.contains("{formula}") {
+        output = output.replace("{formula}", formula);
+    }
+    let trimmed = output.trim();
+    if trimmed.is_empty() {
+        default
+    } else {
+        trimmed.to_string()
+    }
+}
+
+fn ensure_clean_repo(repo: &Path, label: &str) -> Result<(), AppError> {
+    let output = run_git(repo, &["status", "--porcelain"])?;
+    let status = String::from_utf8_lossy(&output.stdout);
+    if status.trim().is_empty() {
+        return Ok(());
+    }
+    Err(AppError::GitState(format!(
+        "{label} has uncommitted changes; re-run with --allow-dirty to continue"
+    )))
+}
+
+fn commit_formula_update(
+    repo: &Path,
+    formula_path: &Path,
+    message: &str,
+) -> Result<(), AppError> {
+    let relative = formula_path
+        .strip_prefix(repo)
+        .map(|path| path.to_path_buf())
+        .map_err(|_| {
+            AppError::GitState(format!(
+                "formula path {} is not inside tap repo {}",
+                formula_path.display(),
+                repo.display()
+            ))
+        })?;
+
+    run_git(repo, &["add", relative.to_str().ok_or_else(|| {
+        AppError::GitState("formula path contains invalid UTF-8".to_string())
+    })?])?;
+
+    let diff = run_git(repo, &["diff", "--cached", "--name-only"])?;
+    if String::from_utf8_lossy(&diff.stdout).trim().is_empty() {
+        return Ok(());
+    }
+
+    run_git(repo, &["commit", "-m", message])?;
+    Ok(())
+}
+
+fn create_tag(repo: &Path, tag: &str) -> Result<(), AppError> {
+    let exists = run_git(repo, &["tag", "--list", tag])?;
+    if !String::from_utf8_lossy(&exists.stdout).trim().is_empty() {
+        return Err(AppError::GitState(format!(
+            "tag '{tag}' already exists; re-run with --skip-tag or choose a new version"
+        )));
+    }
+    run_git(repo, &["tag", tag])?;
+    Ok(())
+}
+
+fn push_repo(repo: &Path) -> Result<(), AppError> {
+    let remote = select_git_remote(repo)?;
+    run_git(repo, &["push", &remote, "HEAD"])?;
+    Ok(())
+}
+
+fn push_tag(repo: &Path, tag: &str) -> Result<(), AppError> {
+    let remote = select_git_remote(repo)?;
+    run_git(repo, &["push", &remote, tag])?;
+    Ok(())
+}
+
+fn select_git_remote(repo: &Path) -> Result<String, AppError> {
+    let output = run_git(repo, &["remote"])?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let remotes = stdout
+        .lines()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>();
+
+    if remotes.is_empty() {
+        return Err(AppError::GitState("git remote not configured".to_string()));
+    }
+
+    if remotes.iter().any(|remote| *remote == "origin") {
+        return Ok("origin".to_string());
+    }
+
+    if remotes.len() == 1 {
+        return Ok(remotes[0].to_string());
+    }
+
+    Err(AppError::GitState(
+        "multiple git remotes found; configure origin or use a single remote".to_string(),
+    ))
+}
+
+fn run_git(repo: &Path, args: &[&str]) -> Result<std::process::Output, AppError> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(args)
+        .output()
+        .map_err(|err| AppError::GitState(format!("failed to run git: {err}")))?;
+
+    if output.status.success() {
+        return Ok(output);
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let mut message = format!("git command failed: git {}", args.join(" "));
+    if !stdout.trim().is_empty() || !stderr.trim().is_empty() {
+        message.push_str(":\n");
+        if !stdout.trim().is_empty() {
+            message.push_str(stdout.trim());
+            message.push('\n');
+        }
+        if !stderr.trim().is_empty() {
+            message.push_str(stderr.trim());
+        }
+    }
+    Err(AppError::GitState(message))
 }
 
 fn extract_formula_version(content: &str) -> Option<String> {
