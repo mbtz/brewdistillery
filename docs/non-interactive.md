@@ -77,6 +77,7 @@ must fail without writing files or making network requests.
 - Version input:
   - `--version` or `--tag`, unless latest GitHub Release tag can be resolved
     (stable only unless `--include-prerelease`).
+  See `docs/release-discovery.md` for the discovery and prerelease rules.
 
 ### Autodetect sources
 
