@@ -1159,3 +1159,80 @@ Next steps (pick one)
 2) Tell me which task to implement next (or I can pick a P0 item).
 ```
 
+## 2026-01-23T10:49:40Z
+
+- run_id: 2ea81669-6a30-41e7-ad90-94c3ed6146e7
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T10:44:36Z
+- finished_at: 2026-01-23T10:49:40Z
+- exit_code: 0
+
+```
++            "    if Hardware::CPU.arm?\n",
++            "      url \"https://example.com/brewtool-darwin-arm64.tar.gz\"\n",
++            "      sha256 \"armsha\"\n",
++            "    else\n",
++            "      url \"https://example.com/brewtool-darwin-amd64.tar.gz\"\n",
++            "      sha256 \"amdsha\"\n",
++            "    end\n",
++            "  end\n",
++            "  on_linux do\n",
++            "    if Hardware::CPU.arm?\n",
++            "      url \"https://example.com/brewtool-linux-arm64.tar.gz\"\n",
++            "      sha256 \"linuxarm\"\n",
++            "    else\n",
++            "      url \"https://example.com/brewtool-linux-amd64.tar.gz\"\n",
++            "      sha256 \"linuxamd\"\n",
++            "    end\n",
++            "  end\n",
++            "  license \"MIT\"\n",
++            "  version \"1.2.3\"\n",
++            "\n",
++            "  def install\n",
++            "    bin.install \"brewtool\"\n",
++            "  end\n",
++            "end\n"
++        );
++        assert_eq!(rendered, expected);
++    }
++
++    #[test]
++    fn rejects_empty_target_matrix() {
++        let spec = FormulaSpec {
++            name: "brewtool".to_string(),
++            desc: "Brew tool".to_string(),
++            homepage: "https://example.com".to_string(),
++            license: "MIT".to_string(),
++            version: "1.2.3".to_string(),
++            bins: vec!["brewtool".to_string()],
++            assets: AssetMatrix::PerTarget(Vec::new()),
++        };
++
++        let err = spec.render().unwrap_err();
++        assert!(matches!(err, AppError::InvalidInput(_)));
++    }
+ }
+
+tokens used
+83 373
+Added a full Homebrew formula renderer with asset matrix support and install block generation, then validated it with new unit tests so we can wire it into `bd init`/`bd release` next. The core logic lives in `src/formula.rs` and stays deterministic across universal, per-OS, and per-OS+arch outputs.
+
+- Implemented `FormulaSpec`, asset matrix types, validation, and Ruby rendering in `src/formula.rs`
+- Added multi-bin `bin.install` rendering and string escaping rules in `src/formula.rs`
+- Rendered per-OS/arch sections using `on_macos`/`on_linux` with `Hardware::CPU.arm?`/`Hardware::CPU.intel?` conditionals in `src/formula.rs`
+- Added formula rendering tests covering universal, multi-bin, per-target, and invalid matrices in `src/formula.rs`
+
+Tests run:
+- `cargo test`
+
+Next steps you might want:
+1) Wire `FormulaSpec::render` into `bd init` (preview/write) and `bd release` (formula update).
+2) Confirm the per-arch Ruby DSL choice (`Hardware::CPU.*?`) or switch to an alternative if we want a different Homebrew idiom.
+```
+
