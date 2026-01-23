@@ -1,7 +1,22 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-23T11:56:14.873491Z",
+  "generated_at": "2026-01-23T11:58:42.835988Z",
   "tasks": [
+    {
+      "id": "sv-9n7",
+      "title": "Write README install/usage instructions for early testing",
+      "status": "closed",
+      "priority": "P0",
+      "created_at": "2026-01-23T11:58:08.078773Z",
+      "updated_at": "2026-01-23T11:58:42.823409Z",
+      "body": "User request: add README instructions for installing and running brewdistillery early builds (non-Homebrew). Include build/run steps, prerequisites, and example commands.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T11:58:19.675523Z",
+      "closed_at": "2026-01-23T11:58:42.823409Z",
+      "comments_count": 0
+    },
     {
       "id": "sv-yd4",
       "title": "Define non-Rust metadata detection presets",

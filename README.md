@@ -12,7 +12,7 @@ Homebrew formula initialization and release helper. This is an early, in-progres
 ## Install (early build)
 
 Requirements:
-- Rust toolchain (rustup + cargo)
+- Rust toolchain (rustup + cargo, stable)
 - Git (for cloning this repo)
 
 Option A: build from source (release binary)
@@ -92,6 +92,15 @@ bd init --non-interactive \
 
 This writes `.distill/config.toml` in the CLI repo. Formula generation and tap
 scaffolding are not implemented yet.
+
+## Current capabilities
+
+- `bd init --non-interactive`: writes `.distill/config.toml` and a placeholder formula file.
+- `bd release`: validates `--version`/`--tag` and exits (no git or formula updates yet).
+- `bd doctor`: CLI wiring only (checks are still stubbed).
+
+If you run into missing fields in non-interactive mode, provide explicit flags for
+all required inputs (see `bd init --help`).
 
 ## Config location
 
