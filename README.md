@@ -18,12 +18,12 @@ Requirements:
 - Git (for cloning this repo)
 - Homebrew (optional; only needed for `bd doctor --audit` or `bd init --tap-new`)
 
-Recommended quick path:
+Recommended quick path (local install):
 
 ```
 git clone <repo-url>
 cd brewdistillery
-cargo install --path .
+cargo install --path . --locked
 bd --help
 ```
 
@@ -32,11 +32,13 @@ Option A: install locally with cargo (recommended)
 ```
 git clone <repo-url>
 cd brewdistillery
-cargo install --path .
+cargo install --path . --locked
 ```
 
 Binary path:
 - `~/.cargo/bin/bd`
+
+Make sure `~/.cargo/bin` is on your PATH (or use the full path above).
 
 Option B: build from source (release binary)
 
