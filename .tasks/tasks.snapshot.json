@@ -1,7 +1,72 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-23T12:06:54.643479Z",
+  "generated_at": "2026-01-23T12:15:44.731232Z",
   "tasks": [
+    {
+      "id": "sv-xxr",
+      "title": "Implement GitHub asset download + SHA256 helper",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-23T12:12:44.752266Z",
+      "updated_at": "2026-01-23T12:15:44.720255Z",
+      "body": "Acceptance:\\n- downloads a release asset URL with optional size limit\\n- computes SHA256 locally\\n- returns clear Network errors on non-2xx or size limit exceeded\\n- supports auth token header when provided\\n",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T12:13:08.191359Z",
+      "closed_at": "2026-01-23T12:15:44.720255Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-sj8",
+      "title": "Implement GitHub release discovery + asset listing",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-23T12:12:41.533732Z",
+      "updated_at": "2026-01-23T12:15:42.329749Z",
+      "body": "Acceptance:\\n- fetches releases via GitHub API using config.host.api_base defaulting to https://api.github.com\\n- supports latest stable release selection and tag lookup\\n- filters draft releases and optionally prereleases\\n- exposes asset name + download URL list for release\\n",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T12:13:05.824543Z",
+      "closed_at": "2026-01-23T12:15:42.329749Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-4nc",
+      "title": "Define host abstraction trait",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:37.336014Z",
+      "updated_at": "2026-01-23T12:15:40.192395Z",
+      "body": "DoD:\\n- Trait/interface shape + required methods.\\n- Versioning plan for future providers.\\nNotes: PRD D14 (status: open).",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T12:13:03.573860Z",
+      "closed_at": "2026-01-23T12:15:40.192395Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-s70",
+      "title": "Implement GitHub tap repo creation flow",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-23T12:12:49.541647Z",
+      "updated_at": "2026-01-23T12:12:56.818094Z",
+      "body": "Acceptance:\\n- creates a public repo via GitHub API for user or org owner\\n- reads token from env (GITHUB_TOKEN or GH_TOKEN)\\n- handles permission and rate-limit errors with actionable messages\\n- returns created repo clone URL\\n",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-zy5",
+      "title": "Implement GitHub host client (release discovery, assets, tap creation)",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:42:52.582731Z",
+      "updated_at": "2026-01-23T12:12:56.818094Z",
+      "body": "Acceptance:\\n- uses GitHub API for releases and tap repo creation\\n- supports authenticated token via env and handles rate/permission errors\\n- provides download helpers for checksum acquisition",
+      "comments_count": 0
+    },
     {
       "id": "sv-s2d",
       "title": "Implement formula install_block override",
@@ -525,16 +590,6 @@
       "comments_count": 0
     },
     {
-      "id": "sv-zy5",
-      "title": "Implement GitHub host client (release discovery, assets, tap creation)",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-22T13:42:52.582731Z",
-      "updated_at": "2026-01-22T13:42:55.907839Z",
-      "body": "Acceptance:\\n- uses GitHub API for releases and tap repo creation\\n- supports authenticated token via env and handles rate/permission errors\\n- provides download helpers for checksum acquisition",
-      "comments_count": 0
-    },
-    {
       "id": "sv-4v5",
       "title": "Implement release idempotency + git commit/tag/push flow",
       "status": "open",
@@ -722,16 +777,6 @@
       "created_at": "2026-01-22T13:31:37.529488Z",
       "updated_at": "2026-01-22T13:31:37.689716Z",
       "body": "DoD:\\n- Prompt sequence + field defaults.\\n- Preview examples + overwrite decision points.\\n- --yes/--force semantics + brew tap-new fallback behavior.\\nNotes: PRD E15 (status: open).",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-4nc",
-      "title": "Define host abstraction trait",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-22T13:31:37.336014Z",
-      "updated_at": "2026-01-22T13:31:37.501909Z",
-      "body": "DoD:\\n- Trait/interface shape + required methods.\\n- Versioning plan for future providers.\\nNotes: PRD D14 (status: open).",
       "comments_count": 0
     },
     {
