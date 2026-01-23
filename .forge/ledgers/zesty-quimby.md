@@ -3540,3 +3540,80 @@ Added a release asset selection spec (with OS/arch normalization and error messa
 2) Tackle sv-872 (release discovery policy + error messaging).
 ```
 
+## 2026-01-23T14:06:27Z
+
+- run_id: 2bbc2a31-3a99-4fdf-876b-88cf6179b30d
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T14:02:11Z
+- finished_at: 2026-01-23T14:06:27Z
+- exit_code: 0
+
+```
+--- a/docs/non-interactive.md
++++ b/docs/non-interactive.md
+@@ -77,6 +77,7 @@
+ - Version input:
+   - `--version` or `--tag`, unless latest GitHub Release tag can be resolved
+     (stable only unless `--include-prerelease`).
++  See `docs/release-discovery.md` for the discovery and prerelease rules.
+ 
+ ### Autodetect sources
+ 
+
+
+
+thinking
+**Summarizing task and doc updates**
+
+Tasks and epics were managed using sv-issue-tracking; no new tasks were created due to existing duplicates, and sv-872 was closed. A new documentation file was added and referenced in the non-interactive docs, no tests were run, and no user actions are currently needed.
+thinking
+**Summarizing skills used and final updates**
+
+Used sv-issue-tracking, workflow-pattern, and session-protocol skills. Closed task sv-872 and added documentation files `docs/release-discovery.md` and `docs/non-interactive.md` in a separate chore commit; no tests were run. Not creating duplicate tasks since PRD tasks already exist.
+codex
+Used sv-issue-tracking + workflow-pattern + session-protocol to drive the work.
+
+- Documented the GitHub Release discovery rules, examples, and exact error messages in `docs/release-discovery.md`, and linked it from `docs/non-interactive.md`.
+- Closed task sv-872 in sv (release discovery policy).
+- Committed the pre-existing ledger change separately as a chore commit.
+
+Tests not run (docs/task updates only).
+
+If you want, I can pick the next P0 spec task or start an implementation task. Suggested next steps:
+1) Tackle sv-apm (cross-platform asset config + formula output examples).
+2) Tackle sv-61v (release orchestration + idempotency flow spec).
+file update:
+diff --git a/docs/non-interactive.md b/docs/non-interactive.md
+index 5683889ab0a5f82a33a48fb4c776c086b282ec46..3b31be8cc205daec10b35aa311b51ff12aebb25d
+--- a/docs/non-interactive.md
++++ b/docs/non-interactive.md
+@@ -77,6 +77,7 @@
+ - Version input:
+   - `--version` or `--tag`, unless latest GitHub Release tag can be resolved
+     (stable only unless `--include-prerelease`).
++  See `docs/release-discovery.md` for the discovery and prerelease rules.
+ 
+ ### Autodetect sources
+ 
+
+tokens used
+55 412
+Used sv-issue-tracking + workflow-pattern + session-protocol to drive the work.
+
+- Documented the GitHub Release discovery rules, examples, and exact error messages in `docs/release-discovery.md`, and linked it from `docs/non-interactive.md`.
+- Closed task sv-872 in sv (release discovery policy).
+- Committed the pre-existing ledger change separately as a chore commit.
+
+Tests not run (docs/task updates only).
+
+If you want, I can pick the next P0 spec task or start an implementation task. Suggested next steps:
+1) Tackle sv-apm (cross-platform asset config + formula output examples).
+2) Tackle sv-61v (release orchestration + idempotency flow spec).
+```
+
