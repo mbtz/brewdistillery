@@ -4615,3 +4615,80 @@ Next steps (pick one):
 2) Ask me to start the new README task (`sv-6aq`).
 ```
 
+## 2026-01-23T15:45:29Z
+
+- run_id: 19c91688-62b9-471d-be5b-29c8959012fc
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T15:33:00Z
+- finished_at: 2026-01-23T15:45:29Z
+- exit_code: 0
+
+```
+- Ran `cargo test writes_config_for_non_interactive` targeting the relevant feature  
+- Committed two changes: a chore commit for pre-existing updates and a feature commit for the default strategy  
+
+No further user action or new TODOs are needed. Suggested next steps:  
+1) Run full `cargo test` to ensure comprehensive coverage  
+2) Proceed with next open task as appropriate (e.g., from sv backlog)
+codex
+Defaulted `artifact.strategy` during `bd init` to `release-asset` when missing and added a regression check for the non‑interactive path. The change is in `src/commands/init.rs`, and task metadata was updated in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`.
+
+Pre‑existing changes were committed separately as instructed: `src/preview.rs`, `USER_TODO.md`, and `.forge/ledgers/zesty-quimby.md` went into a chore commit.
+
+Tests: `cargo test writes_config_for_non_interactive`
+
+Commits:
+- `chore: sync pre-existing changes`
+- `feat: default artifact strategy in init`
+
+Next steps (optional):
+1) Run the full suite with `cargo test`.
+2) Pick the next open sv task to implement (e.g., from `sv task ready`).
+file update:
+diff --git a/src/commands/init.rs b/src/commands/init.rs
+index 9554f1bae88daa0b213a76028f17ab426a745f3b..cb3a75e29906914b3952b951c5cd1c1b386b0616
+--- a/src/commands/init.rs
++++ b/src/commands/init.rs
+@@ -1504,6 +1504,10 @@
+         config.artifact.strategy = Some(strategy.clone());
+     }
+ 
++    if config.artifact.strategy.is_none() {
++        config.artifact.strategy = Some("release-asset".to_string());
++    }
++
+     if let Some(template) = resolved.asset_template.as_ref() {
+         config.artifact.asset_template = Some(template.clone());
+     }
+@@ -1702,6 +1706,7 @@
+         assert_eq!(config.project.name.as_deref(), Some("brewtool"));
+         assert_eq!(config.tap.formula.as_deref(), Some("brewtool"));
+         assert_eq!(config.cli.owner.as_deref(), Some("acme"));
++        assert_eq!(config.artifact.strategy.as_deref(), Some("release-asset"));
+ 
+         let formula_path = tap_path.join("Formula").join("brewtool.rb");
+         let formula = fs::read_to_string(formula_path).unwrap();
+
+tokens used
+112 730
+Defaulted `artifact.strategy` during `bd init` to `release-asset` when missing and added a regression check for the non‑interactive path. The change is in `src/commands/init.rs`, and task metadata was updated in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`.
+
+Pre‑existing changes were committed separately as instructed: `src/preview.rs`, `USER_TODO.md`, and `.forge/ledgers/zesty-quimby.md` went into a chore commit.
+
+Tests: `cargo test writes_config_for_non_interactive`
+
+Commits:
+- `chore: sync pre-existing changes`
+- `feat: default artifact strategy in init`
+
+Next steps (optional):
+1) Run the full suite with `cargo test`.
+2) Pick the next open sv task to implement (e.g., from `sv task ready`).
+```
+

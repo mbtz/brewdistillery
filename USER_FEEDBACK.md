@@ -1,2 +1,1 @@
 ## Decisions needed
-- Add a task for creating a README.md with instructions on how the tool should itself be installed and how i can be used. Make this a priority so I can test early build of this tool, even if it isn't ready for homebrew installation yet.
