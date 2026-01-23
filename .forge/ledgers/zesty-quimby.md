@@ -3847,3 +3847,79 @@ Next steps (pick one):
 3. Start `sv-61v` (release orchestration + idempotency flow spec).
 ```
 
+## 2026-01-23T14:38:07Z
+
+- run_id: 7a63ac36-fa67-4d80-8517-80b83fdecbcf
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T14:35:24Z
+- finished_at: 2026-01-23T14:38:07Z
+- exit_code: 0
+
+```
+Added `--locked` install step and PATH note to existing README; created and closed sv-keg task; separately committed existing forge ledger update. No tests run. Next, suggest user pick next tasks from backlog, listing options with file references and inline code details.
+codex
+Updated the README install section to emphasize local installs with `--locked` and a PATH note, and captured the USER_FEEDBACK as a tracked task that’s now closed. Also committed the pre-existing forge ledger change as a separate chore commit per instruction.  
+Files: `README.md`, `.tasks/tasks.jsonl`, `.tasks/tasks.snapshot.json`, `.forge/ledgers/zesty-quimby.md`
+
+Tests not run (docs + task tracking only).
+
+Next steps (pick one):
+1. Start `sv-shb` (repo identity model + overrides doc).
+2. Start `sv-4cn` (release asset selection rules + OS/arch normalization).
+3. Start `sv-61v` (release orchestration + idempotency flow spec).
+file update:
+diff --git a/README.md b/README.md
+index 6626178474ed03a789d5ef09cc69e68022e5e94b..c2fb431c5f5f173cd440cafda766937aae6e9c07
+--- a/README.md
++++ b/README.md
+@@ -18,12 +18,12 @@
+ - Git (for cloning this repo)
+ - Homebrew (optional; only needed for `bd doctor --audit` or `bd init --tap-new`)
+ 
+-Recommended quick path:
++Recommended quick path (local install):
+ 
+ ```
+ git clone <repo-url>
+ cd brewdistillery
+-cargo install --path .
++cargo install --path . --locked
+ bd --help
+ ```
+ 
+@@ -32,12 +32,14 @@
+ ```
+ git clone <repo-url>
+ cd brewdistillery
+-cargo install --path .
++cargo install --path . --locked
+ ```
+ 
+ Binary path:
+ - `~/.cargo/bin/bd`
+ 
++Make sure `~/.cargo/bin` is on your PATH (or use the full path above).
++
+ Option B: build from source (release binary)
+ 
+ ```
+
+tokens used
+32 222
+Updated the README install section to emphasize local installs with `--locked` and a PATH note, and captured the USER_FEEDBACK as a tracked task that’s now closed. Also committed the pre-existing forge ledger change as a separate chore commit per instruction.  
+Files: `README.md`, `.tasks/tasks.jsonl`, `.tasks/tasks.snapshot.json`, `.forge/ledgers/zesty-quimby.md`
+
+Tests not run (docs + task tracking only).
+
+Next steps (pick one):
+1. Start `sv-shb` (repo identity model + overrides doc).
+2. Start `sv-4cn` (release asset selection rules + OS/arch normalization).
+3. Start `sv-61v` (release orchestration + idempotency flow spec).
+```
+
