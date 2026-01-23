@@ -2003,3 +2003,79 @@ If you want me to continue, pick one:
 3) Start `sv-64g` (tap path resolution + auto-clone rules).
 ```
 
+## 2026-01-23T11:49:36Z
+
+- run_id: 136ea00f-3be1-44a5-8108-69615e69579e
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T11:46:01Z
+- finished_at: 2026-01-23T11:49:36Z
+- exit_code: 0
+
+```
+thinking
+**Summarizing task updates and next steps**
+
+I'm preparing a final summary noting the closed task sv-ncb and the newly created open tasks sv-tqx, sv-7ye, sv-ah8, and sv-yd4. Tests were not run, so I'll mention that. I'll include a concise explanation of changes, context references with inline code filenames, and suggest next steps with a numeric list focused on priority P0 tasks.
+thinking
+**Including task IDs and docs update**
+
+I'll finalize by mentioning the closed task sv-ncb and the open tasks sv-tqx, sv-7ye, sv-ah8, and sv-yd4, plus the documentation update in `docs/config.md`. I'll also note that tests were not run before delivering the final response.
+codex
+Updated the config schema doc with explicit precedence and captured the new PRD-aligned tasks in sv; closed `sv-ncb` after the doc change. Also committed the pre-existing ledger change separately as a chore, per your instruction.
+
+Changes
+- Added the precedence section in `docs/config.md` to document flag → config → autodetect → prompt resolution.
+- Created sv tasks: `sv-tqx` (non-interactive contract), `sv-7ye` (formula naming rules), `sv-ah8` (repo metadata detection), `sv-yd4` (non-Rust metadata detection); closed `sv-ncb`.
+- Separate chore commit for `.forge/ledgers/zesty-quimby.md`.
+
+Tests
+- Not run (docs/task-only change).
+
+Next steps (pick one)
+1) Start `sv-tqx` and finalize/expand the non-interactive contract details.
+2) Start `sv-7ye` and align the formula naming doc with any remaining PRD edge cases.
+3) Start `sv-ah8` and document Cargo/workspace edge cases for metadata detection.
+file update:
+diff --git a/docs/config.md b/docs/config.md
+index b81b43ff56cb2ce41fd3f986fd0116b25b462711..10efc6d0332c47cb1299053def057d89899a3219
+--- a/docs/config.md
++++ b/docs/config.md
+@@ -4,6 +4,13 @@
+ 
+ This document describes the v1 config schema used by `brewdistillery`.
+ 
++## Precedence
++Resolution order for any configurable field:
++- CLI flags (highest)
++- `.distill/config.toml`
++- Repo autodetect (manifests, git remote)
++- Interactive prompts (fallback)
++
+ ## Compatibility and migration
+ - `schema_version` is optional today. If omitted, `brewdistillery` treats it as v1.
+ - Unknown fields are preserved and round-tripped on save. This allows forward-compatible
+
+tokens used
+70 412
+Updated the config schema doc with explicit precedence and captured the new PRD-aligned tasks in sv; closed `sv-ncb` after the doc change. Also committed the pre-existing ledger change separately as a chore, per your instruction.
+
+Changes
+- Added the precedence section in `docs/config.md` to document flag → config → autodetect → prompt resolution.
+- Created sv tasks: `sv-tqx` (non-interactive contract), `sv-7ye` (formula naming rules), `sv-ah8` (repo metadata detection), `sv-yd4` (non-Rust metadata detection); closed `sv-ncb`.
+- Separate chore commit for `.forge/ledgers/zesty-quimby.md`.
+
+Tests
+- Not run (docs/task-only change).
+
+Next steps (pick one)
+1) Start `sv-tqx` and finalize/expand the non-interactive contract details.
+2) Start `sv-7ye` and align the formula naming doc with any remaining PRD edge cases.
+3) Start `sv-ah8` and document Cargo/workspace edge cases for metadata detection.
+```
+
