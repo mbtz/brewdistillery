@@ -603,23 +603,46 @@ fn run_non_interactive(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError
         }
     }
 
+    let mut plans = Vec::new();
+    plans.push(RepoPlan {
+        label: "cli".to_string(),
+        repo_root: ctx.cwd.clone(),
+        writes: vec![PlannedWrite {
+            path: ctx.config_path.clone(),
+            content: rendered.clone(),
+        }],
+    });
+
+    if let (Some(path), Some(content)) = (formula_path.clone(), formula_content.clone()) {
+        let tap_root = path
+            .parent()
+            .and_then(|parent| parent.parent())
+            .map(|path| path.to_path_buf())
+            .unwrap_or_else(|| ctx.cwd.clone());
+        plans.push(RepoPlan {
+            label: "tap".to_string(),
+            repo_root: tap_root,
+            writes: vec![PlannedWrite { path, content }],
+        });
+    }
+
+    let preview = crate::preview::preview_and_apply(&plans, true)?;
+    if !preview.summary.trim().is_empty() {
+        println!("{}", preview.summary.trim_end());
+    }
+    if !preview.diff.trim().is_empty() {
+        println!("{}", preview.diff.trim_end());
+    }
+    if preview.changed_files.is_empty() {
+        println!("init: no changes to apply");
+    }
+
     if args.dry_run {
+        println!("dry-run: no changes applied");
         return Ok(());
     }
 
-    if existing.as_deref() != Some(rendered.as_str()) {
-        next_config.save(&ctx.config_path)?;
-    }
-
-    if let (Some(path), Some(content)) = (formula_path, formula_content) {
-        if existing_formula.as_deref() != Some(content.as_str()) {
-            if let Some(parent) = path.parent() {
-                fs::create_dir_all(parent)?;
-            }
-            fs::write(path, content)?;
-        }
-    }
-
+    let _ = crate::preview::preview_and_apply(&plans, false)?;
     Ok(())
 }
 
