@@ -2618,3 +2618,80 @@ Next steps (pick one):
 2) Add a CLI flag for explicit tap‑repo creation and document it.
 ```
 
+## 2026-01-23T12:42:10Z
+
+- run_id: c35ba52e-810a-4c81-8cfd-1cd6342243c5
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T12:37:11Z
+- finished_at: 2026-01-23T12:42:10Z
+- exit_code: 0
+
+```
+diff --git a/README.md b/README.md
+index b9f52809cad679f5160cd2d01ba4c02eeaeb2778..cc4e6efe99946a89d67f3c6ff5f809cc8a6c4840
+--- a/README.md
++++ b/README.md
+@@ -11,6 +11,8 @@
+ 
+ ## Install (early build)
+ 
++Homebrew installation is not available yet. Use one of the source-based options below.
++
+ Requirements:
+ - Rust toolchain (rustup + cargo, stable)
+ - Git (for cloning this repo)
+@@ -62,8 +64,12 @@
+ cargo uninstall brewdistillery
+ ```
+ 
+-## Quick start
++## Usage (early testing)
+ 
++If you did not install the binary, run via `cargo run --` instead of `bd`.
++
++Quick start:
++
+ ```
+ bd --help
+ bd init --help
+@@ -90,8 +96,14 @@
+   --version 0.1.0
+ ```
+ 
+-This writes `.distill/config.toml` in the CLI repo. Formula generation and tap
+-scaffolding are not implemented yet.
++This writes `.distill/config.toml` in the CLI repo and a placeholder formula in the
++tap path. Tap scaffolding and git automation are still in progress.
++
++Release testing (no git commit/tag/push yet):
++
++```
++bd release --version 0.1.0 --dry-run
++```
+ 
+ ## Current capabilities
+ 
+
+tokens used
+75 583
+Using sv-issue-tracking to add/close work items, workflow-pattern for status updates, and session-protocol to finish with the git checklist.
+
+Added early-build install/usage guidance to the README and captured the work as a high-priority task that’s now closed. The pre-existing forge ledger change was committed separately as a chore.  
+- `README.md`  
+- `.tasks/tasks.jsonl`  
+- `.tasks/tasks.snapshot.json`  
+- `.forge/ledgers/zesty-quimby.md`
+
+Tests not run (docs/task updates only).
+
+Next steps (pick one):
+1) Start `sv-2tt` and wire the interactive init flow.  
+2) Start `sv-7df` to implement tap repo path/auto-clone and `brew tap-new` handling.
+```
+
