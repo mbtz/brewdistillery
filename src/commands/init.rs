@@ -2,8 +2,9 @@ use crate::cli::InitArgs;
 use crate::config::Config;
 use crate::context::AppContext;
 use crate::errors::AppError;
-use crate::formula::normalize_formula_name;
+use crate::formula::{normalize_formula_name, AssetMatrix, FormulaAsset, FormulaSpec};
 use crate::repo_detect::ProjectMetadata;
+use crate::version::resolve_version_tag;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -24,6 +25,7 @@ struct ResolvedInit {
     description: String,
     homepage: String,
     license: String,
+    version: String,
     bins: Vec<String>,
     cli_owner: String,
     cli_repo: String,
@@ -45,11 +47,35 @@ fn run_non_interactive(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError
     let rendered = render_config(&next_config, &ctx.config_path)?;
     let existing = read_optional(&ctx.config_path)?;
 
+    let formula_path = resolve_formula_path(&resolved, &next_config);
+    let formula_content = match formula_path.as_ref() {
+        Some(_) => Some(render_formula(&resolved, &next_config)?),
+        None => None,
+    };
+    let existing_formula = match formula_path.as_ref() {
+        Some(path) => read_optional(path)?,
+        None => None,
+    };
+
     if let Some(existing) = existing.as_deref() {
         if existing != rendered && !resolved.allow_overwrite {
             return Err(AppError::InvalidInput(format!(
                 "config already exists at {}; re-run with --force or --yes to overwrite",
                 ctx.config_path.display()
+            )));
+        }
+    }
+
+    if let (Some(existing), Some(formula)) =
+        (existing_formula.as_deref(), formula_content.as_deref())
+    {
+        if existing != formula && !resolved.allow_overwrite {
+            return Err(AppError::InvalidInput(format!(
+                "formula already exists at {}; re-run with --force or --yes to overwrite",
+                formula_path
+                    .as_ref()
+                    .map(|path| path.display().to_string())
+                    .unwrap_or_default()
             )));
         }
     }
@@ -60,6 +86,15 @@ fn run_non_interactive(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError
 
     if existing.as_deref() != Some(rendered.as_str()) {
         next_config.save(&ctx.config_path)?;
+    }
+
+    if let (Some(path), Some(content)) = (formula_path, formula_content) {
+        if existing_formula.as_deref() != Some(content.as_str()) {
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::write(path, content)?;
+        }
     }
 
     Ok(())
@@ -99,14 +134,20 @@ fn resolve_required(ctx: &AppContext, args: &InitArgs) -> Result<ResolvedInit, A
         String::new()
     });
 
-    let version = resolve_string(
+    let version = match resolve_string(
         args.version.as_ref(),
         None,
         metadata.and_then(|meta| meta.version.as_ref()),
-    );
-    if version.is_none() {
-        missing.push("version".to_string());
-    }
+    ) {
+        Some(value) => {
+            let resolved = resolve_version_tag(Some(value.as_str()), None)?;
+            resolved.version.unwrap_or(value)
+        }
+        None => {
+            missing.push("version".to_string());
+            String::new()
+        }
+    };
 
     let cli_owner = resolve_string(args.host_owner.as_ref(), ctx.config.cli.owner.as_ref(), None)
         .unwrap_or_else(|| {
@@ -185,6 +226,7 @@ fn resolve_required(ctx: &AppContext, args: &InitArgs) -> Result<ResolvedInit, A
         description,
         homepage,
         license,
+        version,
         bins,
         cli_owner,
         cli_repo,
@@ -286,6 +328,86 @@ fn read_optional(path: &Path) -> Result<Option<String>, AppError> {
     Ok(Some(fs::read_to_string(path)?))
 }
 
+fn resolve_formula_path(resolved: &ResolvedInit, config: &Config) -> Option<PathBuf> {
+    config
+        .tap
+        .formula_path
+        .clone()
+        .or_else(|| resolved.tap_path.as_ref().map(|path| {
+            path.join("Formula")
+                .join(format!("{}.rb", resolved.formula_name))
+        }))
+}
+
+fn render_formula(resolved: &ResolvedInit, config: &Config) -> Result<String, AppError> {
+    let asset = build_placeholder_asset(resolved, config);
+    let spec = FormulaSpec {
+        name: resolved.formula_name.clone(),
+        desc: resolved.description.clone(),
+        homepage: resolved.homepage.clone(),
+        license: resolved.license.clone(),
+        version: resolved.version.clone(),
+        bins: resolved.bins.clone(),
+        assets: AssetMatrix::Universal(asset),
+    };
+    spec.render()
+}
+
+fn build_placeholder_asset(resolved: &ResolvedInit, config: &Config) -> FormulaAsset {
+    let asset_name = config
+        .artifact
+        .asset_name
+        .clone()
+        .and_then(|value| {
+            if value.trim().is_empty() {
+                None
+            } else {
+                Some(value)
+            }
+        })
+        .or_else(|| {
+            config
+                .artifact
+                .asset_template
+                .as_deref()
+                .and_then(|template| {
+                    render_asset_template(template, &resolved.project_name, &resolved.version)
+                })
+        })
+        .unwrap_or_else(|| format!("{}-{}.tar.gz", resolved.project_name, resolved.version));
+
+    let url = format!(
+        "https://github.com/{}/{}/releases/download/{}/{}",
+        resolved.cli_owner, resolved.cli_repo, resolved.version, asset_name
+    );
+
+    FormulaAsset {
+        url,
+        sha256: "TODO".to_string(),
+    }
+}
+
+fn render_asset_template(template: &str, name: &str, version: &str) -> Option<String> {
+    if template.contains("{os}") || template.contains("{arch}") {
+        return None;
+    }
+
+    let mut output = template.to_string();
+    if output.contains("{name}") {
+        output = output.replace("{name}", name);
+    }
+    if output.contains("{version}") {
+        output = output.replace("{version}", version);
+    }
+
+    let trimmed = output.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -354,7 +476,8 @@ mod tests {
         let dir = tempdir().unwrap();
         let ctx = base_context(dir.path());
         let mut args = base_args();
-        args.tap_path = Some(dir.path().join("tap"));
+        let tap_path = dir.path().join("tap");
+        args.tap_path = Some(tap_path.clone());
         args.host_owner = Some("acme".to_string());
         args.host_repo = Some("brewtool".to_string());
 
@@ -364,6 +487,12 @@ mod tests {
         assert_eq!(config.project.name.as_deref(), Some("brewtool"));
         assert_eq!(config.tap.formula.as_deref(), Some("brewtool"));
         assert_eq!(config.cli.owner.as_deref(), Some("acme"));
+
+        let formula_path = tap_path.join("Formula").join("brewtool.rb");
+        let formula = fs::read_to_string(formula_path).unwrap();
+        assert!(formula.contains("class Brewtool < Formula"));
+        assert!(formula.contains("version \"1.2.3\""));
+        assert!(formula.contains("sha256 \"TODO\""));
     }
 
     #[test]
