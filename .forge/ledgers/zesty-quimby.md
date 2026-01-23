@@ -2695,3 +2695,80 @@ Next steps (pick one):
 2) Start `sv-7df` to implement tap repo path/auto-clone and `brew tap-new` handling.
 ```
 
+## 2026-01-23T12:50:57Z
+
+- run_id: 91e00b23-ab03-44b8-a691-3ed00bc59b21
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T12:42:40Z
+- finished_at: 2026-01-23T12:50:57Z
+- exit_code: 0
+
+```
++        return parent.parent().map(|path| path.to_path_buf());
++    }
++    Some(parent.to_path_buf())
++}
++
++fn run_git_clone(remote: &str, dest: &Path) -> Result<(), AppError> {
++    let output = Command::new("git")
++        .arg("clone")
++        .arg(remote)
++        .arg(dest)
++        .output()
++        .map_err(|err| AppError::GitState(format!("failed to run git clone: {err}")))?;
++
++    if !output.status.success() {
++        let stdout = String::from_utf8_lossy(&output.stdout);
++        let stderr = String::from_utf8_lossy(&output.stderr);
++        let mut message = format!("failed to clone tap repo from {remote}");
++        if !stdout.trim().is_empty() || !stderr.trim().is_empty() {
++            message.push_str(":\n");
++            if !stdout.trim().is_empty() {
++                message.push_str(stdout.trim());
++                message.push('\n');
++            }
++            if !stderr.trim().is_empty() {
++                message.push_str(stderr.trim());
++            }
++        }
++        return Err(AppError::GitState(message));
++    }
++
++    Ok(())
++}
++
+ fn print_preview(preview: &crate::preview::PreviewOutput) {
+     if !preview.summary.trim().is_empty() {
+         println!("{}", preview.summary.trim_end());
+@@ -494,4 +607,11 @@
+         assert_eq!(os, Os::Linux);
+         assert_eq!(arch, Arch::Amd64);
+     }
++
++    #[test]
++    fn derives_tap_root_from_formula_path() {
++        let formula = PathBuf::from("/tmp/homebrew-brewtool/Formula/brewtool.rb");
++        let root = tap_root_from_formula_path(&formula).unwrap();
++        assert_eq!(root, PathBuf::from("/tmp/homebrew-brewtool"));
++    }
+ }
+
+tokens used
+126 083
+Using sv-issue-tracking for task creation/status updates, workflow-pattern for in‑progress/closed flow, and session-protocol for the git checklist.
+
+Implemented `bd release` tap auto-clone when `tap.path` is missing but `tap.remote` is set, keeping a temp clone alive for the run and resolving tap roots from formula paths. Updated `Cargo.toml` to include `tempfile` and added the helper + clone flow in `src/commands/release.rs`. Created `sv-ghe` (P0, README install/usage instructions) and closed `sv-fdz` after implementation.
+
+Tests: `cargo test -q`.
+
+Next steps (pick one):
+1) Start `sv-ghe` and expand `README.md` install/usage instructions for early builds.  
+2) Start `sv-7df` to implement init tap repo handling (`brew tap-new`, path/clone).
+```
+
