@@ -3,8 +3,11 @@ use crate::config::Config;
 use crate::context::AppContext;
 use crate::errors::AppError;
 use crate::formula::{normalize_formula_name, AssetMatrix, FormulaAsset, FormulaSpec};
+use crate::preview::{PlannedWrite, RepoPlan};
 use crate::repo_detect::ProjectMetadata;
 use crate::version::resolve_version_tag;
+use dialoguer::{Confirm, Input};
+use dialoguer::theme::ColorfulTheme;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -14,9 +17,13 @@ pub fn run(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError> {
         return run_non_interactive(ctx, args);
     }
 
-    Err(AppError::Other(
-        "interactive init is not implemented yet; use --non-interactive".to_string(),
-    ))
+    if args.import_formula {
+        return Err(AppError::Other(
+            "--import-formula is not implemented for interactive init yet".to_string(),
+        ));
+    }
+
+    run_interactive(ctx, args)
 }
 
 #[derive(Debug, Clone)]
@@ -37,6 +44,251 @@ struct ResolvedInit {
     artifact_strategy: Option<String>,
     asset_template: Option<String>,
     allow_overwrite: bool,
+}
+
+fn run_interactive(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError> {
+    let metadata = ctx.repo.metadata.as_ref();
+    let theme = ColorfulTheme::default();
+
+    let formula_default = resolve_string(
+        args.formula_name.as_ref(),
+        ctx.config.tap.formula.as_ref(),
+        args.repo_name
+            .as_ref()
+            .or_else(|| metadata.and_then(|meta| meta.name.as_ref())),
+    );
+
+    let formula_name = prompt_formula_name(&theme, "Formula name", formula_default)?;
+
+    let description = prompt_required(
+        &theme,
+        "Description",
+        resolve_string(
+            args.description.as_ref(),
+            ctx.config.project.description.as_ref(),
+            metadata.and_then(|meta| meta.description.as_ref()),
+        ),
+    )?;
+
+    let homepage = prompt_required(
+        &theme,
+        "Homepage",
+        resolve_string(
+            args.homepage.as_ref(),
+            ctx.config.project.homepage.as_ref(),
+            metadata.and_then(|meta| meta.homepage.as_ref()),
+        ),
+    )?;
+
+    let license = prompt_required(
+        &theme,
+        "License (SPDX)",
+        resolve_string(
+            args.license.as_ref(),
+            ctx.config.project.license.as_ref(),
+            metadata.and_then(|meta| meta.license.as_ref()),
+        ),
+    )?;
+
+    let version = prompt_version(
+        &theme,
+        "Version",
+        resolve_string(
+            args.version.as_ref(),
+            None,
+            metadata.and_then(|meta| meta.version.as_ref()),
+        ),
+    )?;
+
+    let bins_default = resolve_bins(args, &ctx.config, metadata);
+    let bins = prompt_bins(&theme, "Binary name(s)", bins_default, &formula_name)?;
+
+    let project_name = resolve_string(
+        args.repo_name.as_ref(),
+        ctx.config.project.name.as_ref(),
+        metadata.and_then(|meta| meta.name.as_ref()),
+    )
+    .unwrap_or_else(|| formula_name.clone());
+
+    let (owner_default, repo_default) = infer_owner_repo_defaults(
+        args.host_owner.as_ref(),
+        args.host_repo.as_ref(),
+        ctx.config.cli.owner.as_ref(),
+        ctx.config.cli.repo.as_ref(),
+        Some(&homepage),
+    );
+
+    let cli_owner = prompt_required(&theme, "GitHub owner", owner_default)?;
+    let cli_repo = prompt_required(&theme, "GitHub repo", repo_default)?;
+
+    let tap_path = if let Some(path) = args
+        .tap_path
+        .clone()
+        .or_else(|| ctx.config.tap.path.clone())
+    {
+        Some(path)
+    } else {
+        let default_repo = ctx
+            .config
+            .tap
+            .repo
+            .clone()
+            .unwrap_or_else(|| format!("homebrew-{}", project_name));
+        let default_path = default_tap_path(ctx, &default_repo);
+        Some(prompt_path(
+            &theme,
+            "Tap path",
+            Some(default_path.to_string_lossy().to_string()),
+        )?)
+    };
+
+    let tap_remote = resolve_string(
+        args.tap_remote.as_ref(),
+        ctx.config.tap.remote.as_ref(),
+        None,
+    );
+
+    let mut tap_owner = resolve_string(args.tap_owner.as_ref(), ctx.config.tap.owner.as_ref(), None);
+    let mut tap_repo = resolve_string(args.tap_repo.as_ref(), ctx.config.tap.repo.as_ref(), None);
+
+    if tap_owner.is_none() || tap_repo.is_none() {
+        if let Some(remote) = tap_remote.as_deref() {
+            if let Some((owner, repo)) = parse_owner_repo_from_remote(remote) {
+                if tap_owner.is_none() {
+                    tap_owner = Some(owner);
+                }
+                if tap_repo.is_none() {
+                    tap_repo = Some(repo);
+                }
+            }
+        }
+    }
+
+    if tap_owner.is_none() || tap_repo.is_none() {
+        if let Some(path) = tap_path.as_ref() {
+            if let Some(repo_name) = path.file_name().and_then(|name| name.to_str()) {
+                if tap_repo.is_none() {
+                    tap_repo = Some(repo_name.to_string());
+                }
+            }
+        }
+        if tap_owner.is_none() {
+            tap_owner = Some(cli_owner.clone());
+        }
+    }
+
+    if args.tap_new {
+        tap_owner = Some(prompt_required(
+            &theme,
+            "Tap owner (for brew tap-new)",
+            tap_owner.clone(),
+        )?);
+        tap_repo = Some(prompt_required(
+            &theme,
+            "Tap repo (for brew tap-new)",
+            tap_repo.clone(),
+        )?);
+    }
+
+    let artifact_strategy = resolve_string(
+        args.artifact_strategy.as_ref(),
+        ctx.config.artifact.strategy.as_ref(),
+        None,
+    );
+    let asset_template = resolve_string(
+        args.asset_template.as_ref(),
+        ctx.config.artifact.asset_template.as_ref(),
+        None,
+    );
+
+    let mut resolved = ResolvedInit {
+        formula_name,
+        project_name,
+        description,
+        homepage,
+        license,
+        version,
+        bins,
+        cli_owner,
+        cli_repo,
+        tap_owner,
+        tap_repo,
+        tap_remote,
+        tap_path,
+        artifact_strategy,
+        asset_template,
+        allow_overwrite: args.force || args.yes,
+    };
+
+    resolve_tap_repo(ctx, args, &mut resolved)?;
+
+    let mut next_config = ctx.config.clone();
+    apply_resolved(&mut next_config, &resolved);
+
+    let rendered_config = render_config(&next_config, &ctx.config_path)?;
+
+    let formula_path = resolve_formula_path(&resolved, &next_config);
+    let formula_content = match formula_path.as_ref() {
+        Some(_) => Some(render_formula(&resolved, &next_config)?),
+        None => None,
+    };
+
+    let mut plans = Vec::new();
+    plans.push(RepoPlan {
+        label: "cli".to_string(),
+        repo_root: ctx.cwd.clone(),
+        writes: vec![PlannedWrite {
+            path: ctx.config_path.clone(),
+            content: rendered_config.clone(),
+        }],
+    });
+
+    if let (Some(path), Some(content)) = (formula_path.clone(), formula_content.clone()) {
+        let tap_root = path
+            .parent()
+            .and_then(|parent| parent.parent())
+            .map(|path| path.to_path_buf())
+            .unwrap_or_else(|| ctx.cwd.clone());
+        plans.push(RepoPlan {
+            label: "tap".to_string(),
+            repo_root: tap_root,
+            writes: vec![PlannedWrite { path, content }],
+        });
+    }
+
+    let preview = crate::preview::preview_and_apply(&plans, true)?;
+    if !preview.summary.trim().is_empty() {
+        println!("{}", preview.summary.trim_end());
+    }
+    if !preview.diff.trim().is_empty() {
+        println!("{}", preview.diff.trim_end());
+    }
+    if preview.changed_files.is_empty() {
+        println!("init: no changes to apply");
+    }
+
+    if args.dry_run {
+        println!("dry-run: no changes applied");
+        return Ok(());
+    }
+
+    let apply = if resolved.allow_overwrite {
+        true
+    } else {
+        Confirm::with_theme(&theme)
+            .with_prompt("Apply these changes?")
+            .default(true)
+            .interact()
+            .map_err(|err| AppError::Other(format!("failed to read confirmation: {err}")))?
+    };
+
+    if !apply {
+        println!("init: cancelled");
+        return Ok(());
+    }
+
+    let _ = crate::preview::preview_and_apply(&plans, false)?;
+    Ok(())
 }
 
 fn run_non_interactive(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError> {
@@ -460,33 +712,7 @@ fn run_brew_tap_new(owner: &str, repo: &str) -> Result<(), AppError> {
 }
 
 fn parse_owner_repo_from_remote(remote: &str) -> Option<(String, String)> {
-    let trimmed = remote.trim();
-    let path = if let Some(rest) = trimmed.strip_prefix("git@github.com:") {
-        rest
-    } else if let Some(rest) = trimmed.strip_prefix("ssh://git@github.com/") {
-        rest
-    } else if let Some(rest) = trimmed.strip_prefix("https://github.com/") {
-        rest
-    } else if let Some(rest) = trimmed.strip_prefix("http://github.com/") {
-        rest
-    } else if let Some(rest) = trimmed.strip_prefix("git://github.com/") {
-        rest
-    } else {
-        return None;
-    };
-
-    let cleaned = path.trim_end_matches(".git").trim_end_matches('/');
-    let mut parts: Vec<&str> = cleaned.split('/').filter(|part| !part.is_empty()).collect();
-    if parts.len() < 2 {
-        return None;
-    }
-    let repo = parts.pop()?.to_string();
-    let owner = parts.pop()?.to_string();
-    if owner.is_empty() || repo.is_empty() {
-        None
-    } else {
-        Some((owner, repo))
-    }
+    parse_owner_repo_from_github(remote)
 }
 
 fn run_git_clone(remote: &str, dest: &Path) -> Result<(), AppError> {
@@ -560,6 +786,170 @@ fn normalize_bins(mut bins: Vec<String>) -> Vec<String> {
     bins.sort();
     bins.dedup();
     bins
+}
+
+fn prompt_required(
+    theme: &ColorfulTheme,
+    label: &str,
+    default: Option<String>,
+) -> Result<String, AppError> {
+    loop {
+        let mut input = Input::with_theme(theme).with_prompt(label);
+        if let Some(default) = default.as_deref() {
+            input = input.default(default.to_string());
+        }
+        let value = input
+            .allow_empty(true)
+            .interact_text()
+            .map_err(|err| AppError::Other(format!("failed to read {label}: {err}")))?;
+        let trimmed = value.trim();
+        if !trimmed.is_empty() {
+            return Ok(trimmed.to_string());
+        }
+    }
+}
+
+fn prompt_formula_name(
+    theme: &ColorfulTheme,
+    label: &str,
+    default: Option<String>,
+) -> Result<String, AppError> {
+    loop {
+        let value = prompt_required(theme, label, default.clone())?;
+        match normalize_formula_name(&value) {
+            Ok(normalized) => return Ok(normalized),
+            Err(err) => {
+                println!("invalid formula name: {err}");
+            }
+        }
+    }
+}
+
+fn prompt_version(
+    theme: &ColorfulTheme,
+    label: &str,
+    default: Option<String>,
+) -> Result<String, AppError> {
+    loop {
+        let value = prompt_required(theme, label, default.clone())?;
+        let resolved = resolve_version_tag(Some(value.as_str()), None);
+        match resolved {
+            Ok(resolved) => {
+                return Ok(resolved.version.unwrap_or(value));
+            }
+            Err(err) => {
+                println!("invalid version: {err}");
+            }
+        }
+    }
+}
+
+fn prompt_bins(
+    theme: &ColorfulTheme,
+    label: &str,
+    default_bins: Vec<String>,
+    fallback: &str,
+) -> Result<Vec<String>, AppError> {
+    let default_value = if default_bins.is_empty() {
+        Some(fallback.to_string())
+    } else {
+        Some(default_bins.join(", "))
+    };
+
+    loop {
+        let value = prompt_required(theme, label, default_value.clone())?;
+        let bins = parse_bins_input(&value);
+        if !bins.is_empty() {
+            return Ok(bins);
+        }
+    }
+}
+
+fn parse_bins_input(input: &str) -> Vec<String> {
+    let mut bins = Vec::new();
+    for entry in input.split(',') {
+        let trimmed = entry.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        for part in trimmed.split_whitespace() {
+            if !part.trim().is_empty() {
+                bins.push(part.trim().to_string());
+            }
+        }
+    }
+    normalize_bins(bins)
+}
+
+fn prompt_path(
+    theme: &ColorfulTheme,
+    label: &str,
+    default: Option<String>,
+) -> Result<PathBuf, AppError> {
+    loop {
+        let value = prompt_required(theme, label, default.clone())?;
+        let trimmed = value.trim();
+        if !trimmed.is_empty() {
+            return Ok(PathBuf::from(trimmed));
+        }
+    }
+}
+
+fn infer_owner_repo_defaults(
+    owner_flag: Option<&String>,
+    repo_flag: Option<&String>,
+    owner_config: Option<&String>,
+    repo_config: Option<&String>,
+    homepage: Option<&str>,
+) -> (Option<String>, Option<String>) {
+    let owner = resolve_string(owner_flag, owner_config, None);
+    let repo = resolve_string(repo_flag, repo_config, None);
+
+    if owner.is_some() && repo.is_some() {
+        return (owner, repo);
+    }
+
+    if let Some(homepage) = homepage {
+        if let Some((derived_owner, derived_repo)) = parse_owner_repo_from_homepage(homepage) {
+            return (
+                owner.or(Some(derived_owner)),
+                repo.or(Some(derived_repo)),
+            );
+        }
+    }
+
+    (owner, repo)
+}
+
+fn parse_owner_repo_from_homepage(homepage: &str) -> Option<(String, String)> {
+    parse_owner_repo_from_github(homepage)
+}
+
+fn parse_owner_repo_from_github(input: &str) -> Option<(String, String)> {
+    let trimmed = input.trim();
+    let path = if let Some(rest) = trimmed.strip_prefix("git@github.com:") {
+        rest
+    } else if let Some(rest) = trimmed.strip_prefix("ssh://git@github.com/") {
+        rest
+    } else if let Some(rest) = trimmed.strip_prefix("https://github.com/") {
+        rest
+    } else if let Some(rest) = trimmed.strip_prefix("http://github.com/") {
+        rest
+    } else if let Some(rest) = trimmed.strip_prefix("git://github.com/") {
+        rest
+    } else {
+        return None;
+    };
+
+    let cleaned = path.trim_end_matches(".git").trim_end_matches('/');
+    let mut parts = cleaned.split('/').filter(|part| !part.is_empty());
+    let owner = parts.next()?.to_string();
+    let repo = parts.next()?.to_string();
+    if owner.is_empty() || repo.is_empty() {
+        None
+    } else {
+        Some((owner, repo))
+    }
 }
 
 fn apply_resolved(config: &mut Config, resolved: &ResolvedInit) {
