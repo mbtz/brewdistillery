@@ -3310,3 +3310,80 @@ I need your call on the unexpected `.forge/ledgers/zesty-quimby.md` change (also
 2) Tell me to leave `.forge/ledgers/zesty-quimby.md` unchanged, and I’ll proceed with just the README/task commit.
 ```
 
+## 2026-01-23T13:54:09Z
+
+- run_id: ce5dc7db-4ea0-4219-89f5-47f453146b72
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T13:47:49Z
+- finished_at: 2026-01-23T13:54:09Z
+- exit_code: 0
+
+```
+Using sv-issue-tracking, workflow-pattern, and session-protocol (task tracking, status, end-of-session). Added a testing matrix doc and closed task sv-b8d; updated USER_TODO to mark ledger decision resolved. Details:
+
+- Created `docs/testing-matrix.md` with the test matrix and harness outline.
+- Updated `USER_TODO.md` to reflect ledger commit decision completed.
+- Updated `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json` by starting and closing sv-b8d.
+- Completed a separate chore commit earlier for prior session updates to ledger, README, and tasks.
+- Testing was not run since these were documentation changes.
+
+No user action is required now. Next steps you may choose from:
+1) Specify checksum acquisition limits and implement default size limit/backoff in GitHubClient’s download_sha256.
+2) Define preview/diff user experience.
+3) Start documentation on error strategy exit codes.
+codex
+Using sv-issue-tracking, workflow-pattern, session-protocol (task tracking/status + end-of-session git steps).
+
+Added a concrete testing matrix doc and closed the associated task; also cleared the old USER_TODO decision about the ledger change now that it’s committed.
+
+- New doc at `docs/testing-matrix.md` with the test matrix table and harness outline (sv-b8d closed).
+- Updated `USER_TODO.md` to mark the ledger question resolved.
+- Task tracking updated in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`.
+- Separate chore commit already pushed for the prior session updates (ledger/README/task artifacts) as required.
+
+Tests not run (docs-only changes).
+
+Next steps (pick one):
+1) Define checksum acquisition limits/retry policy and implement defaults in `src/host/github.rs`.
+2) Specify preview/diff UX contract and add a doc (plus any code scaffolding).
+3) Draft the error strategy + exit code catalog doc.
+file update:
+diff --git a/USER_TODO.md b/USER_TODO.md
+index 948ad7e052920e83db2a093c5527c4e4f3f4a4b2..e6afc99bacfa1ec5c89420ddcdc8791ec0b8f1f6
+--- a/USER_TODO.md
++++ b/USER_TODO.md
+@@ -2,6 +2,7 @@
+ 
+ ## Resolved TODOs (from USER_FEEDBACK on 2026-01-22T15:40:00)
+ - Included `.forge/ledgers/zesty-quimby.md` in a separate chore commit (2026-01-23).
++- Committed the updated `.forge/ledgers/zesty-quimby.md` entry as a chore (2026-01-23).
+ 
+ ## Decisions needed
+-- `git status` shows `.forge/ledgers/zesty-quimby.md` modified again. Should I include it in a separate chore commit now, or leave it untouched?
++- None.
+
+tokens used
+54 714
+Using sv-issue-tracking, workflow-pattern, session-protocol (task tracking/status + end-of-session git steps).
+
+Added a concrete testing matrix doc and closed the associated task; also cleared the old USER_TODO decision about the ledger change now that it’s committed.
+
+- New doc at `docs/testing-matrix.md` with the test matrix table and harness outline (sv-b8d closed).
+- Updated `USER_TODO.md` to mark the ledger question resolved.
+- Task tracking updated in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`.
+- Separate chore commit already pushed for the prior session updates (ledger/README/task artifacts) as required.
+
+Tests not run (docs-only changes).
+
+Next steps (pick one):
+1) Define checksum acquisition limits/retry policy and implement defaults in `src/host/github.rs`.
+2) Specify preview/diff UX contract and add a doc (plus any code scaffolding).
+3) Draft the error strategy + exit code catalog doc.
+```
+
