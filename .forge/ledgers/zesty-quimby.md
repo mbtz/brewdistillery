@@ -4384,3 +4384,80 @@ Next steps (pick one):
 2) Tell me to leave `.forge/ledgers/zesty-quimby.md` untouched, and I’ll commit only the README/task updates.
 ```
 
+## 2026-01-23T15:24:41Z
+
+- run_id: 300d649c-4f4a-43f0-b961-7658487a3f64
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T15:15:04Z
+- finished_at: 2026-01-23T15:24:41Z
+- exit_code: 0
+
+```
++            "  version \"1.2.3\"\n",
++            "end\n"
++        );
++        let path = write_formula(dir.path(), content);
++
++        let mut issues = Vec::new();
++        check_formula_contents(&path, "brewtool", &mut issues);
++
++        assert!(issues.is_empty());
++    }
++
++    #[test]
++    fn reports_missing_formula_fields() {
++        let dir = tempdir().unwrap();
++        let content = concat!(
++            "class Badtool < Formula\n",
++            "  desc \"Brew tool\"\n",
++            "  homepage \"https://example.com\"\n",
++            "  url \"https://example.com/brewtool.tar.gz\"\n",
++            "  license \"MIT\"\n",
++            "end\n"
++        );
++        let path = write_formula(dir.path(), content);
++
++        let mut issues = Vec::new();
++        check_formula_contents(&path, "brewtool", &mut issues);
++
++        let messages = issues
++            .iter()
++            .map(|issue| issue.message.as_str())
++            .collect::<Vec<_>>();
++        assert!(messages
++            .iter()
++            .any(|message| message.contains("formula class name")));
++        assert!(messages
++            .iter()
++            .any(|message| message.contains("formula is missing sha256")));
++        assert!(messages
++            .iter()
++            .any(|message| message.contains("formula is missing version")));
++    }
++
+     #[test]
+     fn errors_when_config_missing() {
+         let dir = tempdir().unwrap();
+
+tokens used
+172 201
+Used sv-issue-tracking, workflow-pattern, and session-protocol for task updates and commit/push.
+
+- Committed the pre-existing ledger/tasks/docs changes as a separate chore commit per your instruction.
+- Strengthened `bd doctor` to validate formula class name and required stanzas (`desc`, `homepage`, `url`, `sha256`, `license`, `version`) with new unit tests in `src/commands/doctor.rs`.
+- Closed task `sv-7rd` and updated `USER_TODO.md` to reflect the resolved decision.
+
+Tests run:
+- `cargo test doctor --quiet`
+
+Next steps (pick one):
+1) Run the full test suite (`cargo test`) for broader coverage.
+2) Start the next highest-priority open task (e.g., release asset selection or cross-platform formula assets).
+```
+
