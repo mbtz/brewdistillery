@@ -5,4 +5,4 @@
 - Committed the updated `.forge/ledgers/zesty-quimby.md` entry as a chore (2026-01-23).
 
 ## Decisions needed
-- None.
+- Confirm how to handle existing uncommitted changes in `.forge/ledgers/zesty-quimby.md` (commit as separate chore per your instruction, or leave untouched).

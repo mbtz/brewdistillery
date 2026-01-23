@@ -22,7 +22,7 @@ Requirements:
 Recommended quick path (clone + local install):
 
 ```
-git clone <repo-url>
+git clone https://github.com/mbtz/brewdistillery.git
 cd brewdistillery
 cargo install --path . --locked
 bd --help
@@ -31,7 +31,7 @@ bd --help
 Option A: install locally with cargo (recommended)
 
 ```
-git clone <repo-url>
+git clone https://github.com/mbtz/brewdistillery.git
 cd brewdistillery
 cargo install --path . --locked
 # or explicitly:
@@ -46,13 +46,13 @@ Make sure `~/.cargo/bin` is on your PATH (or use the full path above).
 Option B: install directly from git (no manual build)
 
 ```
-cargo install --git <repo-url> --locked --bin bd
+cargo install --git https://github.com/mbtz/brewdistillery.git --locked --bin bd
 ```
 
 Option C: build from source (release binary)
 
 ```
-git clone <repo-url>
+git clone https://github.com/mbtz/brewdistillery.git
 cd brewdistillery
 cargo build --release
 ```
@@ -75,7 +75,7 @@ install -m 755 target/release/bd /opt/homebrew/bin/bd
 Option D: run from source (no install)
 
 ```
-git clone <repo-url>
+git clone https://github.com/mbtz/brewdistillery.git
 cd brewdistillery
 cargo run -- --help
 ```
