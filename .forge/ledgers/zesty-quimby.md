@@ -4769,3 +4769,80 @@ Commits pushed:
 If you want, I can add a short doc section with an end-to-end `source-tarball` example or wire in a CLI flag to override `tarball_url_template`.
 ```
 
+## 2026-01-23T16:09:14Z
+
+- run_id: 660351cf-47a1-4f3e-872c-634c39939604
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T15:56:57Z
+- finished_at: 2026-01-23T16:09:14Z
+- exit_code: 0
+
+```
++) -> Result<(), AppError> {
++    for path in files {
++        let relative = path
++            .strip_prefix(repo)
++            .map(|path| path.to_path_buf())
++            .map_err(|_| {
++                AppError::GitState(format!(
++                    "version update file {} is not inside cli repo {}",
++                    path.display(),
++                    repo.display()
++                ))
++            })?;
++
++        let relative = relative.to_str().ok_or_else(|| {
++            AppError::GitState("version update path contains invalid UTF-8".to_string())
++        })?;
++
++        run_git(repo, &["add", relative])?;
++    }
++
++    let diff = run_git(repo, &["diff", "--cached", "--name-only"])?;
++    if String::from_utf8_lossy(&diff.stdout).trim().is_empty() {
++        return Ok(());
++    }
++
++    run_git(repo, &["commit", "-m", message])?;
++    Ok(())
++}
++
+ fn create_tag(repo: &Path, tag: &str) -> Result<(), AppError> {
+     let exists = run_git(repo, &["tag", "--list", tag])?;
+     if !String::from_utf8_lossy(&exists.stdout).trim().is_empty() {
+diff --git a/src/lib.rs b/src/lib.rs
+index 86013f42c2b9297bf656f80c4927809e5052f961..d10d2fee86f531ec6fbcbf933dc93ebf34b61167
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -8,4 +8,5 @@
+ pub mod host;
+ pub mod preview;
+ pub mod repo_detect;
++pub mod version_update;
+ pub mod version;
+
+tokens used
+154 447
+Implemented `version_update` handling for `bd release` (cargo/regex), including CLI repo commits and dry‑run messaging, plus unit tests and a new module.  
+
+Details:
+- Added `src/version_update.rs` to apply cargo or regex version bumps with workspace/package resolution, dry‑run support, and explicit error messages.
+- Integrated version updates into the release flow in `src/commands/release.rs` with clean‑repo checks, default commit message, and optional push.
+- Added the `regex` dependency in `Cargo.toml` and updated `Cargo.lock`.
+- Updated task tracking in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`; added a workspace-policy confirmation note to `USER_TODO.md`.
+- Committed unrelated ledger changes in a separate chore commit as requested (`.forge/ledgers/zesty-quimby.md`).
+
+Tests run:
+- `cargo test`
+
+Next steps (pick one):
+1) Confirm the Cargo workspace version update policy in `USER_TODO.md` (whether to keep the current default behavior).
+2) If you want configurable CLI version update commit messages, I can add a config field and wire it in.
+```
+
