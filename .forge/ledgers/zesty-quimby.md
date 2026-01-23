@@ -3923,3 +3923,80 @@ Next steps (pick one):
 3. Start `sv-61v` (release orchestration + idempotency flow spec).
 ```
 
+## 2026-01-23T14:51:37Z
+
+- run_id: 33051835-4673-466e-b9b3-3714f5bfc25f
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T14:38:37Z
+- finished_at: 2026-01-23T14:51:37Z
+- exit_code: 0
+
+```
++    let rendered_config = render_config(&next_config, &ctx.config_path)?;
++
++    let mut plans = Vec::new();
++    plans.push(RepoPlan {
++        label: "cli".to_string(),
++        repo_root: ctx.cwd.clone(),
++        writes: vec![PlannedWrite {
++            path: ctx.config_path.clone(),
++            content: rendered_config.clone(),
++        }],
++    });
++
++    let preview = crate::preview::preview_and_apply(&plans, true)?;
++    if !preview.summary.trim().is_empty() {
++        println!("{}", preview.summary.trim_end());
++    }
++    if !preview.diff.trim().is_empty() {
++        println!("{}", preview.diff.trim_end());
++    }
++    if preview.changed_files.is_empty() {
++        println!("init: no changes to apply");
++    }
++
++    if args.dry_run {
++        println!("dry-run: no changes applied");
++        return Ok(());
++    }
++
++    let apply = if resolved.allow_overwrite {
++        true
++    } else {
++        Confirm::with_theme(&theme)
++            .with_prompt("Apply these changes?")
++            .default(true)
++            .interact()
++            .map_err(|err| AppError::Other(format!("failed to read confirmation: {err}")))?
++    };
++
++    if !apply {
++        println!("init: cancelled");
++        return Ok(());
++    }
++
++    let _ = crate::preview::preview_and_apply(&plans, false)?;
++    Ok(())
++}
++
+ fn run_non_interactive(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError> {
+     let mut resolved = resolve_required(ctx, args, args.import_formula)?;
+     resolve_tap_repo(ctx, args, &mut resolved)?;
+
+tokens used
+131 904
+Added an interactive `bd init --import-formula` flow that loads the existing formula, keeps it untouched, fills config from formula/config/metadata, and prompts only for remaining gaps, then previews and applies changes from `src/commands/init.rs`. Updated `README.md` to mention import behavior and include a quick example, and synced task tracking in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`. Also committed the pre-existing ledger change as a separate chore in `.forge/ledgers/zesty-quimby.md`.
+
+Tests not run (not requested).
+
+Next steps:
+1. Try `bd init --import-formula --tap-path <path>` against a real tap to confirm prompts + preview behave as expected.
+2. Run `cargo test` to validate the build.
+```
+
