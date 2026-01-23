@@ -1236,3 +1236,80 @@ Next steps you might want:
 2) Confirm the per-arch Ruby DSL choice (`Hardware::CPU.*?`) or switch to an alternative if we want a different Homebrew idiom.
 ```
 
+## 2026-01-23T10:52:31Z
+
+- run_id: 4768593a-1521-48d1-b00d-520b19602511
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T10:50:10Z
+- finished_at: 2026-01-23T10:52:31Z
+- exit_code: 0
+
+```
++```
++git clone <this-repo>
++cd brewdistillery
++cargo run -- --help
++```
++
++Option C: install locally with cargo
+ 
+ ```
+ cd brewdistillery
+@@ -33,6 +42,12 @@
+ Binary path:
+ - `~/.cargo/bin/bd`
+ 
++Uninstall:
++
++```
++cargo uninstall brewdistillery
++```
++
+ ## Quick start
+ 
+ ```
+@@ -42,6 +57,9 @@
+ bd doctor --help
+ ```
+ 
++If you want to test against a real repo, run `bd init` from inside a Git repository
++that has a GitHub remote (public repos only in v0).
++
+ ## Notes
+ 
+ - Homebrew-based install is not available yet.
+
+tokens used
+43 111
+Added early install/run/uninstall guidance to the README so you can test the CLI before Homebrew packaging is ready, and tracked it via `sv` tasks. Updated task metadata files, and committed the unrelated Codex ledger change as a separate chore commit per your instruction.
+
+Details
+- Task: created and closed `sv-78b` (P0) under Testing & Docs for early README instructions.
+- Docs: expanded install/run/uninstall + quick usage notes in `README.md`.
+- Tracking: updated `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`.
+- Chore: committed `.forge/ledgers/zesty-quimby.md` separately.
+
+Tests
+- Not run (docs-only change).
+
+Commits
+- `docs: add early install and usage guidance`
+- `chore: update codex run ledger`
+
+Files changed
+- `README.md`
+- `.tasks/tasks.jsonl`
+- `.tasks/tasks.snapshot.json`
+- `.forge/ledgers/zesty-quimby.md`
+
+Next steps (pick one)
+1) Choose a P0 design task to implement next (e.g., `sv-g2x` identity model or `sv-64g` tap path resolution).
+2) I can pick a P0 task and start implementation.
+```
+
