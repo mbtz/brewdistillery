@@ -1620,3 +1620,80 @@ Next steps (pick one)
 2) Start `sv-n6c` to finalize the non-interactive contract per command.
 ```
 
+## 2026-01-23T11:21:12Z
+
+- run_id: c71753b8-7ec1-427c-b9fc-32f33f3c320b
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T11:14:53Z
+- finished_at: 2026-01-23T11:21:12Z
+- exit_code: 0
+
+```
+Next steps:  
+1. Integrate the asset selection helper into the release pipeline for automated asset management  
+2. Add documentation and usage examples for the new helper module to improve developer onboarding
+codex
+Implemented a release-asset selection helper with deterministic matching (exact name, template rendering, OS/arch token matching, checksum exclusion, and tie‑break rules) plus tests, and exported the module for future release flow wiring. Changes are in `src/asset_selection.rs` and `src/lib.rs`. Closed task `sv-a9s` in `.tasks/tasks.jsonl` / `.tasks/tasks.snapshot.json`. The pre-existing `.forge/ledgers/zesty-quimby.md` change was committed separately as a chore, per your instruction.
+
+**Tests**
+- `cargo test -q`
+
+Next steps (pick one)
+1) Wire the asset selector into `bd release` and build the release asset discovery flow.
+2) Implement the OS/arch matrix config parsing to feed per-target selection.
+file update:
+diff --git a/src/asset_selection.rs b/src/asset_selection.rs
+index 7f2e7bfdb36234b3ebb97f0be6e3f85514126aae..48675cbbdf0dc7c58e6781122f7c0922eb2b1376
+--- a/src/asset_selection.rs
++++ b/src/asset_selection.rs
+@@ -194,7 +194,7 @@
+ 
+ fn extension_rank(name: &str) -> u8 {
+     let lower = name.to_ascii_lowercase();
+-    if lower.ends_with(".tar.gz") || lower.ends_with(".tgz") {
++    if lower.ends_with(".tar.gz") {
+         0
+     } else if lower.ends_with(".zip") {
+         1
+@@ -361,8 +361,8 @@
+     #[test]
+     fn errors_on_ambiguous_matches() {
+         let assets = vec![
+-            "brewtool-1.2.3-darwin-arm64.tar.gz".to_string(),
+-            "brewtool-1.2.3-darwin-arm64.tgz".to_string(),
++            "brewtool-1.2.3-darwin-arm64-a.tar.gz".to_string(),
++            "brewtool-1.2.3-darwin-arm64-b.tar.gz".to_string(),
+         ];
+ 
+         let options = AssetSelectionOptions {
+diff --git a/src/lib.rs b/src/lib.rs
+index 53656ad4af2ed580cdce7981bcdf5722bc472195..d8e88426d5de323c041ab43cb8f3851a0f52fa2f
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -3,6 +3,7 @@
+ pub mod config;
+ pub mod context;
+ pub mod errors;
++pub mod asset_selection;
+ pub mod formula;
+ pub mod preview;
+ pub mod repo_detect;
+
+tokens used
+94 717
+Implemented a release-asset selection helper with deterministic matching (exact name, template rendering, OS/arch token matching, checksum exclusion, and tie‑break rules) plus tests, and exported the module for future release flow wiring. Changes are in `src/asset_selection.rs` and `src/lib.rs`. Closed task `sv-a9s` in `.tasks/tasks.jsonl` / `.tasks/tasks.snapshot.json`. The pre-existing `.forge/ledgers/zesty-quimby.md` change was committed separately as a chore, per your instruction.
+
+**Tests**
+- `cargo test -q`
+
+Next steps (pick one)
+1) Wire the asset selector into `bd release` and build the release asset discovery flow.
+2) Implement the OS/arch matrix config parsing to feed per-target selection.
+```
+
