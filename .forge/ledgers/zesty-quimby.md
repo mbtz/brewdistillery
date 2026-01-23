@@ -4000,3 +4000,80 @@ Next steps:
 2. Run `cargo test` to validate the build.
 ```
 
+## 2026-01-23T14:58:00Z
+
+- run_id: 93315501-7d5f-49cb-9d8f-7139229faeb4
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T14:52:07Z
+- finished_at: 2026-01-23T14:58:00Z
+- exit_code: 0
+
+```
+```
+ 
+ Binary path:
+
+
+
+thinking
+**Summarizing final response plan**
+
+I'm preparing a final message summarizing README updates and chore commit for the ledger as separate commits, noting no tests were run, mentioning the created and closed sv task, and confirming no user TODOs. The message will follow the specified format with file references in inline code and mention of commits.
+thinking
+**Finalizing response with skill usage and task details**
+
+I'm including a statement of used skills (issue tracking, workflow, session protocol), explaining README changes and chore commit, listing created/closed tasks, noting tests weren’t run, and providing clear bullet-point summaries with file refs and commit messages as final structured output.
+codex
+Using sv-issue-tracking to add/close the requested docs task, plus workflow-pattern for status updates and session-protocol for commit/push.
+
+Updated the README to make early install/run guidance more explicit and tracked it as a P0 task under the docs epic.
+- Added note about the `bd` binary name and an explicit `cargo install --bin bd` option in `README.md`.
+- Created/closed task `sv-43y` (parent `sv-8bd`) and synced task metadata in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`.
+- Committed the pre-existing ledger change separately as a chore (`.forge/ledgers/zesty-quimby.md`).
+
+Tests not run (docs-only change).
+
+If you want additional README content (e.g., pinned Rust version or a “quick start” demo), say the word and I’ll add it.
+file update:
+diff --git a/README.md b/README.md
+index 0a753a4080174bbf5a201f59d9130d1c1e57ed74..749e4c6066e217b75cea3d83a4223e10e3559566
+--- a/README.md
++++ b/README.md
+@@ -17,6 +17,7 @@
+ - Rust toolchain (rustup + cargo, stable)
+ - Git (for cloning this repo)
+ - Homebrew (optional; only needed for `bd doctor --audit` or `bd init --tap-new`)
++- Binary name is `bd` (crate name is `brewdistillery`).
+ 
+ Recommended quick path (local install):
+ 
+@@ -33,6 +34,8 @@
+ git clone <repo-url>
+ cd brewdistillery
+ cargo install --path . --locked
++# or explicitly:
++cargo install --path . --locked --bin bd
+ ```
+ 
+ Binary path:
+
+tokens used
+73 946
+Using sv-issue-tracking to add/close the requested docs task, plus workflow-pattern for status updates and session-protocol for commit/push.
+
+Updated the README to make early install/run guidance more explicit and tracked it as a P0 task under the docs epic.
+- Added note about the `bd` binary name and an explicit `cargo install --bin bd` option in `README.md`.
+- Created/closed task `sv-43y` (parent `sv-8bd`) and synced task metadata in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`.
+- Committed the pre-existing ledger change separately as a chore (`.forge/ledgers/zesty-quimby.md`).
+
+Tests not run (docs-only change).
+
+If you want additional README content (e.g., pinned Rust version or a “quick start” demo), say the word and I’ll add it.
+```
+
