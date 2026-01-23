@@ -3079,3 +3079,80 @@ If you want to try the new flow:
 2) Set `release.tag_format` or `release.commit_message_template` in `.distill/config.toml` to customize tagging/commit messages.
 ```
 
+## 2026-01-23T13:35:03Z
+
+- run_id: 085f1b15-a8d5-4515-9e68-ae426925b54a
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T13:27:20Z
+- finished_at: 2026-01-23T13:35:03Z
+- exit_code: 0
+
+```
++        if let Some((derived_owner, derived_repo)) = parse_owner_repo_from_homepage(homepage) {
++            return (
++                owner.or(Some(derived_owner)),
++                repo.or(Some(derived_repo)),
++            );
++        }
++    }
++
++    (owner, repo)
++}
++
++fn parse_owner_repo_from_homepage(homepage: &str) -> Option<(String, String)> {
++    parse_owner_repo_from_github(homepage)
++}
++
++fn parse_owner_repo_from_github(input: &str) -> Option<(String, String)> {
++    let trimmed = input.trim();
++    let path = if let Some(rest) = trimmed.strip_prefix("git@github.com:") {
++        rest
++    } else if let Some(rest) = trimmed.strip_prefix("ssh://git@github.com/") {
++        rest
++    } else if let Some(rest) = trimmed.strip_prefix("https://github.com/") {
++        rest
++    } else if let Some(rest) = trimmed.strip_prefix("http://github.com/") {
++        rest
++    } else if let Some(rest) = trimmed.strip_prefix("git://github.com/") {
++        rest
++    } else {
++        return None;
++    };
++
++    let cleaned = path.trim_end_matches(".git").trim_end_matches('/');
++    let mut parts = cleaned.split('/').filter(|part| !part.is_empty());
++    let owner = parts.next()?.to_string();
++    let repo = parts.next()?.to_string();
++    if owner.is_empty() || repo.is_empty() {
++        None
++    } else {
++        Some((owner, repo))
++    }
++}
++
+ fn apply_resolved(config: &mut Config, resolved: &ResolvedInit) {
+     if config.schema_version.is_none() {
+         config.schema_version = Some(1);
+
+tokens used
+86 102
+Added an interactive `bd init` flow with prompts, defaults, preview, and confirmation so init can run without `--non-interactive`.
+
+- Implemented interactive init in `src/commands/init.rs` with dialoguer prompts for required fields, version validation, bin parsing, and tap path defaults, plus a preview diff before applying.
+- Added GitHub owner/repo inference from homepage/remote and wired a confirmation gate (auto‑apply when `--yes`/`--force` is set); `--import-formula` now returns an explicit not‑implemented message in interactive mode.
+- Added dialoguer dependency in `Cargo.toml` and updated task tracking in `.tasks/tasks.jsonl`.
+
+Tests run:
+- `cargo test`
+
+Next steps you may want:
+1) Try `bd init` interactively in a real repo to validate prompt defaults and preview UX.
+2) Decide whether to allow `--import-formula` in interactive mode next, and I’ll implement the merge behavior.
+```
+
