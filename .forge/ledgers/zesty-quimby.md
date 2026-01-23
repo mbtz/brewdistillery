@@ -2156,3 +2156,80 @@ Next steps (pick one)
 3) Start `sv-64g` to define tap path resolution + auto-clone rules.
 ```
 
+## 2026-01-23T11:57:00Z
+
+- run_id: 202b8493-9137-4072-8f88-d89968efbc86
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T11:53:56Z
+- finished_at: 2026-01-23T11:57:00Z
+- exit_code: 0
+
+```
++## Field mapping summary
++
++| Manifest | Name | Description | Homepage | License | Version | Bin detection |
++| --- | --- | --- | --- | --- | --- | --- |
++| `Cargo.toml` | `package.name` or `workspace.package.name` | `package.description` | `package.homepage` | `package.license` | `package.version` | `[[bin]].name` entries; fallback to `package.name` |
++| `package.json` | `name` (unscoped) | `description` | `homepage` | `license` | `version` | `bin` string -> name; `bin` object -> keys |
++| `pyproject.toml` `[project]` | `project.name` | `project.description` | `project.urls` (Homepage/home/Repository) | `project.license` | `project.version` | `[project.scripts]` keys |
++| `pyproject.toml` `[tool.poetry]` | `tool.poetry.name` | `tool.poetry.description` | `tool.poetry.homepage` | `tool.poetry.license` | `tool.poetry.version` | `[tool.poetry.scripts]` keys |
++| `go.mod` | module path basename | (none) | (none) | (none) | (none) | module name |
++
++Missing fields are left unset for prompts or required flags.
++
+ ## Rust (Cargo)
+ 
+ Source file: `Cargo.toml` at repo root.
+@@ -114,6 +134,15 @@
+ If the `module` line is missing or empty, Go metadata detection is treated as
+ absent.
+ 
++## Conflict resolution examples
++
++- `Cargo.toml` has `package.name = "brewtool"` and `package.json` has
++  `name = "other"`: detection fails with a conflict error for `name`.
++- `package.json` defines `bin = { "brewtool": "...", "brewctl": "..." }`
++  while `pyproject.toml` defines `project.scripts = { "brewtool": "..." }`:
++  detection fails with a conflict error for bin lists (since the bin lists
++  differ).
++
+ ## License detection (fallback)
+ 
+ If a manifest does not provide a license, the detector checks the repo root
+@@ -138,6 +167,15 @@
+ If conflicting license filenames are found (e.g. both MIT and Apache),
+ license detection returns `None` and the init flow should prompt.
+ 
++## Edge cases
++
++- Cargo workspaces: only the root `Cargo.toml` is parsed; workspace member
++  manifests are ignored.
++- Multi-bin projects: multiple `[[bin]]` entries (Cargo) or `bin` objects
++  (Node) produce a normalized, de-duplicated bin list.
++- Missing license/homepage: if not provided by any manifest, the detector
++  attempts a license filename match and a GitHub remote homepage fallback.
++
+ ## Notes for prompting
+ 
+ - Always surface the detected metadata along with the source (Cargo/Node/etc).
+
+tokens used
+84 730
+Using sv-issue-tracking + workflow-pattern + session-protocol to update tasks, document the behavior, and run the git checklist.
+
+Aligned metadata detection docs with the implemented merge+conflict behavior, added a field-mapping summary table, and documented git fallback + edge cases in `docs/metadata-detection.md`. Task state updates are captured in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`. Closed `sv-ah8` and `sv-yd4`.
+
+Tests: not run (docs/task-only change).
+
+Next steps (pick one)
+1) Start `sv-7ye` to validate/close formula naming rules against `docs/formula-naming.md`.
+2) Start `sv-d7t` to design the `bd init` prompt flow + field mapping.
+3) Start `sv-64g` to define tap path resolution + auto-clone behavior.
+```
+
