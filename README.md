@@ -1,6 +1,6 @@
 # brewdistillery
 
-Homebrew formula initialization and release helper. This is an early, in-progress CLI; the command surface is wired, but most workflows are still stubbed.
+Homebrew formula initialization and release helper. This is an early, in-progress CLI; the command surface is wired, but some workflows are still stubbed.
 
 ## Status
 
@@ -106,6 +106,21 @@ bd --help
 bd init --help
 bd release --help
 bd doctor --help
+```
+
+Alias (same as `bd release`):
+
+```
+bd ship --help
+```
+
+From source (no install):
+
+```
+cargo run -- --help
+cargo run -- init --help
+cargo run -- release --help
+cargo run -- doctor --help
 ```
 
 If you want to test against a real repo, run `bd init` from inside the CLI repository

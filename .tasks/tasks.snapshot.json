@@ -1,7 +1,32 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-23T15:07:17.451020Z",
+  "generated_at": "2026-01-23T15:11:08.054039Z",
   "tasks": [
+    {
+      "id": "sv-deh",
+      "title": "Write README install + early usage instructions",
+      "status": "closed",
+      "priority": "P0",
+      "created_at": "2026-01-23T15:10:46.204305Z",
+      "updated_at": "2026-01-23T15:11:08.042487Z",
+      "body": "Add README guidance for installing brewdistillery from source and using the early CLI (bd init/release/doctor). Include requirements, local install steps, and smoke-test commands. This supports early testing before Homebrew distribution.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T15:10:51.630754Z",
+      "closed_at": "2026-01-23T15:11:08.042487Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-8bd",
+      "title": "EPIC: Testing & Docs",
+      "status": "open",
+      "priority": "P2",
+      "created_at": "2026-01-22T13:31:33.036334Z",
+      "updated_at": "2026-01-23T15:10:49.620860Z",
+      "body": "Scope: testing matrix + documentation outputs.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
     {
       "id": "sv-9tv",
       "title": "Infer GitHub owner/repo for non-interactive init",
@@ -45,16 +70,6 @@
       "branch": "main",
       "started_at": "2026-01-23T14:56:25.010113Z",
       "closed_at": "2026-01-23T14:56:39.167903Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-8bd",
-      "title": "EPIC: Testing & Docs",
-      "status": "open",
-      "priority": "P2",
-      "created_at": "2026-01-22T13:31:33.036334Z",
-      "updated_at": "2026-01-23T14:56:20.150419Z",
-      "body": "Scope: testing matrix + documentation outputs.\\nDoD: Epics only; child tasks define acceptance criteria.",
       "comments_count": 0
     },
     {
