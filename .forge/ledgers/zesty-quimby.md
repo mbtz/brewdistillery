@@ -3694,3 +3694,80 @@ Next steps (pick one):
 2. Start an implementation task (e.g., `sv-a9s` asset selection helper) and I’ll code it.
 ```
 
+## 2026-01-23T14:29:10Z
+
+- run_id: 976c5d99-771c-4f2a-bbc3-2fc0b155285c
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T14:10:59Z
+- finished_at: 2026-01-23T14:29:10Z
+- exit_code: 0
+
+```
++}
++
++fn retry_delay(attempt: usize) -> Duration {
++    let shift = attempt.saturating_sub(1);
++    let exp = 1u64 << shift;
++    let delay = DOWNLOAD_RETRY_BASE_DELAY_MS.saturating_mul(exp);
++    Duration::from_millis(delay.min(DOWNLOAD_RETRY_MAX_DELAY_MS))
++}
++
+ fn read_token() -> Option<String> {
+     env::var("GITHUB_TOKEN")
+         .ok()
+@@ -539,4 +586,21 @@
+         let message = rate_limit_message(&headers);
+         assert!(message.contains("1700000000"));
+     }
++
++    #[test]
++    fn retries_on_server_errors_and_rate_limits() {
++        assert!(should_retry_status(StatusCode::TOO_MANY_REQUESTS));
++        assert!(should_retry_status(StatusCode::INTERNAL_SERVER_ERROR));
++        assert!(!should_retry_status(StatusCode::BAD_REQUEST));
++    }
++
++    #[test]
++    fn retry_delay_grows_and_caps() {
++        let first = retry_delay(1);
++        let second = retry_delay(2);
++        let third = retry_delay(3);
++        assert!(second > first);
++        assert!(third >= second);
++        assert!(third <= Duration::from_millis(DOWNLOAD_RETRY_MAX_DELAY_MS));
++    }
+ }
+
+tokens used
+146 348
+Implemented template rendering with placeholders, documented formula templates/assets/checksum strategy, and extended release target handling to support per‑OS keys with bounded download retries/limits.
+
+- Added custom template rendering (required placeholders + install block rendering) and tests in `src/formula.rs`
+- Wired `template.path` in init/release with clear errors for missing templates in `src/commands/init.rs` and `src/commands/release.rs`
+- Added per‑OS target support and stricter target key validation in `src/commands/release.rs`
+- Implemented retry/backoff + size limits for asset downloads in `src/host/github.rs`
+- Documented template behavior and checksum policy in `docs/formula-template.md` and `docs/checksum-acquisition.md`
+- Expanded asset selection doc with config shape + formula output mapping in `docs/asset-selection.md`, and linked it from `docs/config.md`
+
+Tasks closed:
+- sv-s26, sv-apm, sv-8s5
+
+Tests:
+- `cargo test`
+- `cargo test -q`
+
+Notes:
+- Committed the pre-existing ledger change separately as a chore per instruction.
+
+Next steps (pick one):
+1. Tackle `sv-61v` (release orchestration + idempotency flow spec).
+2. Tackle `sv-d7t` (bd init prompt flow + mapping).
+3. Tackle `sv-hp2` (error strategy + exit code catalog).
+```
+
