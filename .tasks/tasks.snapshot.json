@@ -1,7 +1,50 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-23T11:00:33.599196Z",
+  "generated_at": "2026-01-23T11:09:39.908767Z",
   "tasks": [
+    {
+      "id": "sv-8bd",
+      "title": "EPIC: Testing & Docs",
+      "status": "open",
+      "priority": "P2",
+      "created_at": "2026-01-22T13:31:33.036334Z",
+      "updated_at": "2026-01-23T11:09:39.899974Z",
+      "body": "Scope: testing matrix + documentation outputs.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-x0t",
+      "title": "Write README early-build install + usage instructions",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-23T11:09:37.371587Z",
+      "updated_at": "2026-01-23T11:09:39.899974Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-pxk",
+      "title": "Implement bd doctor baseline validation",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-23T11:06:52.870429Z",
+      "updated_at": "2026-01-23T11:08:31.709274Z",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T11:07:00.202783Z",
+      "closed_at": "2026-01-23T11:08:31.709274Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-bp2",
+      "title": "EPIC: UX & Safety",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:32.877452Z",
+      "updated_at": "2026-01-23T11:06:56.482842Z",
+      "body": "Scope: prompt flows, preview/confirm UX, error strategy, atomic writes.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
     {
       "id": "sv-8yf",
       "title": "Implement bd init --non-interactive validation + overwrite guards",
@@ -30,16 +73,6 @@
       "branch": "main",
       "started_at": "2026-01-23T10:51:11.320777Z",
       "closed_at": "2026-01-23T10:51:28.337106Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-8bd",
-      "title": "EPIC: Testing & Docs",
-      "status": "open",
-      "priority": "P2",
-      "created_at": "2026-01-22T13:31:33.036334Z",
-      "updated_at": "2026-01-23T10:51:09.224974Z",
-      "body": "Scope: testing matrix + documentation outputs.\\nDoD: Epics only; child tasks define acceptance criteria.",
       "comments_count": 0
     },
     {
@@ -268,16 +301,6 @@
       "created_at": "2026-01-22T13:43:01.023877Z",
       "updated_at": "2026-01-22T13:43:03.846170Z",
       "body": "Acceptance:\\n- validates config completeness, formula consistency, repo state\\n- runs brew audit only when requested and reports actionable output\\n- exits with defined error code on failures",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-bp2",
-      "title": "EPIC: UX & Safety",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-22T13:31:32.877452Z",
-      "updated_at": "2026-01-22T13:43:03.846170Z",
-      "body": "Scope: prompt flows, preview/confirm UX, error strategy, atomic writes.\\nDoD: Epics only; child tasks define acceptance criteria.",
       "comments_count": 0
     },
     {
