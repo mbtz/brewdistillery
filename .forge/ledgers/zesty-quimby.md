@@ -1774,3 +1774,80 @@ Next steps:
 2) Extend remote parsing beyond GitHub when host support expands.
 ```
 
+## 2026-01-23T11:31:25Z
+
+- run_id: bbe17a3f-bcac-4f25-a2e1-fdd1200b992e
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T11:29:40Z
+- finished_at: 2026-01-23T11:31:25Z
+- exit_code: 0
+
+```
+- Updated `.tasks/tasks.jsonl` and snapshot files with task changes.
+
+Tests: Not run (docs-only changes).
+
+Next steps:  
+1) Pick the next open P0 design task to implement, such as asset selection rules.  
+2) Begin implementing `bd init` prompts and related functionality.
+codex
+Using sv-issue-tracking (task create/start/close), workflow-pattern (status updates), and session-protocol (git status/add/commit/push).
+
+- Added and completed P0 task `sv-d5f` under Testing & Docs; updated `README.md` with clearer early-build install/usage steps.
+- Committed the pre-existing change in `.forge/ledgers/zesty-quimby.md` as a separate chore, per instructions.
+- Synced task state in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`.
+
+Tests: not run (docs/task-only change).
+
+If you want me to continue, pick one:
+1) Start the next P0 design task (e.g., `sv-rae` asset selection rules) and draft the design note.
+2) Begin implementing `bd init` interactive flow (`sv-2tt`) with prompts + preview scaffolding.
+file update:
+diff --git a/README.md b/README.md
+index 5516939ad208f0f62a68ef657239fd543f3209a8..551230c4916c4f9b8c1b64ed18c9dfd0e6a88df2
+--- a/README.md
++++ b/README.md
+@@ -15,7 +15,7 @@
+ - Rust toolchain (rustup + cargo)
+ - Git (for cloning this repo)
+ 
+-Option A: build from source
++Option A: build from source (release binary)
+ 
+ ```
+ git clone <this-repo>
+@@ -44,6 +44,12 @@
+ Binary path:
+ - `~/.cargo/bin/bd`
+ 
++Verify the install:
++
++```
++bd --help
++```
++
+ Uninstall:
+ 
+ ```
+
+tokens used
+27 191
+Using sv-issue-tracking (task create/start/close), workflow-pattern (status updates), and session-protocol (git status/add/commit/push).
+
+- Added and completed P0 task `sv-d5f` under Testing & Docs; updated `README.md` with clearer early-build install/usage steps.
+- Committed the pre-existing change in `.forge/ledgers/zesty-quimby.md` as a separate chore, per instructions.
+- Synced task state in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`.
+
+Tests: not run (docs/task-only change).
+
+If you want me to continue, pick one:
+1) Start the next P0 design task (e.g., `sv-rae` asset selection rules) and draft the design note.
+2) Begin implementing `bd init` interactive flow (`sv-2tt`) with prompts + preview scaffolding.
+```
+
