@@ -2464,3 +2464,80 @@ Next steps (pick one):
 2) Start wiring the host client into the `bd release` pipeline (`sv-zfz`).
 ```
 
+## 2026-01-23T12:29:54Z
+
+- run_id: ea745460-7d23-4b63-8400-71f036b02dcf
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T12:18:14Z
+- finished_at: 2026-01-23T12:29:54Z
+- exit_code: 0
+
+```
+-                if arch.replace(Arch::Arm64).is_some() {
+-                    return Err(AppError::InvalidInput(format!(
+-                        "invalid target key '{key}': duplicate arch"
+-                    )));
+-                }
+-            }
+-            _ => {
+-                return Err(AppError::InvalidInput(format!(
+-                    "invalid target key '{key}': expected <os>-<arch>"
+-                )));
+-            }
++    let has_arm64 = lower.contains("arm64") || lower.contains("aarch64");
++    let has_amd64 = lower.contains("amd64") || lower.contains("x86_64") || lower.contains("x64");
++
++    let arch = match (has_arm64, has_amd64) {
++        (true, false) => Some(Arch::Arm64),
++        (false, true) => Some(Arch::Amd64),
++        (false, false) => None,
++        _ => {
++            return Err(AppError::InvalidInput(format!(
++                "invalid target key '{key}': expected <os>-<arch>"
++            )))
+         }
+-    }
++    };
+ 
+     let os = os.ok_or_else(|| {
+         AppError::InvalidInput(format!(
+@@ -487,12 +473,12 @@
+     #[test]
+     fn extracts_version_from_formula() {
+         let content = r#"class Brewtool < Formula
+-  desc \"Brew tool\"
+-  homepage \"https://example.com\"
+-  url \"https://example.com/brewtool.tar.gz\"
+-  sha256 \"deadbeef\"
+-  license \"MIT\"
+-  version \"1.2.3\"
++  desc "Brew tool"
++  homepage "https://example.com"
++  url "https://example.com/brewtool.tar.gz"
++  sha256 "deadbeef"
++  license "MIT"
++  version "1.2.3"
+ end
+ "#;
+         assert_eq!(extract_formula_version(content), Some("1.2.3".to_string()));
+
+tokens used
+110 722
+Using sv-issue-tracking to manage tasks, workflow-pattern to keep status updated, and session-protocol to finish with commits/push.
+
+Implemented the `bd release` pipeline to resolve config/flags, fetch GitHub releases, select assets (including per-target overrides), compute SHA256, render formula updates, and show a preview before writing; added idempotency checks for existing formula versions and updated README status/capabilities to match. Main changes are in `src/commands/release.rs` plus docs/task tracking in `README.md`, `.tasks/tasks.jsonl`, and `.tasks/tasks.snapshot.json`. Unrelated ledger changes were committed separately as requested in `.forge/ledgers/zesty-quimby.md`.
+
+Tests:
+- `cargo test -q`
+
+Next steps (pick one):
+1) Start `sv-4v5` to implement git tag/commit/push and release idempotency across repos.
+2) Start `sv-7df` to add tap path auto-clone and `brew tap-new` handling.
+```
+
