@@ -4,3 +4,4 @@
 - Included `.forge/ledgers/zesty-quimby.md` in a separate chore commit (2026-01-23).
 
 ## Decisions needed
+- `git status` shows `.forge/ledgers/zesty-quimby.md` modified again. Should I include it in a separate chore commit now, or leave it untouched?

@@ -21,7 +21,7 @@ Requirements:
 Option A: build from source (release binary)
 
 ```
-git clone <this-repo>
+git clone <repo-url>
 cd brewdistillery
 cargo build --release
 ```
@@ -33,6 +33,12 @@ Add it to your PATH (optional):
 
 ```
 install -m 755 target/release/bd /usr/local/bin/bd
+```
+
+On Apple Silicon (Homebrew default prefix):
+
+```
+install -m 755 target/release/bd /opt/homebrew/bin/bd
 ```
 
 Option B: install locally with cargo
@@ -64,6 +70,9 @@ Uninstall:
 ```
 cargo uninstall brewdistillery
 ```
+
+If you installed the binary manually, remove it from the path you used
+(`/usr/local/bin/bd` or `/opt/homebrew/bin/bd`).
 
 ## Usage (early testing)
 

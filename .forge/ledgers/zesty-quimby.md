@@ -3156,3 +3156,157 @@ Next steps you may want:
 2) Decide whether to allow `--import-formula` in interactive mode next, and I’ll implement the merge behavior.
 ```
 
+## 2026-01-23T13:44:29Z
+
+- run_id: d0bfb588-d337-425f-8509-5437f2cb958f
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T13:35:33Z
+- finished_at: 2026-01-23T13:44:29Z
+- exit_code: 0
+
+```
++        let ctx = base_context(dir.path());
++        let tap_path = dir.path().join("tap");
++        let formula_dir = tap_path.join("Formula");
++        fs::create_dir_all(&formula_dir).unwrap();
++        let formula_path = formula_dir.join("brewtool.rb");
++        let content = r#"class Brewtool < Formula
++  desc "From formula"
++  homepage "https://formula.example"
++  url "https://example.com/brewtool-9.9.9.tar.gz"
++  sha256 "abc"
++  license "Apache-2.0"
++  version "9.9.9"
++
++  def install
++    bin.install "brewtool", "brewtool-helper"
++  end
++end
++"#;
++
++        fs::write(&formula_path, content).unwrap();
++
++        let mut args = base_args();
++        args.import_formula = true;
++        args.tap_path = Some(tap_path);
++        args.host_owner = Some("acme".to_string());
++        args.host_repo = Some("brewtool".to_string());
++
++        run_non_interactive(&ctx, &args).unwrap();
++
++        let config = Config::load(&ctx.config_path).unwrap();
++        assert_eq!(config.project.description.as_deref(), Some("From formula"));
++        assert_eq!(
++            config.project.homepage.as_deref(),
++            Some("https://formula.example")
++        );
++        assert_eq!(config.project.license.as_deref(), Some("Apache-2.0"));
++        assert_eq!(
++            config.project.bin,
++            vec!["brewtool".to_string(), "brewtool-helper".to_string()]
++        );
++        assert_eq!(config.tap.formula.as_deref(), Some("brewtool"));
++
++        let formula_after = fs::read_to_string(&formula_path).unwrap();
++        assert_eq!(formula_after, content);
++    }
++
++    #[test]
+     fn derives_tap_path_from_remote_when_missing() {
+         let dir = tempdir().unwrap();
+         let cli_dir = dir.path().join("cli");
+
+tokens used
+77 157
+Implemented non‑interactive `bd init --import-formula` so it reads an existing formula, treats formula fields as source‑of‑truth, fills config gaps, and preserves the formula file without re-rendering. This adds parsing + validation helpers in `src/commands/init.rs`, plus coverage in `src/commands/init.rs` tests. Task sv-tdq is closed and task tracking files are updated (`.tasks/tasks.jsonl`, `.tasks/tasks.snapshot.json`). A separate chore commit was made for the preexisting ledger change in `.forge/ledgers/zesty-quimby.md`.
+
+- Tests: `cargo test`
+
+Next steps you may want:
+1) Try `bd init --non-interactive --import-formula` on a real tap to confirm file discovery and merge behavior.
+2) Decide whether to enable interactive `--import-formula` and I can extend the prompt flow.
+```
+
+## 2026-01-23T13:47:19Z
+
+- run_id: 0c90322d-c2a1-481e-9b85-56e3de88e929
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T13:44:59Z
+- finished_at: 2026-01-23T13:47:19Z
+- exit_code: 0
+
+```
+**Next steps (pick one):**
+1) Tell me to commit the `.forge/ledgers/zesty-quimby.md` change as a separate chore commit, then I’ll commit the README/task updates.  
+2) Tell me to leave `.forge/ledgers/zesty-quimby.md` unchanged, and I’ll proceed with just the README/task commit.
+file update:
+diff --git a/README.md b/README.md
+index 493cb3be602dcfa57458a2b232325f0dd4177521..3b2045d6d3d08dd7bea08a76f48bfea4654eacae
+--- a/README.md
++++ b/README.md
+@@ -21,7 +21,7 @@
+ Option A: build from source (release binary)
+ 
+ ```
+-git clone <this-repo>
++git clone <repo-url>
+ cd brewdistillery
+ cargo build --release
+ ```
+@@ -35,6 +35,12 @@
+ install -m 755 target/release/bd /usr/local/bin/bd
+ ```
+ 
++On Apple Silicon (Homebrew default prefix):
++
++```
++install -m 755 target/release/bd /opt/homebrew/bin/bd
++```
++
+ Option B: install locally with cargo
+ 
+ ```
+@@ -65,6 +71,9 @@
+ cargo uninstall brewdistillery
+ ```
+ 
++If you installed the binary manually, remove it from the path you used
++(`/usr/local/bin/bd` or `/opt/homebrew/bin/bd`).
++
+ ## Usage (early testing)
+ 
+ If you did not install the binary, run via `cargo run --` instead of `bd`.
+diff --git a/USER_TODO.md b/USER_TODO.md
+index aa2fdb775ef22b277ce98887b2280d397c8c59d7..948ad7e052920e83db2a093c5527c4e4f3f4a4b2
+--- a/USER_TODO.md
++++ b/USER_TODO.md
+@@ -4,3 +4,4 @@
+ - Included `.forge/ledgers/zesty-quimby.md` in a separate chore commit (2026-01-23).
+ 
+ ## Decisions needed
++- `git status` shows `.forge/ledgers/zesty-quimby.md` modified again. Should I include it in a separate chore commit now, or leave it untouched?
+
+tokens used
+50 775
+Updated the early‑install README with a clearer clone placeholder, Apple Silicon PATH option, and uninstall note; created/closed task `sv-72p`, which updated the task files, and added a decision request to `USER_TODO.md`.  
+Uncommitted changes now in `README.md`, `.tasks/tasks.jsonl`, `.tasks/tasks.snapshot.json`, `USER_TODO.md`, and an unexpected modification in `.forge/ledgers/zesty-quimby.md`.
+
+I need your call on the unexpected `.forge/ledgers/zesty-quimby.md` change (also logged in `USER_TODO.md`): should I include it in a separate chore commit or leave it untouched?
+
+**Next steps (pick one):**
+1) Tell me to commit the `.forge/ledgers/zesty-quimby.md` change as a separate chore commit, then I’ll commit the README/task updates.  
+2) Tell me to leave `.forge/ledgers/zesty-quimby.md` unchanged, and I’ll proceed with just the README/task commit.
+```
+
