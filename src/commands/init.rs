@@ -7,6 +7,7 @@ use crate::repo_detect::ProjectMetadata;
 use crate::version::resolve_version_tag;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 pub fn run(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError> {
     if args.non_interactive {
@@ -39,7 +40,8 @@ struct ResolvedInit {
 }
 
 fn run_non_interactive(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError> {
-    let resolved = resolve_required(ctx, args)?;
+    let mut resolved = resolve_required(ctx, args)?;
+    resolve_tap_repo(ctx, args, &mut resolved)?;
 
     let mut next_config = ctx.config.clone();
     apply_resolved(&mut next_config, &resolved);
@@ -171,6 +173,14 @@ fn resolve_required(ctx: &AppContext, args: &InitArgs) -> Result<ResolvedInit, A
     if tap_path.is_none() && tap_remote.is_none() && !(tap_owner.is_some() && tap_repo.is_some()) {
         missing.push("tap-path or tap-remote or tap-owner+tap-repo".to_string());
     }
+    if args.tap_new {
+        if tap_owner.is_none() {
+            missing.push("tap-owner".to_string());
+        }
+        if tap_repo.is_none() {
+            missing.push("tap-repo".to_string());
+        }
+    }
 
     let formula_source = resolve_string(
         args.formula_name.as_ref(),
@@ -238,6 +248,278 @@ fn resolve_required(ctx: &AppContext, args: &InitArgs) -> Result<ResolvedInit, A
         asset_template,
         allow_overwrite: args.force || args.yes,
     })
+}
+
+fn resolve_tap_repo(
+    ctx: &AppContext,
+    args: &InitArgs,
+    resolved: &mut ResolvedInit,
+) -> Result<(), AppError> {
+    if args.tap_new {
+        let owner = resolved
+            .tap_owner
+            .as_deref()
+            .unwrap_or_default()
+            .trim();
+        let repo = resolved
+            .tap_repo
+            .as_deref()
+            .unwrap_or_default()
+            .trim();
+        if owner.is_empty() || repo.is_empty() {
+            return Err(AppError::MissingConfig(
+                "missing required fields for --tap-new: tap-owner, tap-repo".to_string(),
+            ));
+        }
+
+        let brew_root = brew_repo_root()?;
+        let tap_path = brew_root
+            .join("Library")
+            .join("Taps")
+            .join(owner)
+            .join(repo);
+
+        if let Some(existing) = resolved.tap_path.as_ref() {
+            if existing != &tap_path {
+                return Err(AppError::InvalidInput(format!(
+                    "--tap-new uses Homebrew tap directory {}; remove --tap-path or set it to match",
+                    tap_path.display()
+                )));
+            }
+        }
+
+        resolved.tap_path = Some(tap_path.clone());
+
+        if args.dry_run {
+            return Ok(());
+        }
+
+        if tap_path.exists() {
+            if !tap_path.is_dir() {
+                return Err(AppError::InvalidInput(format!(
+                    "tap path exists but is not a directory: {}",
+                    tap_path.display()
+                )));
+            }
+            return Ok(());
+        }
+
+        run_brew_tap_new(owner, repo)?;
+        return Ok(());
+    }
+
+    let remote = resolved
+        .tap_remote
+        .as_deref()
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty());
+
+    if remote.is_none() {
+        return Ok(());
+    }
+
+    let remote = remote.unwrap();
+
+    if resolved.tap_owner.is_none() || resolved.tap_repo.is_none() {
+        if let Some((owner, repo)) = parse_owner_repo_from_remote(remote) {
+            if resolved.tap_owner.is_none() {
+                resolved.tap_owner = Some(owner);
+            }
+            if resolved.tap_repo.is_none() {
+                resolved.tap_repo = Some(repo);
+            }
+        }
+    }
+
+    let tap_path = if let Some(path) = resolved.tap_path.as_ref() {
+        path.clone()
+    } else {
+        let repo = resolved
+            .tap_repo
+            .as_deref()
+            .and_then(|value| {
+                let trimmed = value.trim();
+                if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed.to_string())
+                }
+            })
+            .or_else(|| parse_owner_repo_from_remote(remote).map(|(_, repo)| repo))
+            .ok_or_else(|| {
+                AppError::InvalidInput(
+                    "tap remote provided but tap repo name could not be derived; set --tap-path or --tap-repo".to_string(),
+                )
+            })?;
+        default_tap_path(ctx, &repo)
+    };
+
+    resolved.tap_path = Some(tap_path.clone());
+
+    if args.dry_run {
+        return Ok(());
+    }
+
+    if tap_path.exists() {
+        if !tap_path.is_dir() {
+            return Err(AppError::InvalidInput(format!(
+                "tap path exists but is not a directory: {}",
+                tap_path.display()
+            )));
+        }
+
+        if tap_path.join(".git").exists() {
+            return Ok(());
+        }
+
+        if !is_dir_empty(&tap_path)? {
+            return Err(AppError::InvalidInput(format!(
+                "tap path already exists but is not a git repo: {}",
+                tap_path.display()
+            )));
+        }
+    }
+
+    if let Some(parent) = tap_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    run_git_clone(remote, &tap_path)?;
+    Ok(())
+}
+
+fn default_tap_path(ctx: &AppContext, repo: &str) -> PathBuf {
+    let base = ctx.cwd.parent().unwrap_or(ctx.cwd.as_path());
+    base.join(repo)
+}
+
+fn brew_repo_root() -> Result<PathBuf, AppError> {
+    let output = Command::new("brew")
+        .arg("--repo")
+        .output()
+        .map_err(|err| {
+            AppError::InvalidInput(format!(
+                "brew tap-new requires Homebrew; failed to run brew --repo: {err}"
+            ))
+        })?;
+
+    if !output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let mut message = "brew --repo failed".to_string();
+        if !stdout.trim().is_empty() || !stderr.trim().is_empty() {
+            message.push_str(":\n");
+            if !stdout.trim().is_empty() {
+                message.push_str(stdout.trim());
+                message.push('\n');
+            }
+            if !stderr.trim().is_empty() {
+                message.push_str(stderr.trim());
+            }
+        }
+        return Err(AppError::InvalidInput(message));
+    }
+
+    let repo_root = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if repo_root.is_empty() {
+        return Err(AppError::InvalidInput(
+            "brew --repo returned empty output".to_string(),
+        ));
+    }
+    Ok(PathBuf::from(repo_root))
+}
+
+fn run_brew_tap_new(owner: &str, repo: &str) -> Result<(), AppError> {
+    let output = Command::new("brew")
+        .arg("tap-new")
+        .arg(format!("{owner}/{repo}"))
+        .output()
+        .map_err(|err| {
+            AppError::InvalidInput(format!(
+                "failed to run brew tap-new {owner}/{repo}: {err}"
+            ))
+        })?;
+
+    if !output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let mut message = format!("brew tap-new {owner}/{repo} failed");
+        if !stdout.trim().is_empty() || !stderr.trim().is_empty() {
+            message.push_str(":\n");
+            if !stdout.trim().is_empty() {
+                message.push_str(stdout.trim());
+                message.push('\n');
+            }
+            if !stderr.trim().is_empty() {
+                message.push_str(stderr.trim());
+            }
+        }
+        return Err(AppError::InvalidInput(message));
+    }
+
+    Ok(())
+}
+
+fn parse_owner_repo_from_remote(remote: &str) -> Option<(String, String)> {
+    let trimmed = remote.trim();
+    let path = if let Some(rest) = trimmed.strip_prefix("git@github.com:") {
+        rest
+    } else if let Some(rest) = trimmed.strip_prefix("ssh://git@github.com/") {
+        rest
+    } else if let Some(rest) = trimmed.strip_prefix("https://github.com/") {
+        rest
+    } else if let Some(rest) = trimmed.strip_prefix("http://github.com/") {
+        rest
+    } else if let Some(rest) = trimmed.strip_prefix("git://github.com/") {
+        rest
+    } else {
+        return None;
+    };
+
+    let cleaned = path.trim_end_matches(".git").trim_end_matches('/');
+    let mut parts: Vec<&str> = cleaned.split('/').filter(|part| !part.is_empty()).collect();
+    if parts.len() < 2 {
+        return None;
+    }
+    let repo = parts.pop()?.to_string();
+    let owner = parts.pop()?.to_string();
+    if owner.is_empty() || repo.is_empty() {
+        None
+    } else {
+        Some((owner, repo))
+    }
+}
+
+fn run_git_clone(remote: &str, dest: &Path) -> Result<(), AppError> {
+    let output = Command::new("git")
+        .arg("clone")
+        .arg(remote)
+        .arg(dest)
+        .output()
+        .map_err(|err| AppError::GitState(format!("failed to run git clone: {err}")))?;
+
+    if !output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let mut message = format!("failed to clone tap repo from {remote}");
+        if !stdout.trim().is_empty() || !stderr.trim().is_empty() {
+            message.push_str(":\n");
+            if !stdout.trim().is_empty() {
+                message.push_str(stdout.trim());
+                message.push('\n');
+            }
+            if !stderr.trim().is_empty() {
+                message.push_str(stderr.trim());
+            }
+        }
+        return Err(AppError::GitState(message));
+    }
+
+    Ok(())
+}
+
+fn is_dir_empty(path: &Path) -> Result<bool, AppError> {
+    let mut entries = fs::read_dir(path)?;
+    Ok(entries.next().is_none())
 }
 
 fn resolve_string(
@@ -516,5 +798,60 @@ mod tests {
 
         args.force = true;
         run_non_interactive(&ctx, &args).unwrap();
+    }
+
+    #[test]
+    fn derives_tap_path_from_remote_when_missing() {
+        let dir = tempdir().unwrap();
+        let cli_dir = dir.path().join("cli");
+        fs::create_dir_all(&cli_dir).unwrap();
+
+        let mut ctx = base_context(dir.path());
+        ctx.cwd = cli_dir.clone();
+        ctx.config_path = cli_dir.join(".distill/config.toml");
+
+        let mut resolved = ResolvedInit {
+            formula_name: "brewtool".to_string(),
+            project_name: "brewtool".to_string(),
+            description: "Brew tool".to_string(),
+            homepage: "https://example.com".to_string(),
+            license: "MIT".to_string(),
+            version: "1.2.3".to_string(),
+            bins: vec!["brewtool".to_string()],
+            cli_owner: "acme".to_string(),
+            cli_repo: "brewtool".to_string(),
+            tap_owner: None,
+            tap_repo: None,
+            tap_remote: Some("https://github.com/acme/homebrew-brewtool.git".to_string()),
+            tap_path: None,
+            artifact_strategy: None,
+            asset_template: None,
+            allow_overwrite: false,
+        };
+
+        let mut args = base_args();
+        args.dry_run = true;
+
+        resolve_tap_repo(&ctx, &args, &mut resolved).unwrap();
+
+        let expected = dir.path().join("homebrew-brewtool");
+        assert_eq!(resolved.tap_path.as_ref(), Some(&expected));
+        assert_eq!(resolved.tap_owner.as_deref(), Some("acme"));
+        assert_eq!(resolved.tap_repo.as_deref(), Some("homebrew-brewtool"));
+    }
+
+    #[test]
+    fn parses_owner_repo_from_remote() {
+        let parsed = parse_owner_repo_from_remote("git@github.com:acme/homebrew-foo.git");
+        assert_eq!(
+            parsed,
+            Some(("acme".to_string(), "homebrew-foo".to_string()))
+        );
+
+        let parsed = parse_owner_repo_from_remote("https://github.com/acme/homebrew-bar");
+        assert_eq!(
+            parsed,
+            Some(("acme".to_string(), "homebrew-bar".to_string()))
+        );
     }
 }
