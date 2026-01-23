@@ -1,8 +1,10 @@
 use crate::errors::AppError;
 use crate::host::{HostClient, Release, ReleaseAsset};
 use reqwest::blocking::Client;
-use reqwest::header::{ACCEPT, AUTHORIZATION, USER_AGENT};
+use reqwest::header::{HeaderMap, ACCEPT, AUTHORIZATION, USER_AGENT};
+use reqwest::Method;
 use reqwest::StatusCode;
+use serde::Serialize;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::env;
@@ -40,6 +42,14 @@ impl GitHubClient {
     }
 
     fn request(&self, path: &str) -> reqwest::blocking::RequestBuilder {
+        self.request_with_method(Method::GET, path)
+    }
+
+    fn request_with_method(
+        &self,
+        method: Method,
+        path: &str,
+    ) -> reqwest::blocking::RequestBuilder {
         let url = format!(
             "{}/{}",
             self.base_url.trim_end_matches('/'),
@@ -47,7 +57,7 @@ impl GitHubClient {
         );
         let builder = self
             .client
-            .get(url)
+            .request(method, url)
             .header(USER_AGENT, DEFAULT_USER_AGENT)
             .header(ACCEPT, "application/vnd.github+json");
         if let Some(token) = &self.token {
@@ -69,6 +79,74 @@ impl GitHubClient {
         response.json().map_err(|err| {
             AppError::Network(format!("failed to parse GitHub API response: {err}"))
         })
+    }
+
+    fn require_token(&self) -> Result<&str, AppError> {
+        self.token
+            .as_deref()
+            .filter(|token| !token.trim().is_empty())
+            .ok_or_else(|| {
+                AppError::Network(
+                    "GitHub token missing; set GITHUB_TOKEN or GH_TOKEN to create the tap repo"
+                        .to_string(),
+                )
+            })
+    }
+
+    fn authenticated_user(&self) -> Result<GitHubUser, AppError> {
+        self.require_token()?;
+        self.get_json("/user")
+    }
+
+    pub fn create_public_repo(&self, owner: &str, repo: &str) -> Result<CreatedRepo, AppError> {
+        let owner = owner.trim();
+        let repo = repo.trim();
+        if owner.is_empty() {
+            return Err(AppError::InvalidInput(
+                "tap owner cannot be empty".to_string(),
+            ));
+        }
+        if repo.is_empty() {
+            return Err(AppError::InvalidInput(
+                "tap repo cannot be empty".to_string(),
+            ));
+        }
+
+        self.require_token()?;
+
+        let user = self.authenticated_user()?;
+        let path = if owner.eq_ignore_ascii_case(&user.login) {
+            "/user/repos".to_string()
+        } else {
+            format!("/orgs/{owner}/repos")
+        };
+
+        let payload = CreateRepoRequest {
+            name: repo.to_string(),
+            private: false,
+        };
+
+        let response = self
+            .request_with_method(Method::POST, &path)
+            .json(&payload)
+            .send()
+            .map_err(|err| {
+                AppError::Network(format!("GitHub API request failed: {err}"))
+            })?;
+
+        if response.status().is_success() {
+            let created: GitHubRepo = response.json().map_err(|err| {
+                AppError::Network(format!("failed to parse GitHub API response: {err}"))
+            })?;
+            return Ok(created.into());
+        }
+
+        Err(map_repo_create_error(
+            owner,
+            repo,
+            &path,
+            response,
+        ))
     }
 
     fn get_release_by_tag(
@@ -230,14 +308,90 @@ fn read_token() -> Option<String> {
 
 fn map_github_error(path: &str, response: reqwest::blocking::Response) -> AppError {
     let status = response.status();
+    let headers = response.headers().clone();
     let message = response
         .json::<GitHubError>()
         .map(|err| err.message)
         .unwrap_or_else(|_| "unknown error".to_string());
 
+    map_github_error_message(path, status, &headers, &message)
+}
+
+fn map_repo_create_error(
+    owner: &str,
+    repo: &str,
+    path: &str,
+    response: reqwest::blocking::Response,
+) -> AppError {
+    let status = response.status();
+    let headers = response.headers().clone();
+    let message = response
+        .json::<GitHubError>()
+        .map(|err| err.message)
+        .unwrap_or_else(|_| "unknown error".to_string());
+
+    if status == StatusCode::UNPROCESSABLE_ENTITY {
+        return AppError::InvalidInput(format!(
+            "GitHub repo '{owner}/{repo}' cannot be created: {message}",
+        ));
+    }
+
+    if status == StatusCode::NOT_FOUND {
+        return AppError::Network(format!(
+            "GitHub organization '{owner}' not found or token lacks access"
+        ));
+    }
+
+    map_github_error_message(path, status, &headers, &message)
+}
+
+fn map_github_error_message(
+    path: &str,
+    status: StatusCode,
+    headers: &HeaderMap,
+    message: &str,
+) -> AppError {
+    if status == StatusCode::UNAUTHORIZED {
+        return AppError::Network(
+            "GitHub API authentication failed; set GITHUB_TOKEN or GH_TOKEN".to_string(),
+        );
+    }
+
+    if status == StatusCode::FORBIDDEN {
+        if is_rate_limited(headers, message) {
+            return AppError::Network(rate_limit_message(headers));
+        }
+        return AppError::Network(format!(
+            "GitHub API permission denied for {path}: {message}. Ensure the token has repo access",
+        ));
+    }
+
     AppError::Network(format!(
         "GitHub API request failed ({status}) for {path}: {message}"
     ))
+}
+
+fn is_rate_limited(headers: &HeaderMap, message: &str) -> bool {
+    if message.to_ascii_lowercase().contains("rate limit") {
+        return true;
+    }
+    headers
+        .get("x-ratelimit-remaining")
+        .and_then(|value| value.to_str().ok())
+        .map(|value| value == "0")
+        .unwrap_or(false)
+}
+
+fn rate_limit_message(headers: &HeaderMap) -> String {
+    let reset = headers
+        .get("x-ratelimit-reset")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<u64>().ok());
+    if let Some(reset) = reset {
+        format!("GitHub API rate limit exceeded; retry after {reset} (unix epoch)")
+    } else {
+        "GitHub API rate limit exceeded; retry later".to_string()
+    }
 }
 
 fn ensure_release_allowed(
@@ -289,6 +443,44 @@ struct GitHubError {
     message: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct GitHubUser {
+    login: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubRepo {
+    clone_url: String,
+    ssh_url: Option<String>,
+    html_url: Option<String>,
+    full_name: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct CreateRepoRequest {
+    name: String,
+    private: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CreatedRepo {
+    pub clone_url: String,
+    pub ssh_url: Option<String>,
+    pub html_url: Option<String>,
+    pub full_name: Option<String>,
+}
+
+impl From<GitHubRepo> for CreatedRepo {
+    fn from(value: GitHubRepo) -> Self {
+        Self {
+            clone_url: value.clone_url,
+            ssh_url: value.ssh_url,
+            html_url: value.html_url,
+            full_name: value.full_name,
+        }
+    }
+}
+
 impl From<GitHubRelease> for Release {
     fn from(value: GitHubRelease) -> Self {
         Release {
@@ -331,5 +523,20 @@ mod tests {
 
         let selected = select_latest_release(releases).unwrap();
         assert_eq!(selected.tag_name, "v1.1.0");
+    }
+
+    #[test]
+    fn detects_rate_limit_from_headers() {
+        let mut headers = HeaderMap::new();
+        headers.insert("x-ratelimit-remaining", "0".parse().unwrap());
+        assert!(is_rate_limited(&headers, "API rate limit exceeded"));
+    }
+
+    #[test]
+    fn formats_rate_limit_message_with_reset() {
+        let mut headers = HeaderMap::new();
+        headers.insert("x-ratelimit-reset", "1700000000".parse().unwrap());
+        let message = rate_limit_message(&headers);
+        assert!(message.contains("1700000000"));
     }
 }
