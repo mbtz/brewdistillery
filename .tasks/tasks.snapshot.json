@@ -1,7 +1,52 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-23T12:49:36.057090Z",
+  "generated_at": "2026-01-23T12:58:21.073601Z",
   "tasks": [
+    {
+      "id": "sv-64g",
+      "title": "Specify tap repo path resolution + auto-clone",
+      "status": "closed",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:33.389128Z",
+      "updated_at": "2026-01-23T12:58:21.057509Z",
+      "body": "DoD:\\n- Default path rules + temp dir naming.\\n- Auto-clone behavior when tap remote is known.\\n- Cleanup behavior and required config/flags.\\nNotes: PRD A1b (status: in_progress).",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T12:57:28.371038Z",
+      "closed_at": "2026-01-23T12:58:21.057509Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-h1v",
+      "title": "Define git remote selection + ambiguity rules",
+      "status": "closed",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:33.647570Z",
+      "updated_at": "2026-01-23T12:57:25.100748Z",
+      "body": "DoD:\\n- Remote selection order for CLI/tap/artifact repos.\\n- Non-interactive failure behavior.\\n- Exact error messages.\\nNotes: PRD A1c (status: open).",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T12:57:09.199239Z",
+      "closed_at": "2026-01-23T12:57:25.100748Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-g2x",
+      "title": "Define repo identity model (CLI/tap/artifact)",
+      "status": "closed",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:33.199278Z",
+      "updated_at": "2026-01-23T12:57:05.991324Z",
+      "body": "DoD:\\n- Mapping table (identity -> config fields + flags).\\n- Precedence rules (flags > config > autodetect > prompts).\\n- Examples: single-repo + split-repo.\\nNotes: PRD A1 (status: in_progress).",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T12:56:44.913572Z",
+      "closed_at": "2026-01-23T12:57:05.991324Z",
+      "comments_count": 0
+    },
     {
       "id": "sv-fdz",
       "title": "Implement bd release auto-clone when tap.path missing",
@@ -959,36 +1004,6 @@
       "created_at": "2026-01-22T13:31:34.228097Z",
       "updated_at": "2026-01-22T13:31:34.385236Z",
       "body": "DoD:\\n- Field-level merge table (formula wins for formula fields).\\n- Explicit overwrite prompts.\\n- Non-interactive overwrite policy.\\nNotes: PRD A4 (status: in_progress).",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-h1v",
-      "title": "Define git remote selection + ambiguity rules",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:31:33.647570Z",
-      "updated_at": "2026-01-22T13:31:33.817055Z",
-      "body": "DoD:\\n- Remote selection order for CLI/tap/artifact repos.\\n- Non-interactive failure behavior.\\n- Exact error messages.\\nNotes: PRD A1c (status: open).",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-64g",
-      "title": "Specify tap repo path resolution + auto-clone",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:31:33.389128Z",
-      "updated_at": "2026-01-22T13:31:33.615952Z",
-      "body": "DoD:\\n- Default path rules + temp dir naming.\\n- Auto-clone behavior when tap remote is known.\\n- Cleanup behavior and required config/flags.\\nNotes: PRD A1b (status: in_progress).",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-g2x",
-      "title": "Define repo identity model (CLI/tap/artifact)",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:31:33.199278Z",
-      "updated_at": "2026-01-22T13:31:33.362467Z",
-      "body": "DoD:\\n- Mapping table (identity -> config fields + flags).\\n- Precedence rules (flags > config > autodetect > prompts).\\n- Examples: single-repo + split-repo.\\nNotes: PRD A1 (status: in_progress).",
       "comments_count": 0
     },
     {
