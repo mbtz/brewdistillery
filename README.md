@@ -19,7 +19,7 @@ Requirements:
 - Homebrew (optional; only needed for `bd doctor --audit` or `bd init --tap-new`)
 - Binary name is `bd` (crate name is `brewdistillery`).
 
-Recommended quick path (local install):
+Recommended quick path (clone + local install):
 
 ```
 git clone <repo-url>
@@ -43,7 +43,13 @@ Binary path:
 
 Make sure `~/.cargo/bin` is on your PATH (or use the full path above).
 
-Option B: build from source (release binary)
+Option B: install directly from git (no manual build)
+
+```
+cargo install --git <repo-url> --locked --bin bd
+```
+
+Option C: build from source (release binary)
 
 ```
 git clone <repo-url>
@@ -66,7 +72,7 @@ On Apple Silicon (Homebrew default prefix):
 install -m 755 target/release/bd /opt/homebrew/bin/bd
 ```
 
-Option C: run from source (no install)
+Option D: run from source (no install)
 
 ```
 git clone <repo-url>
