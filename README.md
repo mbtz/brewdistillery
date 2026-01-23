@@ -27,7 +27,18 @@ cargo install --path .
 bd --help
 ```
 
-Option A: build from source (release binary)
+Option A: install locally with cargo (recommended)
+
+```
+git clone <repo-url>
+cd brewdistillery
+cargo install --path .
+```
+
+Binary path:
+- `~/.cargo/bin/bd`
+
+Option B: build from source (release binary)
 
 ```
 git clone <repo-url>
@@ -50,20 +61,10 @@ On Apple Silicon (Homebrew default prefix):
 install -m 755 target/release/bd /opt/homebrew/bin/bd
 ```
 
-Option B: install locally with cargo
-
-```
-cd brewdistillery
-cargo install --path .
-```
-
-Binary path:
-- `~/.cargo/bin/bd`
-
 Option C: run from source (no install)
 
 ```
-git clone <this-repo>
+git clone <repo-url>
 cd brewdistillery
 cargo run -- --help
 ```
