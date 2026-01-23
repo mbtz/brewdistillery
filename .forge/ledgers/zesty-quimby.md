@@ -1697,3 +1697,80 @@ Next steps (pick one)
 2) Implement the OS/arch matrix config parsing to feed per-target selection.
 ```
 
+## 2026-01-23T11:29:10Z
+
+- run_id: 4a222294-0836-4d9a-9c1b-19fef53378e2
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T11:21:42Z
+- finished_at: 2026-01-23T11:29:10Z
+- exit_code: 0
+
+```
++        .unwrap();
++
++        fs::write(dir.path().join("Cargo.toml"), "[package]\nname = \"brew\"\n").unwrap();
++
++        let meta = detect_metadata(dir.path()).unwrap().unwrap();
++        assert_eq!(
++            meta.homepage.as_deref(),
++            Some("https://github.com/acme/brewtool")
++        );
++    }
++
++    #[test]
++    fn falls_back_to_git_remote_when_no_manifest() {
++        let dir = tempdir().unwrap();
++        fs::create_dir_all(dir.path().join(".git")).unwrap();
++        fs::write(
++            dir.path().join(".git/config"),
++            r#"[remote "origin"]
++    url = https://github.com/acme/brewtool.git
++"#,
++        )
++        .unwrap();
++
++        let meta = detect_metadata(dir.path()).unwrap().unwrap();
++        assert_eq!(meta.name.as_deref(), Some("brewtool"));
++        assert_eq!(
++            meta.homepage.as_deref(),
++            Some("https://github.com/acme/brewtool")
++        );
++        assert_eq!(meta.source, MetadataSource::GitRemote);
++    }
++
++    #[test]
++    fn errors_on_conflicting_metadata() {
++        let dir = tempdir().unwrap();
++        fs::write(
++            dir.path().join("Cargo.toml"),
++            "[package]\nname = \"brewtool\"\n",
++        )
++        .unwrap();
++        fs::write(
++            dir.path().join("package.json"),
++            r#"{ "name": "other", "bin": { "other": "bin/other" } }"#,
++        )
++        .unwrap();
++
++        let err = detect_metadata(dir.path()).unwrap_err();
++        assert!(matches!(err, AppError::InvalidInput(_)));
++    }
+ }
+
+tokens used
+151 372
+Improved metadata detection to merge multiple manifests with conflict errors, fall back to GitHub remote for name/homepage when missing or no manifest, and normalize scoped npm names; added coverage for conflicts and git-remote fallback in `src/repo_detect.rs`.
+
+Tests: `cargo test -q`
+
+Next steps:
+1) Wire the enhanced metadata into the interactive init flow once prompts are implemented.
+2) Extend remote parsing beyond GitHub when host support expands.
+```
+
