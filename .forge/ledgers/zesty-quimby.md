@@ -4154,3 +4154,79 @@ Next steps (pick one):
 2) Expand README with a short “quick test repo” walkthrough if you want a more guided smoke test.
 ```
 
+## 2026-01-23T15:08:21Z
+
+- run_id: 92967f36-a139-4b39-a21e-3d872bc51fa8
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T15:00:57Z
+- finished_at: 2026-01-23T15:08:21Z
+- exit_code: 0
+
+```
+-    let cli_repo = resolve_string(args.host_repo.as_ref(), ctx.config.cli.repo.as_ref(), None)
+-        .unwrap_or_else(|| {
+-            missing.push("host-repo".to_string());
+-            String::new()
+-        });
++    let cli_owner = cli_owner.unwrap_or_else(|| {
++        missing.push("host-owner".to_string());
++        String::new()
++    });
++
++    let cli_repo = cli_repo.unwrap_or_else(|| {
++        missing.push("host-repo".to_string());
++        String::new()
++    });
+ 
+     let tap_owner =
+         resolve_string(args.tap_owner.as_ref(), ctx.config.tap.owner.as_ref(), None);
+@@ -1697,6 +1711,24 @@
+     }
+ 
+     #[test]
++    fn infers_host_owner_repo_from_homepage_in_non_interactive() {
++        let dir = tempdir().unwrap();
++        let mut ctx = base_context(dir.path());
++        if let Some(meta) = ctx.repo.metadata.as_mut() {
++            meta.homepage = Some("https://github.com/acme/brewtool".to_string());
++        }
++
++        let mut args = base_args();
++        args.tap_path = Some(dir.path().join("tap"));
++
++        run_non_interactive(&ctx, &args).unwrap();
++        let config = Config::load(&ctx.config_path).unwrap();
++
++        assert_eq!(config.cli.owner.as_deref(), Some("acme"));
++        assert_eq!(config.cli.repo.as_deref(), Some("brewtool"));
++    }
++
++    #[test]
+     fn requires_force_for_config_overwrite() {
+         let dir = tempdir().unwrap();
+         let mut ctx = base_context(dir.path());
+
+tokens used
+86 457
+Using skills: sv-issue-tracking (task create/start/close), workflow-pattern (status updates), session-protocol (git status/add/commit/push).
+
+Changes:
+- Infer `--host-owner/--host-repo` during `bd init --non-interactive` from detected GitHub homepage when flags/config are missing; keeps existing missing-field errors when inference fails in `src/commands/init.rs`.
+- Added regression coverage for homepage-based inference in `src/commands/init.rs`.
+- Logged/closed task `sv-9tv` and updated task snapshots in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`.
+- Committed the pre-existing ledger change separately as a chore (`.forge/ledgers/zesty-quimby.md`).
+
+Tests:
+- `cargo test -q`
+
+Next steps (pick one):
+1) Implement GitHub tap repo creation flow for `bd init` (flag + API hook).
+2) Add version update strategies (`cargo`/`regex`) to `bd release`.
+```
+
