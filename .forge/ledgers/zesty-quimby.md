@@ -4077,3 +4077,80 @@ Tests not run (docs-only change).
 If you want additional README content (e.g., pinned Rust version or a “quick start” demo), say the word and I’ll add it.
 ```
 
+## 2026-01-23T15:00:27Z
+
+- run_id: 557dee64-96ec-48c8-afc6-97900c74ffe0
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T14:58:30Z
+- finished_at: 2026-01-23T15:00:27Z
+- exit_code: 0
+
+```
+codex
+Added a direct `cargo install --git` path and re-labeled the install options in `README.md` so early testing doesn’t require a manual build. Closed the new P0 task for README install/usage guidance and committed the `.tasks` updates alongside the doc change; also isolated the pre-existing ledger change in a separate chore commit.
+
+Files touched: `README.md`, `.tasks/tasks.jsonl`, `.tasks/tasks.snapshot.json`, `.forge/ledgers/zesty-quimby.md`.
+
+Tests not run (docs/task update only).
+
+Next steps (pick one):
+1) Start the next P0 design task (e.g., config schema or asset selection rules) and I’ll scaffold the design note.
+2) Expand README with a short “quick test repo” walkthrough if you want a more guided smoke test.
+file update:
+diff --git a/README.md b/README.md
+index 749e4c6066e217b75cea3d83a4223e10e3559566..874d646cbaf616251e353b3d310d61601756a2f3
+--- a/README.md
++++ b/README.md
+@@ -19,7 +19,7 @@
+ - Homebrew (optional; only needed for `bd doctor --audit` or `bd init --tap-new`)
+ - Binary name is `bd` (crate name is `brewdistillery`).
+ 
+-Recommended quick path (local install):
++Recommended quick path (clone + local install):
+ 
+ ```
+ git clone <repo-url>
+@@ -43,7 +43,13 @@
+ 
+ Make sure `~/.cargo/bin` is on your PATH (or use the full path above).
+ 
+-Option B: build from source (release binary)
++Option B: install directly from git (no manual build)
++
++```
++cargo install --git <repo-url> --locked --bin bd
++```
++
++Option C: build from source (release binary)
+ 
+ ```
+ git clone <repo-url>
+@@ -66,7 +72,7 @@
+ install -m 755 target/release/bd /opt/homebrew/bin/bd
+ ```
+ 
+-Option C: run from source (no install)
++Option D: run from source (no install)
+ 
+ ```
+ git clone <repo-url>
+
+tokens used
+42 272
+Added a direct `cargo install --git` path and re-labeled the install options in `README.md` so early testing doesn’t require a manual build. Closed the new P0 task for README install/usage guidance and committed the `.tasks` updates alongside the doc change; also isolated the pre-existing ledger change in a separate chore commit.
+
+Files touched: `README.md`, `.tasks/tasks.jsonl`, `.tasks/tasks.snapshot.json`, `.forge/ledgers/zesty-quimby.md`.
+
+Tests not run (docs/task update only).
+
+Next steps (pick one):
+1) Start the next P0 design task (e.g., config schema or asset selection rules) and I’ll scaffold the design note.
+2) Expand README with a short “quick test repo” walkthrough if you want a more guided smoke test.
+```
+
