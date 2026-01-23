@@ -1,7 +1,21 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-23T15:23:17.219118Z",
+  "generated_at": "2026-01-23T15:27:00.461255Z",
   "tasks": [
+    {
+      "id": "sv-j2d",
+      "title": "Write README install + usage for brewdistillery",
+      "status": "closed",
+      "priority": "P0",
+      "created_at": "2026-01-23T15:25:59.691701Z",
+      "updated_at": "2026-01-23T15:27:00.453694Z",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T15:26:37.478296Z",
+      "closed_at": "2026-01-23T15:27:00.453694Z",
+      "comments_count": 0
+    },
     {
       "id": "sv-7rd",
       "title": "Implement bd doctor checks + optional brew audit",

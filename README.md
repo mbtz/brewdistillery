@@ -19,6 +19,12 @@ Requirements:
 - Homebrew (optional; only needed for `bd doctor --audit` or `bd init --tap-new`)
 - Binary name is `bd` (crate name is `brewdistillery`).
 
+Already have a local clone? Install from the workspace:
+
+```
+cargo install --path . --locked --bin bd
+```
+
 Recommended quick path (clone + local install):
 
 ```
@@ -36,6 +42,7 @@ cd brewdistillery
 cargo install --path . --locked
 # or explicitly:
 cargo install --path . --locked --bin bd
+bd --help
 ```
 
 Binary path:
