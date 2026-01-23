@@ -118,6 +118,12 @@ bd init --non-interactive \
   --version 0.1.0
 ```
 
+Import an existing formula into config (keeps formula file untouched):
+
+```
+bd init --import-formula --tap-path ../homebrew-brewtool
+```
+
 This writes `.distill/config.toml` in the CLI repo and a placeholder formula in the
 tap path. Tap scaffolding and git automation are still in progress.
 
@@ -149,6 +155,7 @@ requested version. If asset selection fails, pass `--asset-name` or
 ## Current capabilities
 
 - `bd init` (interactive or `--non-interactive`): writes `.distill/config.toml` and a starter formula file with preview support.
+- `bd init --import-formula`: imports an existing formula into config without overwriting the formula file.
 - `bd release`: fetches the GitHub release, selects assets, computes SHA256, updates the formula, and commits/pushes to the tap (use `--no-push` and `--skip-tag` to opt out).
 - `bd doctor`: validates required config fields, checks tap/formula paths, and optionally runs `brew audit --new-formula`.
 

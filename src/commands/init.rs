@@ -18,9 +18,7 @@ pub fn run(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError> {
     }
 
     if args.import_formula {
-        return Err(AppError::Other(
-            "--import-formula is not implemented for interactive init yet".to_string(),
-        ));
+        return run_interactive_import(ctx, args);
     }
 
     run_interactive(ctx, args)
@@ -255,6 +253,259 @@ fn run_interactive(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError> {
             writes: vec![PlannedWrite { path, content }],
         });
     }
+
+    let preview = crate::preview::preview_and_apply(&plans, true)?;
+    if !preview.summary.trim().is_empty() {
+        println!("{}", preview.summary.trim_end());
+    }
+    if !preview.diff.trim().is_empty() {
+        println!("{}", preview.diff.trim_end());
+    }
+    if preview.changed_files.is_empty() {
+        println!("init: no changes to apply");
+    }
+
+    if args.dry_run {
+        println!("dry-run: no changes applied");
+        return Ok(());
+    }
+
+    let apply = if resolved.allow_overwrite {
+        true
+    } else {
+        Confirm::with_theme(&theme)
+            .with_prompt("Apply these changes?")
+            .default(true)
+            .interact()
+            .map_err(|err| AppError::Other(format!("failed to read confirmation: {err}")))?
+    };
+
+    if !apply {
+        println!("init: cancelled");
+        return Ok(());
+    }
+
+    let _ = crate::preview::preview_and_apply(&plans, false)?;
+    Ok(())
+}
+
+fn run_interactive_import(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError> {
+    let metadata = ctx.repo.metadata.as_ref();
+    let theme = ColorfulTheme::default();
+
+    let formula_default_raw = resolve_string(
+        args.formula_name.as_ref(),
+        ctx.config.tap.formula.as_ref(),
+        args.repo_name
+            .as_ref()
+            .or_else(|| metadata.and_then(|meta| meta.name.as_ref())),
+    );
+    let formula_default = formula_default_raw
+        .as_deref()
+        .and_then(|value| normalize_formula_name(value).ok());
+    let formula_name = formula_default.clone().unwrap_or_default();
+
+    let description_default = resolve_string(
+        args.description.as_ref(),
+        ctx.config.project.description.as_ref(),
+        metadata.and_then(|meta| meta.description.as_ref()),
+    );
+    let homepage_default = resolve_string(
+        args.homepage.as_ref(),
+        ctx.config.project.homepage.as_ref(),
+        metadata.and_then(|meta| meta.homepage.as_ref()),
+    );
+    let license_default = resolve_string(
+        args.license.as_ref(),
+        ctx.config.project.license.as_ref(),
+        metadata.and_then(|meta| meta.license.as_ref()),
+    );
+    let version_default = resolve_string(
+        args.version.as_ref(),
+        None,
+        metadata.and_then(|meta| meta.version.as_ref()),
+    );
+    let version = match version_default.as_deref() {
+        Some(value) => {
+            let resolved = resolve_version_tag(Some(value), None)?;
+            resolved.version.unwrap_or_else(|| value.to_string())
+        }
+        None => String::new(),
+    };
+
+    let bins_default = resolve_bins(args, &ctx.config, metadata);
+
+    let project_name = resolve_string(
+        args.repo_name.as_ref(),
+        ctx.config.project.name.as_ref(),
+        metadata.and_then(|meta| meta.name.as_ref()),
+    )
+    .unwrap_or_else(|| {
+        if !formula_name.is_empty() {
+            formula_name.clone()
+        } else {
+            String::new()
+        }
+    });
+
+    let (owner_default, repo_default) = infer_owner_repo_defaults(
+        args.host_owner.as_ref(),
+        args.host_repo.as_ref(),
+        ctx.config.cli.owner.as_ref(),
+        ctx.config.cli.repo.as_ref(),
+        homepage_default.as_deref(),
+    );
+
+    let cli_owner = prompt_required(&theme, "GitHub owner", owner_default)?;
+    let cli_repo = prompt_required(&theme, "GitHub repo", repo_default)?;
+
+    let mut tap_path = args.tap_path.clone().or_else(|| ctx.config.tap.path.clone());
+    if tap_path.is_none() && args.tap_remote.is_none() && ctx.config.tap.remote.is_none() {
+        let fallback_project = if project_name.is_empty() {
+            cli_repo.clone()
+        } else {
+            project_name.clone()
+        };
+        let default_repo = ctx
+            .config
+            .tap
+            .repo
+            .clone()
+            .unwrap_or_else(|| format!("homebrew-{}", fallback_project));
+        let default_path = default_tap_path(ctx, &default_repo);
+        tap_path = Some(prompt_path(
+            &theme,
+            "Tap path",
+            Some(default_path.to_string_lossy().to_string()),
+        )?);
+    }
+
+    let tap_remote = resolve_string(
+        args.tap_remote.as_ref(),
+        ctx.config.tap.remote.as_ref(),
+        None,
+    );
+
+    let mut tap_owner = resolve_string(args.tap_owner.as_ref(), ctx.config.tap.owner.as_ref(), None);
+    let mut tap_repo = resolve_string(args.tap_repo.as_ref(), ctx.config.tap.repo.as_ref(), None);
+
+    if tap_owner.is_none() || tap_repo.is_none() {
+        if let Some(remote) = tap_remote.as_deref() {
+            if let Some((owner, repo)) = parse_owner_repo_from_remote(remote) {
+                if tap_owner.is_none() {
+                    tap_owner = Some(owner);
+                }
+                if tap_repo.is_none() {
+                    tap_repo = Some(repo);
+                }
+            }
+        }
+    }
+
+    if tap_owner.is_none() || tap_repo.is_none() {
+        if let Some(path) = tap_path.as_ref() {
+            if let Some(repo_name) = path.file_name().and_then(|name| name.to_str()) {
+                if tap_repo.is_none() {
+                    tap_repo = Some(repo_name.to_string());
+                }
+            }
+        }
+        if tap_owner.is_none() {
+            tap_owner = Some(cli_owner.clone());
+        }
+    }
+
+    if args.tap_new {
+        tap_owner = Some(prompt_required(
+            &theme,
+            "Tap owner (for brew tap-new)",
+            tap_owner.clone(),
+        )?);
+        tap_repo = Some(prompt_required(
+            &theme,
+            "Tap repo (for brew tap-new)",
+            tap_repo.clone(),
+        )?);
+    }
+
+    let artifact_strategy = resolve_string(
+        args.artifact_strategy.as_ref(),
+        ctx.config.artifact.strategy.as_ref(),
+        None,
+    );
+    let asset_template = resolve_string(
+        args.asset_template.as_ref(),
+        ctx.config.artifact.asset_template.as_ref(),
+        None,
+    );
+
+    let mut resolved = ResolvedInit {
+        formula_name,
+        project_name,
+        description: description_default.clone().unwrap_or_default(),
+        homepage: homepage_default.clone().unwrap_or_default(),
+        license: license_default.clone().unwrap_or_default(),
+        version,
+        bins: bins_default.clone(),
+        cli_owner,
+        cli_repo,
+        tap_owner,
+        tap_repo,
+        tap_remote,
+        tap_path,
+        artifact_strategy,
+        asset_template,
+        allow_overwrite: args.force || args.yes,
+    };
+
+    resolve_tap_repo(ctx, args, &mut resolved)?;
+
+    let imported = load_imported_formula(&ctx.config, &resolved)?;
+    apply_imported_formula(&mut resolved, &imported)?;
+
+    if resolved.formula_name.trim().is_empty() {
+        resolved.formula_name = prompt_formula_name(&theme, "Formula name", formula_default)?;
+    }
+
+    if resolved.description.trim().is_empty() {
+        resolved.description = prompt_required(&theme, "Description", description_default)?;
+    }
+    if resolved.homepage.trim().is_empty() {
+        resolved.homepage = prompt_required(&theme, "Homepage", homepage_default)?;
+    }
+    if resolved.license.trim().is_empty() {
+        resolved.license = prompt_required(&theme, "License (SPDX)", license_default)?;
+    }
+    if resolved.version.trim().is_empty() {
+        resolved.version = prompt_version(&theme, "Version", version_default)?;
+    }
+    if resolved.bins.is_empty() {
+        resolved.bins = prompt_bins(
+            &theme,
+            "Binary name(s)",
+            bins_default,
+            &resolved.formula_name,
+        )?;
+    }
+
+    if resolved.project_name.trim().is_empty() {
+        resolved.project_name = resolved.formula_name.clone();
+    }
+
+    let mut next_config = ctx.config.clone();
+    apply_resolved(&mut next_config, &resolved);
+
+    let rendered_config = render_config(&next_config, &ctx.config_path)?;
+
+    let mut plans = Vec::new();
+    plans.push(RepoPlan {
+        label: "cli".to_string(),
+        repo_root: ctx.cwd.clone(),
+        writes: vec![PlannedWrite {
+            path: ctx.config_path.clone(),
+            content: rendered_config.clone(),
+        }],
+    });
 
     let preview = crate::preview::preview_and_apply(&plans, true)?;
     if !preview.summary.trim().is_empty() {
