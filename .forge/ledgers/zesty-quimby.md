@@ -2925,3 +2925,80 @@ Next steps (pick one)
 3) Start release orchestration + idempotency work (`sv-61v`).
 ```
 
+## 2026-01-23T13:17:53Z
+
+- run_id: 720bb418-99f5-4a9e-8b1d-a9b33c165d5e
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T13:08:48Z
+- finished_at: 2026-01-23T13:17:53Z
+- exit_code: 0
+
+```
++            homepage: "https://example.com".to_string(),
++            license: "MIT".to_string(),
++            version: "1.2.3".to_string(),
++            bins: vec!["brewtool".to_string()],
++            cli_owner: "acme".to_string(),
++            cli_repo: "brewtool".to_string(),
++            tap_owner: None,
++            tap_repo: None,
++            tap_remote: Some("https://github.com/acme/homebrew-brewtool.git".to_string()),
++            tap_path: None,
++            artifact_strategy: None,
++            asset_template: None,
++            allow_overwrite: false,
++        };
++
++        let mut args = base_args();
++        args.dry_run = true;
++
++        resolve_tap_repo(&ctx, &args, &mut resolved).unwrap();
++
++        let expected = dir.path().join("homebrew-brewtool");
++        assert_eq!(resolved.tap_path.as_ref(), Some(&expected));
++        assert_eq!(resolved.tap_owner.as_deref(), Some("acme"));
++        assert_eq!(resolved.tap_repo.as_deref(), Some("homebrew-brewtool"));
++    }
++
++    #[test]
++    fn parses_owner_repo_from_remote() {
++        let parsed = parse_owner_repo_from_remote("git@github.com:acme/homebrew-foo.git");
++        assert_eq!(
++            parsed,
++            Some(("acme".to_string(), "homebrew-foo".to_string()))
++        );
++
++        let parsed = parse_owner_repo_from_remote("https://github.com/acme/homebrew-bar");
++        assert_eq!(
++            parsed,
++            Some(("acme".to_string(), "homebrew-bar".to_string()))
++        );
++    }
+ }
+
+tokens used
+125 650
+Implemented tap repo handling for `bd init` so non‑interactive setup can resolve a local tap path, auto‑clone from a remote when needed, and optionally scaffold via `brew tap-new` with clearer failure messaging.
+
+Details:
+- Added tap repo resolution + cloning/scaffolding logic in `src/commands/init.rs` to derive a default tap path from a remote, fill missing tap owner/repo from the remote, and handle empty/non‑git directories safely.
+- Wired `--tap-new` to use Homebrew’s tap directory, validate `tap-owner/tap-repo`, and surface actionable errors when `brew` is missing or fails.
+- Added unit coverage for remote parsing and default tap path derivation in `src/commands/init.rs`.
+
+Tasks:
+- `sv-7df` closed.
+
+Tests:
+- `cargo test -q`
+
+Next steps (pick one):
+1) Start `sv-2tt` to implement interactive `bd init` flow.
+2) Start `sv-tdq` to implement `--import-formula` merge path.
+```
+
