@@ -1,7 +1,32 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-23T10:48:51.089684Z",
+  "generated_at": "2026-01-23T10:51:28.345523Z",
   "tasks": [
+    {
+      "id": "sv-78b",
+      "title": "Write README with install + early usage instructions for brewdistillery",
+      "status": "closed",
+      "priority": "P0",
+      "created_at": "2026-01-23T10:51:06.643268Z",
+      "updated_at": "2026-01-23T10:51:28.337106Z",
+      "body": "Scope: add README content covering local build/install (cargo install --path . / cargo run), basic usage for bd init/release/doctor, and how to uninstall. Include note that Homebrew install is not yet available. DoD: README.md updated with step-by-step commands and prerequisites.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T10:51:11.320777Z",
+      "closed_at": "2026-01-23T10:51:28.337106Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-8bd",
+      "title": "EPIC: Testing & Docs",
+      "status": "open",
+      "priority": "P2",
+      "created_at": "2026-01-22T13:31:33.036334Z",
+      "updated_at": "2026-01-23T10:51:09.224974Z",
+      "body": "Scope: testing matrix + documentation outputs.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
     {
       "id": "sv-v70",
       "title": "Implement formula template rendering (multi-bin + per-OS/arch)",
@@ -29,16 +54,6 @@
       "branch": "main",
       "started_at": "2026-01-22T14:44:30.769672Z",
       "closed_at": "2026-01-22T14:45:14.827590Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-8bd",
-      "title": "EPIC: Testing & Docs",
-      "status": "open",
-      "priority": "P2",
-      "created_at": "2026-01-22T13:31:33.036334Z",
-      "updated_at": "2026-01-22T14:44:28.631569Z",
-      "body": "Scope: testing matrix + documentation outputs.\\nDoD: Epics only; child tasks define acceptance criteria.",
       "comments_count": 0
     },
     {

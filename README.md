@@ -11,6 +11,7 @@ Homebrew formula initialization and release helper. This is an early, in-progres
 
 Requirements:
 - Rust toolchain (rustup + cargo)
+- Git (for cloning this repo)
 
 Option A: build from source
 
@@ -23,7 +24,15 @@ cargo build --release
 Binary path:
 - `target/release/bd`
 
-Option B: install locally with cargo
+Option B: run from source (no install)
+
+```
+git clone <this-repo>
+cd brewdistillery
+cargo run -- --help
+```
+
+Option C: install locally with cargo
 
 ```
 cd brewdistillery
@@ -33,6 +42,12 @@ cargo install --path .
 Binary path:
 - `~/.cargo/bin/bd`
 
+Uninstall:
+
+```
+cargo uninstall brewdistillery
+```
+
 ## Quick start
 
 ```
@@ -41,6 +56,9 @@ bd init --help
 bd release --help
 bd doctor --help
 ```
+
+If you want to test against a real repo, run `bd init` from inside a Git repository
+that has a GitHub remote (public repos only in v0).
 
 ## Notes
 
