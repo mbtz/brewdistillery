@@ -1,7 +1,22 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-23T11:48:37.842501Z",
+  "generated_at": "2026-01-23T11:52:58.342086Z",
   "tasks": [
+    {
+      "id": "sv-0yt",
+      "title": "Write README install/usage for early builds",
+      "status": "closed",
+      "priority": "P0",
+      "created_at": "2026-01-23T11:36:45.585982Z",
+      "updated_at": "2026-01-23T11:52:58.332407Z",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T11:52:16.198917Z",
+      "closed_at": "2026-01-23T11:52:58.332407Z",
+      "comments_count": 1,
+      "last_comment_at": "2026-01-23T11:40:05.589839Z"
+    },
     {
       "id": "sv-ncb",
       "title": "Lock config schema for .distill/config.toml",
@@ -71,16 +86,6 @@
       "started_at": "2026-01-23T11:44:19.911118Z",
       "closed_at": "2026-01-23T11:44:46.529917Z",
       "comments_count": 0
-    },
-    {
-      "id": "sv-0yt",
-      "title": "Write README install/usage for early builds",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-23T11:36:45.585982Z",
-      "updated_at": "2026-01-23T11:40:05.589839Z",
-      "comments_count": 1,
-      "last_comment_at": "2026-01-23T11:40:05.589839Z"
     },
     {
       "id": "sv-dbs",

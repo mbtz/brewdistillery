@@ -5,9 +5,9 @@ Homebrew formula initialization and release helper. This is an early, in-progres
 ## Status
 
 - Early development (pre-Homebrew). Expect incomplete behavior.
-- CLI commands are available (`bd init`, `bd release`, `bd doctor`), but most actions are not implemented yet.
-- `bd init` is non-interactive only for now and writes `.distill/config.toml`.
-- `bd release` is a stub (version/tag validation only).
+- CLI commands are available (`bd init`, `bd release`, `bd doctor`), but most actions are still stubbed.
+- `bd init` is non-interactive only for now and writes `.distill/config.toml` plus a placeholder formula.
+- `bd release` is a stub (version/tag validation only, no git or formula updates).
 
 ## Install (early build)
 
@@ -25,6 +25,12 @@ cargo build --release
 
 Binary path:
 - `target/release/bd`
+
+Add it to your PATH (optional):
+
+```
+install -m 755 target/release/bd /usr/local/bin/bd
+```
 
 Option B: run from source (no install)
 
@@ -86,6 +92,14 @@ bd init --non-interactive \
 
 This writes `.distill/config.toml` in the CLI repo. Formula generation and tap
 scaffolding are not implemented yet.
+
+## Config location
+
+By default, config is read from and written to:
+
+- `.distill/config.toml` in your CLI repo
+
+Use `--config <path>` to point elsewhere.
 
 ## Notes
 
