@@ -8,6 +8,7 @@ use crate::host::github::GitHubClient;
 use crate::host::{HostClient, Release};
 use crate::preview::{preview_and_apply, PlannedWrite, RepoPlan};
 use crate::version::{resolve_version_tag, ResolvedVersionTag};
+use crate::version_update::apply_version_update;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -153,13 +154,49 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
 
     ensure_formula_target(&resolved.formula_path, &version, args.force)?;
 
+    let version_update_mode = ctx
+        .config
+        .version_update
+        .mode
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("none");
+    let needs_cli_repo = tag_to_create.is_some() || version_update_mode != "none";
+
     if !args.allow_dirty {
         ensure_clean_repo(&resolved.tap_root, "tap repo")?;
-        if tag_to_create.is_some() {
+        if needs_cli_repo {
             let cli_root = ctx.repo.git_root.as_ref().ok_or_else(|| {
                 AppError::GitState("cli repo is not a git repository".to_string())
             })?;
             ensure_clean_repo(cli_root, "cli repo")?;
+        }
+    }
+
+    if version_update_mode != "none" {
+        let cli_root = ctx.repo.git_root.as_ref().ok_or_else(|| {
+            AppError::GitState("cli repo is not a git repository".to_string())
+        })?;
+        let updated_files = apply_version_update(
+            &ctx.config.version_update,
+            cli_root,
+            &version,
+            args.dry_run,
+        )?;
+        if !updated_files.is_empty() {
+            if args.dry_run {
+                println!(
+                    "dry-run: would update version in {}",
+                    format_paths(&updated_files)
+                );
+            } else {
+                let message = build_version_update_message(&version);
+                commit_version_update(cli_root, &updated_files, &message)?;
+                if !args.no_push {
+                    push_repo(cli_root)?;
+                }
+            }
         }
     }
 
@@ -518,6 +555,18 @@ fn build_commit_message(template: Option<&str>, formula: &str, version: &str) ->
     }
 }
 
+fn build_version_update_message(version: &str) -> String {
+    format!("chore: Bump version to '{version}'")
+}
+
+fn format_paths(paths: &[PathBuf]) -> String {
+    paths
+        .iter()
+        .map(|path| path.display().to_string())
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 fn ensure_clean_repo(repo: &Path, label: &str) -> Result<(), AppError> {
     let output = run_git(repo, &["status", "--porcelain"])?;
     let status = String::from_utf8_lossy(&output.stdout);
@@ -548,6 +597,39 @@ fn commit_formula_update(
     run_git(repo, &["add", relative.to_str().ok_or_else(|| {
         AppError::GitState("formula path contains invalid UTF-8".to_string())
     })?])?;
+
+    let diff = run_git(repo, &["diff", "--cached", "--name-only"])?;
+    if String::from_utf8_lossy(&diff.stdout).trim().is_empty() {
+        return Ok(());
+    }
+
+    run_git(repo, &["commit", "-m", message])?;
+    Ok(())
+}
+
+fn commit_version_update(
+    repo: &Path,
+    files: &[PathBuf],
+    message: &str,
+) -> Result<(), AppError> {
+    for path in files {
+        let relative = path
+            .strip_prefix(repo)
+            .map(|path| path.to_path_buf())
+            .map_err(|_| {
+                AppError::GitState(format!(
+                    "version update file {} is not inside cli repo {}",
+                    path.display(),
+                    repo.display()
+                ))
+            })?;
+
+        let relative = relative.to_str().ok_or_else(|| {
+            AppError::GitState("version update path contains invalid UTF-8".to_string())
+        })?;
+
+        run_git(repo, &["add", relative])?;
+    }
 
     let diff = run_git(repo, &["diff", "--cached", "--name-only"])?;
     if String::from_utf8_lossy(&diff.stdout).trim().is_empty() {

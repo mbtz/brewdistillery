@@ -1,7 +1,55 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-23T15:55:16.665902Z",
+  "generated_at": "2026-01-23T16:07:37.850410Z",
   "tasks": [
+    {
+      "id": "sv-bgj",
+      "title": "Add tests for version_update modes",
+      "status": "closed",
+      "priority": "P2",
+      "created_at": "2026-01-23T16:01:54.555954Z",
+      "updated_at": "2026-01-23T16:07:37.841808Z",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T16:07:31.580905Z",
+      "closed_at": "2026-01-23T16:07:37.841808Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-hqw",
+      "title": "Implement version_update modes in bd release",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-23T16:01:49.762968Z",
+      "updated_at": "2026-01-23T16:07:35.487546Z",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T16:02:03.253315Z",
+      "closed_at": "2026-01-23T16:07:35.487546Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-8bd",
+      "title": "EPIC: Testing & Docs",
+      "status": "open",
+      "priority": "P2",
+      "created_at": "2026-01-22T13:31:33.036334Z",
+      "updated_at": "2026-01-23T16:01:58.629783Z",
+      "body": "Scope: testing matrix + documentation outputs.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-xf8",
+      "title": "EPIC: Release & Artifacts",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:32.540537Z",
+      "updated_at": "2026-01-23T16:01:51.886726Z",
+      "body": "Scope: release discovery, asset selection, checksums, idempotency, git flow.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
     {
       "id": "sv-3ac",
       "title": "Implement source-tarball release strategy",
@@ -15,16 +63,6 @@
       "branch": "main",
       "started_at": "2026-01-23T15:51:48.939462Z",
       "closed_at": "2026-01-23T15:55:16.656495Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-xf8",
-      "title": "EPIC: Release & Artifacts",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:31:32.540537Z",
-      "updated_at": "2026-01-23T15:51:46.497481Z",
-      "body": "Scope: release discovery, asset selection, checksums, idempotency, git flow.\\nDoD: Epics only; child tasks define acceptance criteria.",
       "comments_count": 0
     },
     {
@@ -119,16 +157,6 @@
       "branch": "main",
       "started_at": "2026-01-23T15:13:30.070720Z",
       "closed_at": "2026-01-23T15:14:01.055575Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-8bd",
-      "title": "EPIC: Testing & Docs",
-      "status": "open",
-      "priority": "P2",
-      "created_at": "2026-01-22T13:31:33.036334Z",
-      "updated_at": "2026-01-23T15:13:22.043134Z",
-      "body": "Scope: testing matrix + documentation outputs.\\nDoD: Epics only; child tasks define acceptance criteria.",
       "comments_count": 0
     },
     {

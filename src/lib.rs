@@ -8,4 +8,5 @@ pub mod formula;
 pub mod host;
 pub mod preview;
 pub mod repo_detect;
+pub mod version_update;
 pub mod version;
