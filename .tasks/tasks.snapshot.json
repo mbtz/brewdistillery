@@ -1,7 +1,22 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-22T14:45:14.837861Z",
+  "generated_at": "2026-01-23T10:48:51.089684Z",
   "tasks": [
+    {
+      "id": "sv-v70",
+      "title": "Implement formula template rendering (multi-bin + per-OS/arch)",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:42:37.738369Z",
+      "updated_at": "2026-01-23T10:48:51.079549Z",
+      "body": "Acceptance:\\n- renders Formula/<name>.rb from config + metadata\\n- supports multi-bin installs and per-OS/arch asset blocks\\n- validates output against template rules before writing",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T10:47:15.662396Z",
+      "closed_at": "2026-01-23T10:48:51.079549Z",
+      "comments_count": 0
+    },
     {
       "id": "sv-p49",
       "title": "Write README with install + early usage",
@@ -263,16 +278,6 @@
       "created_at": "2026-01-22T13:31:32.187194Z",
       "updated_at": "2026-01-22T13:42:48.994044Z",
       "body": "Scope: identity resolution + config schema + metadata detection.\\nDoD: Epics only; child tasks define acceptance criteria.",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-v70",
-      "title": "Implement formula template rendering (multi-bin + per-OS/arch)",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-22T13:42:37.738369Z",
-      "updated_at": "2026-01-22T13:42:39.989792Z",
-      "body": "Acceptance:\\n- renders Formula/<name>.rb from config + metadata\\n- supports multi-bin installs and per-OS/arch asset blocks\\n- validates output against template rules before writing",
       "comments_count": 0
     },
     {

@@ -1082,3 +1082,80 @@ Next steps (pick one):
 2. Tell me to address/clean the unrelated changes before committing.
 ```
 
+## 2026-01-22T14:49:59Z
+
+- run_id: 30196a5e-4c0c-4559-a195-007d4979e8d0
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-22T14:43:17Z
+- finished_at: 2026-01-22T14:49:59Z
+- exit_code: 0
+
+```
+/bin/zsh -lc 'git push' in /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery succeeded in 1.97s:
+To github.com:mbtz/brewdistillery.git
+   75d9dbe..a49c697  main -> main
+
+
+thinking
+**Summarizing final updates and next steps**
+
+Using sv-issue-tracking, workflow-pattern, and session-protocol to manage tasks and coordination. Created README and closed relevant tasks, committing changes in two commits: one chore and one docs, with file references included. The .tasks file still contains prior pending entries, but no new user TODOs remain; no tests were run. Next steps involve monitoring and potentially splitting tasks further as needed.
+thinking
+**Summarizing commits, tasks, and next steps**
+
+Using sv-issue-tracking, workflow-pattern, and session-protocol to organize work. Added a README covering early install and usage and recorded this as a new task, which was closed. Also committed pre-existing uncommitted changes separately in a chore commit. Key updates:
+
+- `README.md`: new file with install and usage instructions  
+- `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`: updated including the new README task and prior pending tracker updates  
+- Pre-existing uncommitted changes captured in the chore commit  
+- No tests run since changes were documentation only  
+
+Next steps:  
+1) Review README for accuracy and update placeholder `<this-repo>` with actual clone URL or repo name  
+2) Select and start the next task in the tracker  
+Let me know if you want the existing USER_TODO cleared or other explicit actions. Both commits have been pushed.
+codex
+Using sv-issue-tracking, workflow-pattern, and session-protocol.
+
+Added an early-install README so you can test the CLI now, and recorded/closed the new task in the sv tracker. I also committed the previously uncommitted workspace changes separately as a chore, per your instruction.
+
+Changes
+- `README.md` adds early install + quick-start usage notes for the `bd` binary.
+- `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json` record the new README task (plus any pending tracker updates already in the workspace).
+
+Commits
+- `chore: sync workspace changes`
+- `docs: add early install README`
+
+Tests: not run (docs + task metadata only).
+
+Next steps (pick one)
+1) Replace the `<this-repo>` placeholder in `README.md` with the clone path you want shown.
+2) Tell me which task to implement next (or I can pick a P0 item).
+tokens used
+48 064
+Using sv-issue-tracking, workflow-pattern, and session-protocol.
+
+Added an early-install README so you can test the CLI now, and recorded/closed the new task in the sv tracker. I also committed the previously uncommitted workspace changes separately as a chore, per your instruction.
+
+Changes
+- `README.md` adds early install + quick-start usage notes for the `bd` binary.
+- `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json` record the new README task (plus any pending tracker updates already in the workspace).
+
+Commits
+- `chore: sync workspace changes`
+- `docs: add early install README`
+
+Tests: not run (docs + task metadata only).
+
+Next steps (pick one)
+1) Replace the `<this-repo>` placeholder in `README.md` with the clone path you want shown.
+2) Tell me which task to implement next (or I can pick a P0 item).
+```
+
