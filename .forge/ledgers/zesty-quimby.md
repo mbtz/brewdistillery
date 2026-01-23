@@ -2079,3 +2079,80 @@ Next steps (pick one)
 3) Start `sv-ah8` and document Cargo/workspace edge cases for metadata detection.
 ```
 
+## 2026-01-23T11:53:26Z
+
+- run_id: bffe0db5-f0c3-424d-8c8f-20877ae5c411
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T11:50:06Z
+- finished_at: 2026-01-23T11:53:26Z
+- exit_code: 0
+
+```
+@@ -5,9 +5,9 @@
+ ## Status
+ 
+ - Early development (pre-Homebrew). Expect incomplete behavior.
+-- CLI commands are available (`bd init`, `bd release`, `bd doctor`), but most actions are not implemented yet.
+-- `bd init` is non-interactive only for now and writes `.distill/config.toml`.
+-- `bd release` is a stub (version/tag validation only).
++- CLI commands are available (`bd init`, `bd release`, `bd doctor`), but most actions are still stubbed.
++- `bd init` is non-interactive only for now and writes `.distill/config.toml` plus a placeholder formula.
++- `bd release` is a stub (version/tag validation only, no git or formula updates).
+ 
+ ## Install (early build)
+ 
+@@ -26,6 +26,12 @@
+ Binary path:
+ - `target/release/bd`
+ 
++Add it to your PATH (optional):
++
++```
++install -m 755 target/release/bd /usr/local/bin/bd
++```
++
+ Option B: run from source (no install)
+ 
+ ```
+@@ -87,6 +93,14 @@
+ This writes `.distill/config.toml` in the CLI repo. Formula generation and tap
+ scaffolding are not implemented yet.
+ 
++## Config location
++
++By default, config is read from and written to:
++
++- `.distill/config.toml` in your CLI repo
++
++Use `--config <path>` to point elsewhere.
++
+ ## Notes
+ 
+ - Homebrew-based install is not available yet.
+
+tokens used
+37 892
+Using sv-issue-tracking + workflow-pattern + session-protocol to track tasks, update status, and run the end-of-session git checklist.
+
+Expanded the README so early adopters can install/run the CLI and understand where config lives; closed task `sv-0yt`. Also committed the pre-existing forge ledger change separately as a chore.
+
+Changes
+- Clarified early-build status, install paths, and config location in `README.md`.
+- Task state updates recorded in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`.
+- Separate chore commit for the pre-existing ledger update in `.forge/ledgers/zesty-quimby.md`.
+
+Tests
+- Not run (docs/task-only change).
+
+Next steps (pick one)
+1) Start `sv-d7t` to design the `bd init` prompt flow + field mapping.
+2) Start `sv-7ye` to lock formula naming/class normalization rules.
+3) Start `sv-64g` to define tap path resolution + auto-clone rules.
+```
+
