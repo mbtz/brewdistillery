@@ -17,6 +17,7 @@ Requirements:
 - Rust toolchain (rustup + cargo, stable)
 - Git (for cloning this repo)
 - Homebrew (optional; only needed for `bd doctor --audit` or `bd init --tap-new`)
+- Binary name is `bd` (crate name is `brewdistillery`).
 
 Recommended quick path (local install):
 
@@ -33,6 +34,8 @@ Option A: install locally with cargo (recommended)
 git clone <repo-url>
 cd brewdistillery
 cargo install --path . --locked
+# or explicitly:
+cargo install --path . --locked --bin bd
 ```
 
 Binary path:
