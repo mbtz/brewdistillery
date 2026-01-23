@@ -2,6 +2,8 @@ use crate::cli::DoctorArgs;
 use crate::config::Config;
 use crate::context::AppContext;
 use crate::errors::AppError;
+use crate::formula::formula_class_name;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -140,6 +142,8 @@ fn check_tap(config: &Config, tap_override: Option<&PathBuf>, issues: &mut Vec<I
                 true,
                 format!("formula file not found at {}", formula_path.display()),
             );
+        } else {
+            check_formula_contents(&formula_path, formula_name, issues);
         }
     } else {
         push_issue(
@@ -162,6 +166,121 @@ fn check_artifact(config: &Config, issues: &mut Vec<Issue>) {
             false,
             "artifact.asset_template or artifact.asset_name is missing",
         );
+    }
+}
+
+#[derive(Debug, Default)]
+struct FormulaOverview {
+    class_name: Option<String>,
+    has_desc: bool,
+    has_homepage: bool,
+    has_url: bool,
+    has_sha256: bool,
+    has_license: bool,
+    has_version: bool,
+}
+
+fn check_formula_contents(path: &Path, formula_name: &str, issues: &mut Vec<Issue>) {
+    let content = match fs::read_to_string(path) {
+        Ok(content) => content,
+        Err(err) => {
+            push_issue(
+                issues,
+                true,
+                format!("failed to read formula at {}: {err}", path.display()),
+            );
+            return;
+        }
+    };
+
+    let overview = parse_formula_overview(&content);
+    let expected_class = match formula_class_name(formula_name) {
+        Ok(value) => value,
+        Err(err) => {
+            push_issue(issues, true, format!("invalid formula name: {err}"));
+            return;
+        }
+    };
+
+    match overview.class_name.as_deref() {
+        Some(found) if found == expected_class => {}
+        Some(found) => push_issue(
+            issues,
+            true,
+            format!(
+                "formula class name '{found}' does not match expected '{expected_class}'"
+            ),
+        ),
+        None => push_issue(issues, true, "formula class name is missing"),
+    }
+
+    if !overview.has_desc {
+        push_issue(issues, true, "formula is missing desc");
+    }
+    if !overview.has_homepage {
+        push_issue(issues, true, "formula is missing homepage");
+    }
+    if !overview.has_url {
+        push_issue(issues, true, "formula is missing url");
+    }
+    if !overview.has_sha256 {
+        push_issue(issues, true, "formula is missing sha256");
+    }
+    if !overview.has_license {
+        push_issue(issues, true, "formula is missing license");
+    }
+    if !overview.has_version {
+        push_issue(issues, true, "formula is missing version");
+    }
+}
+
+fn parse_formula_overview(content: &str) -> FormulaOverview {
+    let mut overview = FormulaOverview::default();
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        if overview.class_name.is_none() && trimmed.starts_with("class ") {
+            overview.class_name = parse_class_name(trimmed);
+            continue;
+        }
+        if trimmed.starts_with("desc ") {
+            overview.has_desc = true;
+            continue;
+        }
+        if trimmed.starts_with("homepage ") {
+            overview.has_homepage = true;
+            continue;
+        }
+        if trimmed.starts_with("url ") {
+            overview.has_url = true;
+            continue;
+        }
+        if trimmed.starts_with("sha256 ") {
+            overview.has_sha256 = true;
+            continue;
+        }
+        if trimmed.starts_with("license ") {
+            overview.has_license = true;
+            continue;
+        }
+        if trimmed.starts_with("version ") {
+            overview.has_version = true;
+        }
+    }
+    overview
+}
+
+fn parse_class_name(line: &str) -> Option<String> {
+    let rest = line.trim_start_matches("class ").trim();
+    let rest = rest.split_once('#').map(|(value, _)| value).unwrap_or(rest);
+    let rest = rest.split_once('<').map(|(value, _)| value).unwrap_or(rest);
+    let name = rest.split_whitespace().next().unwrap_or(rest).trim();
+    if name.is_empty() {
+        None
+    } else {
+        Some(name.to_string())
     }
 }
 
@@ -268,6 +387,66 @@ mod tests {
             strict: false,
             audit: false,
         }
+    }
+
+    fn write_formula(dir: &Path, content: &str) -> PathBuf {
+        let formula_dir = dir.join("Formula");
+        std::fs::create_dir_all(&formula_dir).unwrap();
+        let path = formula_dir.join("brewtool.rb");
+        std::fs::write(&path, content).unwrap();
+        path
+    }
+
+    #[test]
+    fn accepts_formula_with_required_fields() {
+        let dir = tempdir().unwrap();
+        let content = concat!(
+            "class Brewtool < Formula\n",
+            "  desc \"Brew tool\"\n",
+            "  homepage \"https://example.com\"\n",
+            "  url \"https://example.com/brewtool.tar.gz\"\n",
+            "  sha256 \"deadbeef\"\n",
+            "  license \"MIT\"\n",
+            "  version \"1.2.3\"\n",
+            "end\n"
+        );
+        let path = write_formula(dir.path(), content);
+
+        let mut issues = Vec::new();
+        check_formula_contents(&path, "brewtool", &mut issues);
+
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn reports_missing_formula_fields() {
+        let dir = tempdir().unwrap();
+        let content = concat!(
+            "class Badtool < Formula\n",
+            "  desc \"Brew tool\"\n",
+            "  homepage \"https://example.com\"\n",
+            "  url \"https://example.com/brewtool.tar.gz\"\n",
+            "  license \"MIT\"\n",
+            "end\n"
+        );
+        let path = write_formula(dir.path(), content);
+
+        let mut issues = Vec::new();
+        check_formula_contents(&path, "brewtool", &mut issues);
+
+        let messages = issues
+            .iter()
+            .map(|issue| issue.message.as_str())
+            .collect::<Vec<_>>();
+        assert!(messages
+            .iter()
+            .any(|message| message.contains("formula class name")));
+        assert!(messages
+            .iter()
+            .any(|message| message.contains("formula is missing sha256")));
+        assert!(messages
+            .iter()
+            .any(|message| message.contains("formula is missing version")));
     }
 
     #[test]
