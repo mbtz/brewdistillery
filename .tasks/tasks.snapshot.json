@@ -1,7 +1,22 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-23T10:51:28.345523Z",
+  "generated_at": "2026-01-23T11:00:33.599196Z",
   "tasks": [
+    {
+      "id": "sv-8yf",
+      "title": "Implement bd init --non-interactive validation + overwrite guards",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:41:52.915251Z",
+      "updated_at": "2026-01-23T11:00:33.588704Z",
+      "body": "Acceptance:\\n- enforces required fields (config/flags) when non-interactive\\n- respects --force/--yes for overwrite and exits with clear error otherwise\\n- no partial writes on validation failure",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T10:58:27.899859Z",
+      "closed_at": "2026-01-23T11:00:33.588704Z",
+      "comments_count": 0
+    },
     {
       "id": "sv-78b",
       "title": "Write README with install + early usage instructions for brewdistillery",
@@ -343,16 +358,6 @@
       "created_at": "2026-01-22T13:42:01.541120Z",
       "updated_at": "2026-01-22T13:42:04.141513Z",
       "body": "Acceptance:\\n- resolves tap path rules and auto-clones when needed\\n- supports optional brew tap-new scaffold (flagged)\\n- errors when brew missing/offline with actionable message",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-8yf",
-      "title": "Implement bd init --non-interactive validation + overwrite guards",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-22T13:41:52.915251Z",
-      "updated_at": "2026-01-22T13:41:57.677281Z",
-      "body": "Acceptance:\\n- enforces required fields (config/flags) when non-interactive\\n- respects --force/--yes for overwrite and exits with clear error otherwise\\n- no partial writes on validation failure",
       "comments_count": 0
     },
     {
