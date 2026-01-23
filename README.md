@@ -5,9 +5,9 @@ Homebrew formula initialization and release helper. This is an early, in-progres
 ## Status
 
 - Early development (pre-Homebrew). Expect incomplete behavior.
-- CLI commands are available (`bd init`, `bd release`, `bd doctor`), but most actions are still stubbed.
+- CLI commands are available (`bd init`, `bd release`, `bd doctor`), but some workflows are still stubbed.
 - `bd init` is non-interactive only for now and writes `.distill/config.toml` plus a placeholder formula.
-- `bd release` is a stub (version/tag validation only, no git or formula updates).
+- `bd release` fetches GitHub releases, selects assets, computes SHA256, and updates the formula with a preview (no git commit/tag/push yet).
 
 ## Install (early build)
 
@@ -96,7 +96,7 @@ scaffolding are not implemented yet.
 ## Current capabilities
 
 - `bd init --non-interactive`: writes `.distill/config.toml` and a placeholder formula file.
-- `bd release`: validates `--version`/`--tag` and exits (no git or formula updates yet).
+- `bd release`: fetches the GitHub release, selects assets, computes SHA256, and updates the formula with a preview (no git commit/tag/push yet).
 - `bd doctor`: CLI wiring only (checks are still stubbed).
 
 If you run into missing fields in non-interactive mode, provide explicit flags for
