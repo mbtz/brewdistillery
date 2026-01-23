@@ -16,6 +16,7 @@ Homebrew installation is not available yet. Use one of the source-based options 
 Requirements:
 - Rust toolchain (rustup + cargo, stable)
 - Git (for cloning this repo)
+- Homebrew (optional; only needed for `bd doctor --audit`)
 
 Option A: build from source (release binary)
 
@@ -104,6 +105,10 @@ Release testing (no git commit/tag/push yet):
 ```
 bd release --version 0.1.0 --dry-run
 ```
+
+`bd release` currently expects a public GitHub Release with matching assets for the
+requested version. If asset selection fails, pass `--asset-name` or
+`--asset-template` explicitly.
 
 ## Current capabilities
 
