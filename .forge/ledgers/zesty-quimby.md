@@ -1544,3 +1544,79 @@ Next steps:
 2) Expand `bd doctor` checks to include more repo/state validations (follow-up to `sv-7rd`).
 ```
 
+## 2026-01-23T11:14:23Z
+
+- run_id: 0d5d934f-5346-41bc-be17-e0009f10ffcf
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T11:11:10Z
+- finished_at: 2026-01-23T11:14:23Z
+- exit_code: 0
+
+```
+@@ -57,8 +59,27 @@
+ bd doctor --help
+ ```
+ 
+-If you want to test against a real repo, run `bd init` from inside a Git repository
+-that has a GitHub remote (public repos only in v0).
++If you want to test against a real repo, run `bd init --non-interactive` from inside
++the CLI repository (public GitHub remotes only in v0). Metadata detection currently
++supports `Cargo.toml`, `package.json`, `pyproject.toml`, and `go.mod`.
++
++Example (explicit fields):
++
++```
++bd init --non-interactive \
++  --tap-path ../homebrew-brewtool \
++  --host-owner acme \
++  --host-repo brewtool \
++  --formula-name brewtool \
++  --description "Brew tool" \
++  --homepage "https://github.com/acme/brewtool" \
++  --license MIT \
++  --bin-name brewtool \
++  --version 0.1.0
++```
++
++This writes `.distill/config.toml` in the CLI repo. Formula generation and tap
++scaffolding are not implemented yet.
+ 
+ ## Notes
+ 
+diff --git a/USER_TODO.md b/USER_TODO.md
+index 3274ccdbfe930147c02035f385fa3ad24e7c69a9..aa2fdb775ef22b277ce98887b2280d397c8c59d7
+--- a/USER_TODO.md
++++ b/USER_TODO.md
+@@ -1,7 +1,6 @@
+ # USER_TODO
+ 
+ ## Resolved TODOs (from USER_FEEDBACK on 2026-01-22T15:40:00)
++- Included `.forge/ledgers/zesty-quimby.md` in a separate chore commit (2026-01-23).
+ 
+ ## Decisions needed
+-
+-- Unexpected git changes are present: `.forge/ledgers/zesty-quimby.md` is modified. Should I include this in a separate chore commit or leave it untouched?
+
+tokens used
+41 315
+Expanded the README to reflect the current early-build reality (non‑interactive init only, release stub), added a concrete `bd init --non-interactive` example, and noted supported metadata sources. Closed the README task in sv and resolved the prior USER_TODO question. Also committed the pre-existing ledger change separately as a chore, per your instruction.
+
+**Changes**
+- `README.md` – clarified status, added non-interactive example, and noted current limitations.
+- `.tasks/tasks.jsonl`, `.tasks/tasks.snapshot.json` – `sv-x0t` closed.
+- `USER_TODO.md` – marked the ledger question resolved.
+- `.forge/ledgers/zesty-quimby.md` – committed separately as chore.
+
+Tests: not run (docs-only change).
+
+Next steps (pick one)
+1) Start `sv-d7t` to design the `bd init` prompt flow + mapping.
+2) Start `sv-n6c` to finalize the non-interactive contract per command.
+```
+
