@@ -684,17 +684,31 @@ fn resolve_required(
         }
     };
 
-    let cli_owner = resolve_string(args.host_owner.as_ref(), ctx.config.cli.owner.as_ref(), None)
-        .unwrap_or_else(|| {
-            missing.push("host-owner".to_string());
-            String::new()
-        });
+    let mut cli_owner = resolve_string(args.host_owner.as_ref(), ctx.config.cli.owner.as_ref(), None);
+    let mut cli_repo = resolve_string(args.host_repo.as_ref(), ctx.config.cli.repo.as_ref(), None);
 
-    let cli_repo = resolve_string(args.host_repo.as_ref(), ctx.config.cli.repo.as_ref(), None)
-        .unwrap_or_else(|| {
-            missing.push("host-repo".to_string());
-            String::new()
-        });
+    if cli_owner.is_none() || cli_repo.is_none() {
+        if let Some(homepage) = metadata.and_then(|meta| meta.homepage.as_ref()) {
+            if let Some((owner, repo)) = parse_owner_repo_from_homepage(homepage) {
+                if cli_owner.is_none() {
+                    cli_owner = Some(owner);
+                }
+                if cli_repo.is_none() {
+                    cli_repo = Some(repo);
+                }
+            }
+        }
+    }
+
+    let cli_owner = cli_owner.unwrap_or_else(|| {
+        missing.push("host-owner".to_string());
+        String::new()
+    });
+
+    let cli_repo = cli_repo.unwrap_or_else(|| {
+        missing.push("host-repo".to_string());
+        String::new()
+    });
 
     let tap_owner =
         resolve_string(args.tap_owner.as_ref(), ctx.config.tap.owner.as_ref(), None);
@@ -1694,6 +1708,24 @@ mod tests {
         assert!(formula.contains("class Brewtool < Formula"));
         assert!(formula.contains("version \"1.2.3\""));
         assert!(formula.contains("sha256 \"TODO\""));
+    }
+
+    #[test]
+    fn infers_host_owner_repo_from_homepage_in_non_interactive() {
+        let dir = tempdir().unwrap();
+        let mut ctx = base_context(dir.path());
+        if let Some(meta) = ctx.repo.metadata.as_mut() {
+            meta.homepage = Some("https://github.com/acme/brewtool".to_string());
+        }
+
+        let mut args = base_args();
+        args.tap_path = Some(dir.path().join("tap"));
+
+        run_non_interactive(&ctx, &args).unwrap();
+        let config = Config::load(&ctx.config_path).unwrap();
+
+        assert_eq!(config.cli.owner.as_deref(), Some("acme"));
+        assert_eq!(config.cli.repo.as_deref(), Some("brewtool"));
     }
 
     #[test]

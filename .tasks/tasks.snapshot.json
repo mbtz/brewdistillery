@@ -1,7 +1,22 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-23T14:59:44.684111Z",
+  "generated_at": "2026-01-23T15:07:17.451020Z",
   "tasks": [
+    {
+      "id": "sv-9tv",
+      "title": "Infer GitHub owner/repo for non-interactive init",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-23T15:06:36.754149Z",
+      "updated_at": "2026-01-23T15:07:17.439649Z",
+      "body": "Acceptance:\\n- When --non-interactive init lacks --host-owner/--host-repo and config values, infer from detected GitHub homepage/remote when possible.\\n- Falls back to existing missing-field error if inference fails.\\n- Add regression test covering inference.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T15:06:39.733648Z",
+      "closed_at": "2026-01-23T15:07:17.439649Z",
+      "comments_count": 0
+    },
     {
       "id": "sv-gvb",
       "title": "Write README install + usage guidance for early builds",
