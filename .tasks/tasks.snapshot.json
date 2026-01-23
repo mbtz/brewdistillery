@@ -1,7 +1,32 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-23T13:01:50.418035Z",
+  "generated_at": "2026-01-23T13:07:46.936257Z",
   "tasks": [
+    {
+      "id": "sv-2vr",
+      "title": "Implement git remote selection + ambiguity handling",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-23T13:03:25.055142Z",
+      "updated_at": "2026-01-23T13:07:46.925907Z",
+      "body": "Update repo detection to follow docs/git-remotes.md (origin if GitHub, else single GitHub remote; ambiguous/no remote errors in non-interactive). Add tests for ambiguity + unparsable GitHub URLs.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T13:03:37.367355Z",
+      "closed_at": "2026-01-23T13:07:46.925907Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-mf7",
+      "title": "EPIC: Identity & Config",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:32.187194Z",
+      "updated_at": "2026-01-23T13:03:32.611854Z",
+      "body": "Scope: identity resolution + config schema + metadata detection.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
     {
       "id": "sv-ghe",
       "title": "Add README install/usage instructions for early builds",
@@ -388,16 +413,6 @@
       "branch": "main",
       "started_at": "2026-01-23T11:28:11.232375Z",
       "closed_at": "2026-01-23T11:28:14.428617Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-mf7",
-      "title": "EPIC: Identity & Config",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:31:32.187194Z",
-      "updated_at": "2026-01-23T11:28:08.747646Z",
-      "body": "Scope: identity resolution + config schema + metadata detection.\\nDoD: Epics only; child tasks define acceptance criteria.",
       "comments_count": 0
     },
     {

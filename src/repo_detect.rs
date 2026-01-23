@@ -91,7 +91,7 @@ fn detect_metadata(root: &Path) -> Result<Option<ProjectMetadata>, AppError> {
     }
 
     if metas.is_empty() {
-        if let Some(meta) = metadata_from_git_remote(root) {
+        if let Some(meta) = metadata_from_git_remote(root)? {
             metas.push(meta);
         }
     }
@@ -106,10 +106,10 @@ fn detect_metadata(root: &Path) -> Result<Option<ProjectMetadata>, AppError> {
         resolved.license = detect_license_from_files(root);
     }
     if resolved.homepage.is_none() {
-        resolved.homepage = detect_homepage_from_git(root);
+        resolved.homepage = detect_homepage_from_git(root)?;
     }
     if resolved.name.is_none() {
-        resolved.name = detect_name_from_git(root);
+        resolved.name = detect_name_from_git(root)?;
     }
 
     Ok(Some(resolved))
@@ -459,15 +459,18 @@ fn format_bins_conflicts(values: &[(MetadataSource, Vec<String>)]) -> String {
         .join(", ")
 }
 
-fn metadata_from_git_remote(root: &Path) -> Option<ProjectMetadata> {
-    let remote = detect_git_remote_url(root)?;
+fn metadata_from_git_remote(root: &Path) -> Result<Option<ProjectMetadata>, AppError> {
+    let remote = match select_github_remote_url(root, true)? {
+        Some(remote) => remote,
+        None => return Ok(None),
+    };
     let name = repo_name_from_remote(&remote);
     let homepage = github_https_from_remote(&remote);
     if name.is_none() && homepage.is_none() {
-        return None;
+        return Ok(None);
     }
 
-    Some(ProjectMetadata {
+    Ok(Some(ProjectMetadata {
         name,
         description: None,
         homepage,
@@ -475,24 +478,96 @@ fn metadata_from_git_remote(root: &Path) -> Option<ProjectMetadata> {
         version: None,
         bin: Vec::new(),
         source: MetadataSource::GitRemote,
-    })
+    }))
 }
 
-fn detect_homepage_from_git(root: &Path) -> Option<String> {
-    let remote = detect_git_remote_url(root)?;
-    github_https_from_remote(&remote)
+fn detect_homepage_from_git(root: &Path) -> Result<Option<String>, AppError> {
+    let remote = select_github_remote_url(root, false)?;
+    Ok(remote.and_then(|remote| github_https_from_remote(&remote)))
 }
 
-fn detect_name_from_git(root: &Path) -> Option<String> {
-    let remote = detect_git_remote_url(root)?;
-    repo_name_from_remote(&remote)
+fn detect_name_from_git(root: &Path) -> Result<Option<String>, AppError> {
+    let remote = select_github_remote_url(root, false)?;
+    Ok(remote.and_then(|remote| repo_name_from_remote(&remote)))
 }
 
-fn detect_git_remote_url(root: &Path) -> Option<String> {
-    let config_path = git_config_path(root)?;
-    let content = fs::read_to_string(config_path).ok()?;
+#[derive(Debug, Clone)]
+struct GitRemote {
+    name: String,
+    url: String,
+}
+
+fn select_github_remote_url(root: &Path, require: bool) -> Result<Option<String>, AppError> {
+    let remotes = load_git_remotes(root)?;
+    if remotes.is_empty() {
+        return if require {
+            Err(AppError::GitState(
+                "no GitHub remote found; specify --host-owner/--host-repo".to_string(),
+            ))
+        } else {
+            Ok(None)
+        };
+    }
+
+    if let Some(origin) = remotes.iter().find(|remote| remote.name == "origin") {
+        if is_github_url(&origin.url) {
+            return github_https_from_remote(&origin.url)
+                .map(|_| origin.url.clone())
+                .ok_or_else(|| {
+                    AppError::GitState(
+                        "unable to parse GitHub remote URL; specify --host-owner/--host-repo"
+                            .to_string(),
+                    )
+                })
+                .map(Some);
+        }
+    }
+
+    let mut github_remotes = Vec::new();
+    let mut has_unparsable = false;
+    for remote in &remotes {
+        if is_github_url(&remote.url) {
+            if github_https_from_remote(&remote.url).is_some() {
+                github_remotes.push(remote);
+            } else {
+                has_unparsable = true;
+            }
+        }
+    }
+
+    if github_remotes.len() == 1 {
+        return Ok(Some(github_remotes[0].url.clone()));
+    }
+
+    if github_remotes.len() > 1 {
+        return Err(AppError::GitState(
+            "multiple git remotes found; specify --host-owner/--host-repo".to_string(),
+        ));
+    }
+
+    if has_unparsable {
+        return Err(AppError::GitState(
+            "unable to parse GitHub remote URL; specify --host-owner/--host-repo".to_string(),
+        ));
+    }
+
+    if require {
+        Err(AppError::GitState(
+            "no GitHub remote found; specify --host-owner/--host-repo".to_string(),
+        ))
+    } else {
+        Ok(None)
+    }
+}
+
+fn load_git_remotes(root: &Path) -> Result<Vec<GitRemote>, AppError> {
+    let config_path = match git_config_path(root) {
+        Some(path) => path,
+        None => return Ok(Vec::new()),
+    };
+    let content = fs::read_to_string(config_path)?;
+    let mut remotes: Vec<GitRemote> = Vec::new();
     let mut current_remote: Option<String> = None;
-    let mut first_url: Option<String> = None;
 
     for line in content.lines() {
         let trimmed = line.trim();
@@ -508,20 +583,40 @@ fn detect_git_remote_url(root: &Path) -> Option<String> {
             continue;
         }
 
-        if let Some(remote) = current_remote.as_deref() {
-            if let Some(url) = trimmed.strip_prefix("url =") {
-                let url = url.trim().to_string();
-                if remote == "origin" {
-                    return Some(url);
-                }
-                if first_url.is_none() {
-                    first_url = Some(url);
-                }
+        let Some(remote_name) = current_remote.as_deref() else {
+            continue;
+        };
+
+        if let Some(url) = parse_url_line(trimmed) {
+            if remotes.iter().any(|remote| remote.name == remote_name) {
+                continue;
             }
+            remotes.push(GitRemote {
+                name: remote_name.to_string(),
+                url: url.to_string(),
+            });
         }
     }
 
-    first_url
+    Ok(remotes)
+}
+
+fn parse_url_line(line: &str) -> Option<&str> {
+    if let Some(rest) = line.strip_prefix("url") {
+        let rest = rest.trim_start();
+        if let Some(rest) = rest.strip_prefix('=') {
+            let url = rest.trim();
+            if url.is_empty() {
+                None
+            } else {
+                Some(url)
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    }
 }
 
 fn git_config_path(root: &Path) -> Option<PathBuf> {
@@ -575,6 +670,10 @@ fn github_https_from_remote(remote: &str) -> Option<String> {
     }
 
     Some(format!("https://github.com/{cleaned}"))
+}
+
+fn is_github_url(remote: &str) -> bool {
+    remote.contains("github.com")
 }
 
 fn repo_name_from_remote(remote: &str) -> Option<String> {
@@ -802,5 +901,86 @@ brewpy = "brewpy:main"
 
         let err = detect_metadata(dir.path()).unwrap_err();
         assert!(matches!(err, AppError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn prefers_origin_github_remote() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join(".git")).unwrap();
+        fs::write(
+            dir.path().join(".git/config"),
+            r#"[remote "origin"]
+    url = git@github.com:acme/brewtool.git
+[remote "upstream"]
+    url = https://github.com/acme/other.git
+"#,
+        )
+        .unwrap();
+
+        let remote = select_github_remote_url(dir.path(), true).unwrap();
+        assert_eq!(
+            remote.as_deref(),
+            Some("git@github.com:acme/brewtool.git")
+        );
+    }
+
+    #[test]
+    fn errors_on_multiple_github_remotes_without_origin() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join(".git")).unwrap();
+        fs::write(
+            dir.path().join(".git/config"),
+            r#"[remote "origin"]
+    url = https://gitlab.com/acme/brewtool.git
+[remote "upstream"]
+    url = https://github.com/acme/brewtool.git
+[remote "fork"]
+    url = git@github.com:acme/brewtool-fork.git
+"#,
+        )
+        .unwrap();
+
+        let err = select_github_remote_url(dir.path(), true).unwrap_err();
+        assert!(matches!(err, AppError::GitState(_)));
+        assert_eq!(
+            err.to_string(),
+            "multiple git remotes found; specify --host-owner/--host-repo"
+        );
+    }
+
+    #[test]
+    fn errors_on_unparsable_github_remote() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join(".git")).unwrap();
+        fs::write(
+            dir.path().join(".git/config"),
+            r#"[remote "origin"]
+    url = ssh://github.com/acme/brewtool.git
+"#,
+        )
+        .unwrap();
+
+        let err = select_github_remote_url(dir.path(), true).unwrap_err();
+        assert!(matches!(err, AppError::GitState(_)));
+        assert_eq!(
+            err.to_string(),
+            "unable to parse GitHub remote URL; specify --host-owner/--host-repo"
+        );
+    }
+
+    #[test]
+    fn returns_none_when_no_github_remote_and_optional() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join(".git")).unwrap();
+        fs::write(
+            dir.path().join(".git/config"),
+            r#"[remote "origin"]
+    url = https://gitlab.com/acme/brewtool.git
+"#,
+        )
+        .unwrap();
+
+        let remote = select_github_remote_url(dir.path(), false).unwrap();
+        assert!(remote.is_none());
     }
 }
