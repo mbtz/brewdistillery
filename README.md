@@ -15,7 +15,7 @@ Requirements:
 - Rust toolchain (rustup + cargo)
 - Git (for cloning this repo)
 
-Option A: build from source
+Option A: build from source (release binary)
 
 ```
 git clone <this-repo>
@@ -43,6 +43,12 @@ cargo install --path .
 
 Binary path:
 - `~/.cargo/bin/bd`
+
+Verify the install:
+
+```
+bd --help
+```
 
 Uninstall:
 
