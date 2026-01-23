@@ -4692,3 +4692,80 @@ Next steps (optional):
 2) Pick the next open sv task to implement (e.g., from `sv task ready`).
 ```
 
+## 2026-01-23T15:56:27Z
+
+- run_id: b4085d34-61dd-43e6-bf81-f1ea9e2be97e
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T15:45:59Z
+- finished_at: 2026-01-23T15:56:27Z
+- exit_code: 0
+
+```
++            None,
++            "acme",
++            "brewtool",
++            "v1.2.3",
++            "1.2.3",
++        )
++        .unwrap();
++        assert_eq!(
++            url,
++            "https://github.com/acme/brewtool/archive/refs/tags/v1.2.3.tar.gz"
++        );
++    }
++
++    #[test]
++    fn renders_custom_tarball_template() {
++        let url = render_tarball_url(
++            Some("https://example.com/{owner}/{repo}/releases/{tag}/{version}.tgz"),
++            "acme",
++            "brewtool",
++            "v1.2.3",
++            "1.2.3",
++        )
++        .unwrap();
++        assert_eq!(
++            url,
++            "https://example.com/acme/brewtool/releases/v1.2.3/1.2.3.tgz"
++        );
++    }
++
++    #[test]
++    fn source_tarball_tag_prefers_explicit_tag() {
++        let version_tag = ResolvedVersionTag {
++            version: Some("1.2.3".to_string()),
++            tag: Some("v1.2.3".to_string()),
++            normalized_tag: Some("1.2.3".to_string()),
++        };
++
++        let tag = resolve_source_tarball_tag(&version_tag, None, None, "1.2.3").unwrap();
++        assert_eq!(tag, "v1.2.3");
++    }
+ }
+
+tokens used
+192 796
+Using sv-issue-tracking (fallback to `/Users/marius/.codex/skills/sv-task-issue-tracking/SKILL.md` because the referenced path was missing), workflow-pattern, and session-protocol.
+
+Added source-tarball support in `bd release` with URL template rendering, validation, and SHA downloads; also documented tarball template placeholders and added tests. The main changes are in `src/commands/release.rs` and `docs/config.md`.  
+Pre-existing changes in `.forge/ledgers/zesty-quimby.md` and `USER_FEEDBACK.md` were committed separately as a chore, per your instruction.
+
+- Updated files: `src/commands/release.rs`, `docs/config.md`, `.tasks/tasks.jsonl`, `.tasks/tasks.snapshot.json`
+- Task: created and closed `sv-3ac` (parent `sv-xf8`)
+
+Tests run:
+- `cargo test`
+
+Commits pushed:
+- `chore: sync pre-existing changes`
+- `feat: add source tarball release strategy`
+
+If you want, I can add a short doc section with an end-to-end `source-tarball` example or wire in a CLI flag to override `tarball_url_template`.
+```
+
