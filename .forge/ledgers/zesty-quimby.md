@@ -2848,3 +2848,80 @@ Next steps (pick one)
 3) Start `sv-61v` to design and wire release orchestration + idempotency.
 ```
 
+## 2026-01-23T13:08:18Z
+
+- run_id: b4ab6925-66b7-4b01-b986-d74c3f72afc2
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T12:59:54Z
+- finished_at: 2026-01-23T13:08:18Z
+- exit_code: 0
+
+```
++        assert!(matches!(err, AppError::GitState(_)));
++        assert_eq!(
++            err.to_string(),
++            "multiple git remotes found; specify --host-owner/--host-repo"
++        );
++    }
++
++    #[test]
++    fn errors_on_unparsable_github_remote() {
++        let dir = tempdir().unwrap();
++        fs::create_dir_all(dir.path().join(".git")).unwrap();
++        fs::write(
++            dir.path().join(".git/config"),
++            r#"[remote "origin"]
++    url = ssh://github.com/acme/brewtool.git
++"#,
++        )
++        .unwrap();
++
++        let err = select_github_remote_url(dir.path(), true).unwrap_err();
++        assert!(matches!(err, AppError::GitState(_)));
++        assert_eq!(
++            err.to_string(),
++            "unable to parse GitHub remote URL; specify --host-owner/--host-repo"
++        );
++    }
++
++    #[test]
++    fn returns_none_when_no_github_remote_and_optional() {
++        let dir = tempdir().unwrap();
++        fs::create_dir_all(dir.path().join(".git")).unwrap();
++        fs::write(
++            dir.path().join(".git/config"),
++            r#"[remote "origin"]
++    url = https://gitlab.com/acme/brewtool.git
++"#,
++        )
++        .unwrap();
++
++        let remote = select_github_remote_url(dir.path(), false).unwrap();
++        assert!(remote.is_none());
++    }
+ }
+
+tokens used
+84 606
+Added early-build install notes to the README and tightened GitHub remote selection/ambiguity handling in repo detection to match the documented rules, with tests covering the edge cases.
+
+- README now calls out optional Homebrew dependency for audit and clarifies release asset expectations in `README.md`.
+- Git remote parsing now prefers GitHub `origin`, errors on ambiguous/unparsable GitHub remotes, and avoids false positives when no GitHub remotes exist in `src/repo_detect.rs`.
+- Added unit tests for the new remote-selection behavior in `src/repo_detect.rs`.
+- Closed tasks: `sv-ghe` and new `sv-2vr` (remote selection implementation).
+
+Tests
+- `cargo test repo_detect`
+
+Next steps (pick one)
+1) Wire GitHub remote inference into `bd init` host owner/repo defaults (align with `docs/git-remotes.md`).
+2) Implement init tap repo handling (`sv-7df`).
+3) Start release orchestration + idempotency work (`sv-61v`).
+```
+
