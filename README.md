@@ -18,6 +18,15 @@ Requirements:
 - Git (for cloning this repo)
 - Homebrew (optional; only needed for `bd doctor --audit` or `bd init --tap-new`)
 
+Recommended quick path:
+
+```
+git clone <repo-url>
+cd brewdistillery
+cargo install --path .
+bd --help
+```
+
 Option A: build from source (release binary)
 
 ```
