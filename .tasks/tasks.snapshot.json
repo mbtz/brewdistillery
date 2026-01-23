@@ -1,7 +1,50 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-23T12:41:08.491101Z",
+  "generated_at": "2026-01-23T12:49:36.057090Z",
   "tasks": [
+    {
+      "id": "sv-fdz",
+      "title": "Implement bd release auto-clone when tap.path missing",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-23T12:46:58.375570Z",
+      "updated_at": "2026-01-23T12:49:36.048593Z",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T12:47:13.728795Z",
+      "closed_at": "2026-01-23T12:49:36.048593Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-8bd",
+      "title": "EPIC: Testing & Docs",
+      "status": "open",
+      "priority": "P2",
+      "created_at": "2026-01-22T13:31:33.036334Z",
+      "updated_at": "2026-01-23T12:47:09.798081Z",
+      "body": "Scope: testing matrix + documentation outputs.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-ghe",
+      "title": "Add README install/usage instructions for early builds",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-23T12:47:01.155592Z",
+      "updated_at": "2026-01-23T12:47:09.798081Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-xf8",
+      "title": "EPIC: Release & Artifacts",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:32.540537Z",
+      "updated_at": "2026-01-23T12:47:04.868022Z",
+      "body": "Scope: release discovery, asset selection, checksums, idempotency, git flow.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
     {
       "id": "sv-06j",
       "title": "Add README install + usage instructions for early builds",
@@ -15,16 +58,6 @@
       "branch": "main",
       "started_at": "2026-01-23T12:40:45.624853Z",
       "closed_at": "2026-01-23T12:41:08.480306Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-8bd",
-      "title": "EPIC: Testing & Docs",
-      "status": "open",
-      "priority": "P2",
-      "created_at": "2026-01-22T13:31:33.036334Z",
-      "updated_at": "2026-01-23T12:40:42.676934Z",
-      "body": "Scope: testing matrix + documentation outputs.\\nDoD: Epics only; child tasks define acceptance criteria.",
       "comments_count": 0
     },
     {
@@ -330,16 +363,6 @@
       "branch": "main",
       "started_at": "2026-01-23T11:18:02.531326Z",
       "closed_at": "2026-01-23T11:20:29.575215Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-xf8",
-      "title": "EPIC: Release & Artifacts",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:31:32.540537Z",
-      "updated_at": "2026-01-23T11:17:59.881658Z",
-      "body": "Scope: release discovery, asset selection, checksums, idempotency, git flow.\\nDoD: Epics only; child tasks define acceptance criteria.",
       "comments_count": 0
     },
     {

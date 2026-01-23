@@ -10,8 +10,10 @@ use crate::preview::{preview_and_apply, PlannedWrite, RepoPlan};
 use crate::version::resolve_version_tag;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::process::Command;
+use tempfile::{Builder as TempBuilder, TempDir};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct ReleaseContext {
     tap_root: PathBuf,
     formula_path: PathBuf,
@@ -31,6 +33,13 @@ struct ReleaseContext {
     install_block: Option<String>,
 }
 
+#[derive(Debug)]
+struct TapRoot {
+    path: Option<PathBuf>,
+    temp_dir: Option<TempDir>,
+    cloned_from: Option<String>,
+}
+
 pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
     if !ctx.config_path.exists() {
         return Err(AppError::MissingConfig(format!(
@@ -39,7 +48,17 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         )));
     }
 
-    let resolved = resolve_release_context(ctx, args)?;
+    let tap_root = resolve_tap_root_for_release(ctx, args)?;
+    if let (Some(path), Some(remote)) = (tap_root.path.as_ref(), tap_root.cloned_from.as_ref()) {
+        println!(
+            "release: cloned tap repo from {} to {}",
+            remote,
+            path.display()
+        );
+    }
+    let _tap_root_guard = tap_root.temp_dir.as_ref();
+
+    let resolved = resolve_release_context(ctx, args, tap_root.path.as_ref())?;
 
     if resolved.artifact_strategy != "release-asset" {
         return Err(AppError::InvalidInput(format!(
@@ -107,14 +126,19 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
     let preview = preview_and_apply(&[plan], args.dry_run)?;
     print_preview(&preview);
 
+    drop(tap_root);
     Ok(())
 }
 
-fn resolve_release_context(ctx: &AppContext, args: &ReleaseArgs) -> Result<ReleaseContext, AppError> {
+fn resolve_release_context(
+    ctx: &AppContext,
+    args: &ReleaseArgs,
+    tap_path_override: Option<&PathBuf>,
+) -> Result<ReleaseContext, AppError> {
     let config = &ctx.config;
     let mut missing = Vec::new();
 
-    let tap_path = args.tap_path.clone().or_else(|| config.tap.path.clone());
+    let tap_path = tap_path_override.cloned();
     let formula_name = resolve_string(None, config.tap.formula.as_ref()).unwrap_or_default();
     if formula_name.is_empty() {
         missing.push("tap.formula".to_string());
@@ -131,7 +155,7 @@ fn resolve_release_context(ctx: &AppContext, args: &ReleaseArgs) -> Result<Relea
 
     let tap_root = tap_path
         .clone()
-        .or_else(|| formula_path.parent().map(|parent| parent.to_path_buf()))
+        .or_else(|| tap_root_from_formula_path(&formula_path))
         .unwrap_or_else(|| ctx.cwd.clone());
 
     let description = resolve_string(None, config.project.description.as_ref()).unwrap_or_default();
@@ -223,6 +247,54 @@ fn resolve_release_context(ctx: &AppContext, args: &ReleaseArgs) -> Result<Relea
         host_repo,
         host_api_base: config.host.api_base.clone(),
         install_block: config.template.install_block.clone(),
+    })
+}
+
+fn resolve_tap_root_for_release(ctx: &AppContext, args: &ReleaseArgs) -> Result<TapRoot, AppError> {
+    let tap_path = args.tap_path.clone().or_else(|| ctx.config.tap.path.clone());
+    if tap_path.is_some() {
+        return Ok(TapRoot {
+            path: tap_path,
+            temp_dir: None,
+            cloned_from: None,
+        });
+    }
+
+    if let Some(formula_path) = ctx.config.tap.formula_path.as_ref() {
+        if formula_path.is_absolute() {
+            return Ok(TapRoot {
+                path: None,
+                temp_dir: None,
+                cloned_from: None,
+            });
+        }
+    }
+
+    let remote = ctx
+        .config
+        .tap
+        .remote
+        .as_deref()
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty());
+
+    if let Some(remote) = remote {
+        let temp_dir = TempBuilder::new()
+            .prefix("brewdistillery-tap-")
+            .tempdir()?;
+        let dest = temp_dir.path().join("tap");
+        run_git_clone(remote, &dest)?;
+        return Ok(TapRoot {
+            path: Some(dest),
+            temp_dir: Some(temp_dir),
+            cloned_from: Some(remote.to_string()),
+        });
+    }
+
+    Ok(TapRoot {
+        path: None,
+        temp_dir: None,
+        cloned_from: None,
     })
 }
 
@@ -452,6 +524,47 @@ fn parse_target_key(key: &str) -> Result<(Os, Arch), AppError> {
     Ok((os, arch))
 }
 
+fn tap_root_from_formula_path(formula_path: &Path) -> Option<PathBuf> {
+    let parent = formula_path.parent()?;
+    if parent
+        .file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| name == "Formula")
+        .unwrap_or(false)
+    {
+        return parent.parent().map(|path| path.to_path_buf());
+    }
+    Some(parent.to_path_buf())
+}
+
+fn run_git_clone(remote: &str, dest: &Path) -> Result<(), AppError> {
+    let output = Command::new("git")
+        .arg("clone")
+        .arg(remote)
+        .arg(dest)
+        .output()
+        .map_err(|err| AppError::GitState(format!("failed to run git clone: {err}")))?;
+
+    if !output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let mut message = format!("failed to clone tap repo from {remote}");
+        if !stdout.trim().is_empty() || !stderr.trim().is_empty() {
+            message.push_str(":\n");
+            if !stdout.trim().is_empty() {
+                message.push_str(stdout.trim());
+                message.push('\n');
+            }
+            if !stderr.trim().is_empty() {
+                message.push_str(stderr.trim());
+            }
+        }
+        return Err(AppError::GitState(message));
+    }
+
+    Ok(())
+}
+
 fn print_preview(preview: &crate::preview::PreviewOutput) {
     if !preview.summary.trim().is_empty() {
         println!("{}", preview.summary.trim_end());
@@ -493,5 +606,12 @@ end
         let (os, arch) = parse_target_key("linux_x86_64").unwrap();
         assert_eq!(os, Os::Linux);
         assert_eq!(arch, Arch::Amd64);
+    }
+
+    #[test]
+    fn derives_tap_root_from_formula_path() {
+        let formula = PathBuf::from("/tmp/homebrew-brewtool/Formula/brewtool.rb");
+        let root = tap_root_from_formula_path(&formula).unwrap();
+        assert_eq!(root, PathBuf::from("/tmp/homebrew-brewtool"));
     }
 }
