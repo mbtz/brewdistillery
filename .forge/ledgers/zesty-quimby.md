@@ -2387,3 +2387,80 @@ Next steps (pick one):
 2) Start `sv-tdq` to implement `bd init --import-formula` merge behavior.
 ```
 
+## 2026-01-23T12:17:44Z
+
+- run_id: 6148ff6b-7bda-48c7-b76c-91261a6f0203
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T12:08:29Z
+- finished_at: 2026-01-23T12:17:44Z
+- exit_code: 0
+
+```
++    pub tag_name: String,
++    pub draft: bool,
++    pub prerelease: bool,
++    pub assets: Vec<ReleaseAsset>,
++}
++
++#[derive(Debug, Clone, PartialEq, Eq)]
++pub struct ReleaseAsset {
++    pub name: String,
++    pub download_url: String,
++    pub size: Option<u64>,
++}
++
++pub trait HostClient {
++    fn latest_release(
++        &self,
++        owner: &str,
++        repo: &str,
++        include_prerelease: bool,
++    ) -> Result<Release, AppError>;
++
++    fn release_by_tag(
++        &self,
++        owner: &str,
++        repo: &str,
++        tag: &str,
++        include_prerelease: bool,
++    ) -> Result<Release, AppError>;
++
++    fn download_sha256(&self, url: &str, max_bytes: Option<u64>) -> Result<String, AppError>;
++}
+diff --git a/src/lib.rs b/src/lib.rs
+index d8e88426d5de323c041ab43cb8f3851a0f52fa2f..86013f42c2b9297bf656f80c4927809e5052f961
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -5,6 +5,7 @@
+ pub mod errors;
+ pub mod asset_selection;
+ pub mod formula;
++pub mod host;
+ pub mod preview;
+ pub mod repo_detect;
+ pub mod version;
+
+tokens used
+101 402
+Added a host abstraction plus a GitHub client for release discovery/asset listing and SHA256 downloads, with config-ready API base support and token auth; updated task tracking and deps accordingly.
+
+Details:
+- New host module and structs in `src/host/mod.rs`; GitHub implementation in `src/host/github.rs` (latest/tag release lookup, draft/prerelease filtering, asset metadata, SHA256 download with size limits).
+- Token support via `GITHUB_TOKEN`/`GH_TOKEN` and default API base `https://api.github.com`.
+- Dependency additions in `Cargo.toml` and lockfile; tasks updated in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`.
+- Separate chore commit for `.forge/ledgers/zesty-quimby.md` per your instruction.
+
+Tests:
+- `cargo test` (not rerun after the small auth-header tweak in `src/host/github.rs`).
+
+Next steps (pick one):
+1) Start `sv-s70` to implement GitHub tap repo creation.
+2) Start wiring the host client into the `bd release` pipeline (`sv-zfz`).
+```
+
