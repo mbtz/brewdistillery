@@ -59,6 +59,7 @@ Resolution order for any configurable field:
   `mycli-{version}-{os}-{arch}.tar.gz`
 - `asset_name` (string): explicit asset name override.
 - `targets` (table-of-tables): per-target overrides for OS/arch splits.
+See `docs/asset-selection.md` for the selection rules and OS/arch normalization.
 
 #### [artifact.targets.<target>]
 - `asset_template` (string): target-specific template.
