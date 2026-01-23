@@ -84,6 +84,7 @@ See `docs/asset-selection.md` for the selection rules and OS/arch normalization.
 ### [template]
 - `path` (string): path to a custom formula template file.
 - `install_block` (string): raw Ruby snippet for the formula `install` block.
+See `docs/formula-template.md` for template placeholders and examples.
 
 ## Minimal example
 

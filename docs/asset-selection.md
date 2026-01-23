@@ -59,6 +59,41 @@ No match error:
 - Message: `no release assets match target '<target>'; available assets: <a>, <b>, ...`
 - Exit code: 3
 
+## Target matrix configuration
+
+Use `artifact.targets` to enable OS or OS/arch-specific assets. All target keys
+must use the same shape:
+- Per-OS: `<os>` (e.g., `darwin`, `macos`, `osx`, `linux`)
+- Per-OS+arch: `<os>-<arch>` (e.g., `darwin-arm64`, `linux-x86_64`)
+
+Mixing per-OS and per-OS+arch keys is invalid.
+
+Canonical error:
+- `target keys must be all <os> or all <os>-<arch>` (exit code 3)
+
+Config example (per-OS):
+```
+[artifact.targets."darwin"]
+asset_template = "brewtool-{version}-darwin-universal.tar.gz"
+
+[artifact.targets."linux"]
+asset_template = "brewtool-{version}-linux-x86_64.tar.gz"
+```
+
+Config example (per-OS+arch):
+```
+[artifact.targets."darwin-arm64"]
+asset_template = "brewtool-{version}-darwin-arm64.tar.gz"
+
+[artifact.targets."linux-amd64"]
+asset_template = "brewtool-{version}-linux-amd64.tar.gz"
+```
+
+Validation rules:
+- Duplicate target keys for the same OS (per-OS) or same OS/arch (per-target)
+  are rejected.
+- Per-OS templates should not include `{arch}`; use per-OS+arch keys instead.
+
 ## Multi-target resolution
 
 When `artifact.targets` is configured, resolve each target independently using
@@ -71,6 +106,48 @@ targets.
 Example failure:
 - Message: `no release assets match target 'darwin-arm64'; available assets: ...`
 - Exit code: 3
+
+## Formula output mapping
+
+Universal (no `artifact.targets`):
+```
+  url "https://github.com/acme/brewtool/releases/download/1.2.3/brewtool-1.2.3.tar.gz"
+  sha256 "deadbeef"
+```
+
+Per-OS:
+```
+  on_macos do
+    url "https://example.com/brewtool-1.2.3-darwin.tar.gz"
+    sha256 "macsha"
+  end
+  on_linux do
+    url "https://example.com/brewtool-1.2.3-linux.tar.gz"
+    sha256 "linuxsha"
+  end
+```
+
+Per-OS+arch:
+```
+  on_macos do
+    if Hardware::CPU.arm?
+      url "https://example.com/brewtool-1.2.3-darwin-arm64.tar.gz"
+      sha256 "armsha"
+    else
+      url "https://example.com/brewtool-1.2.3-darwin-amd64.tar.gz"
+      sha256 "amdsha"
+    end
+  end
+  on_linux do
+    if Hardware::CPU.arm?
+      url "https://example.com/brewtool-1.2.3-linux-arm64.tar.gz"
+      sha256 "linuxarm"
+    else
+      url "https://example.com/brewtool-1.2.3-linux-amd64.tar.gz"
+      sha256 "linuxamd"
+    end
+  end
+```
 
 ## OS/arch normalization
 

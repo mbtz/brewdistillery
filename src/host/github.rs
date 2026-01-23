@@ -13,6 +13,14 @@ use std::time::Duration;
 
 const DEFAULT_API_BASE: &str = "https://api.github.com";
 const DEFAULT_USER_AGENT: &str = "brewdistillery";
+const DOWNLOAD_MAX_RETRIES: usize = 3;
+const DOWNLOAD_RETRY_BASE_DELAY_MS: u64 = 250;
+const DOWNLOAD_RETRY_MAX_DELAY_MS: u64 = 2000;
+
+enum DownloadFailure {
+    Retryable(String),
+    Fatal(AppError),
+}
 
 #[derive(Debug, Clone)]
 pub struct GitHubClient {
@@ -237,6 +245,32 @@ impl HostClient for GitHubClient {
     }
 
     fn download_sha256(&self, url: &str, max_bytes: Option<u64>) -> Result<String, AppError> {
+        for attempt in 1..=DOWNLOAD_MAX_RETRIES {
+            match self.download_sha256_once(url, max_bytes) {
+                Ok(sha) => return Ok(sha),
+                Err(DownloadFailure::Retryable(message)) => {
+                    if attempt < DOWNLOAD_MAX_RETRIES {
+                        std::thread::sleep(retry_delay(attempt));
+                        continue;
+                    }
+                    return Err(AppError::Network(format!(
+                        "{message} (after {DOWNLOAD_MAX_RETRIES} attempts)"
+                    )));
+                }
+                Err(DownloadFailure::Fatal(err)) => return Err(err),
+            }
+        }
+
+        Err(AppError::Network("failed to download asset".to_string()))
+    }
+}
+
+impl GitHubClient {
+    fn download_sha256_once(
+        &self,
+        url: &str,
+        max_bytes: Option<u64>,
+    ) -> Result<String, DownloadFailure> {
         let mut request = self
             .client
             .get(url)
@@ -245,23 +279,25 @@ impl HostClient for GitHubClient {
             request = request.header(AUTHORIZATION, format!("Bearer {token}"));
         }
 
-        let mut response = request
-            .send()
-            .map_err(|err| AppError::Network(format!("failed to download asset: {err}")))?;
+        let mut response = request.send().map_err(|err| {
+            DownloadFailure::Retryable(format!("failed to download asset: {err}"))
+        })?;
 
         if !response.status().is_success() {
-            return Err(AppError::Network(format!(
-                "failed to download asset {url}: HTTP {}",
-                response.status()
-            )));
+            let status = response.status();
+            let message = format!("failed to download asset {url}: HTTP {status}");
+            if should_retry_status(status) {
+                return Err(DownloadFailure::Retryable(message));
+            }
+            return Err(DownloadFailure::Fatal(AppError::Network(message)));
         }
 
         if let Some(limit) = max_bytes {
             if let Some(length) = response.content_length() {
                 if length > limit {
-                    return Err(AppError::Network(format!(
+                    return Err(DownloadFailure::Fatal(AppError::Network(format!(
                         "download exceeds size limit ({length} bytes > {limit} bytes): {url}"
-                    )));
+                    ))));
                 }
             }
         }
@@ -271,18 +307,18 @@ impl HostClient for GitHubClient {
         let mut buffer = [0u8; 8192];
 
         loop {
-            let read = response
-                .read(&mut buffer)
-                .map_err(|err| AppError::Network(format!("failed to read asset: {err}")))?;
+            let read = response.read(&mut buffer).map_err(|err| {
+                DownloadFailure::Retryable(format!("failed to read asset: {err}"))
+            })?;
             if read == 0 {
                 break;
             }
             total += read as u64;
             if let Some(limit) = max_bytes {
                 if total > limit {
-                    return Err(AppError::Network(format!(
+                    return Err(DownloadFailure::Fatal(AppError::Network(format!(
                         "download exceeds size limit ({total} bytes > {limit} bytes): {url}"
-                    )));
+                    ))));
                 }
             }
             hasher.update(&buffer[..read]);
@@ -290,6 +326,17 @@ impl HostClient for GitHubClient {
 
         Ok(format!("{:x}", hasher.finalize()))
     }
+}
+
+fn should_retry_status(status: StatusCode) -> bool {
+    status == StatusCode::TOO_MANY_REQUESTS || status.is_server_error()
+}
+
+fn retry_delay(attempt: usize) -> Duration {
+    let shift = attempt.saturating_sub(1);
+    let exp = 1u64 << shift;
+    let delay = DOWNLOAD_RETRY_BASE_DELAY_MS.saturating_mul(exp);
+    Duration::from_millis(delay.min(DOWNLOAD_RETRY_MAX_DELAY_MS))
 }
 
 fn read_token() -> Option<String> {
@@ -538,5 +585,22 @@ mod tests {
         headers.insert("x-ratelimit-reset", "1700000000".parse().unwrap());
         let message = rate_limit_message(&headers);
         assert!(message.contains("1700000000"));
+    }
+
+    #[test]
+    fn retries_on_server_errors_and_rate_limits() {
+        assert!(should_retry_status(StatusCode::TOO_MANY_REQUESTS));
+        assert!(should_retry_status(StatusCode::INTERNAL_SERVER_ERROR));
+        assert!(!should_retry_status(StatusCode::BAD_REQUEST));
+    }
+
+    #[test]
+    fn retry_delay_grows_and_caps() {
+        let first = retry_delay(1);
+        let second = retry_delay(2);
+        let third = retry_delay(3);
+        assert!(second > first);
+        assert!(third >= second);
+        assert!(third <= Duration::from_millis(DOWNLOAD_RETRY_MAX_DELAY_MS));
     }
 }

@@ -13,6 +13,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use tempfile::{Builder as TempBuilder, TempDir};
 
+const DEFAULT_ASSET_MAX_BYTES: u64 = 200 * 1024 * 1024;
+
 #[derive(Debug)]
 struct ReleaseContext {
     tap_root: PathBuf,
@@ -33,6 +35,7 @@ struct ReleaseContext {
     tag_format: Option<String>,
     commit_message_template: Option<String>,
     install_block: Option<String>,
+    template_path: Option<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -137,7 +140,12 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         install_block: resolved.install_block.clone(),
     };
 
-    let rendered = spec.render()?;
+    let rendered = if let Some(path) = resolved.template_path.as_ref() {
+        let template = read_template(path)?;
+        spec.render_with_template(&template)?
+    } else {
+        spec.render()?
+    };
 
     let plan = RepoPlan {
         label: "tap".to_string(),
@@ -308,6 +316,7 @@ fn resolve_release_context(
         tag_format: config.release.tag_format.clone(),
         commit_message_template: config.release.commit_message_template.clone(),
         install_block: config.template.install_block.clone(),
+        template_path: config.template.path.clone(),
     })
 }
 
@@ -640,27 +649,96 @@ fn build_assets(
     }
 
     let mut targets = Vec::new();
+    let mut macos: Option<FormulaAsset> = None;
+    let mut linux: Option<FormulaAsset> = None;
+    let mut mode: Option<TargetMode> = None;
     for (key, target) in &resolved.targets {
-        let (os, arch) = parse_target_key(key)?;
-        let selection = AssetSelectionOptions {
-            asset_name: target
-                .asset_name
-                .clone()
-                .or_else(|| resolved.asset_name.clone()),
-            asset_template: target
-                .asset_template
-                .clone()
-                .or_else(|| resolved.asset_template.clone()),
-            project_name: Some(resolved.project_name.clone()),
-            version: Some(version.to_string()),
-            os: Some(os),
-            arch: Some(arch),
-        };
-        let asset = select_asset_for_release(client, release, selection, dry_run)?;
-        targets.push(TargetAsset { os, arch, asset });
+        match parse_target_key(key)? {
+            TargetKey::Os(os) => {
+                if matches!(mode, Some(TargetMode::PerTarget)) {
+                    return Err(AppError::InvalidInput(
+                        "target keys must be all <os> or all <os>-<arch>".to_string(),
+                    ));
+                }
+                mode = Some(TargetMode::PerOs);
+                let selection = AssetSelectionOptions {
+                    asset_name: target
+                        .asset_name
+                        .clone()
+                        .or_else(|| resolved.asset_name.clone()),
+                    asset_template: target
+                        .asset_template
+                        .clone()
+                        .or_else(|| resolved.asset_template.clone()),
+                    project_name: Some(resolved.project_name.clone()),
+                    version: Some(version.to_string()),
+                    os: Some(os),
+                    arch: None,
+                };
+                let asset = select_asset_for_release(client, release, selection, dry_run)?;
+                match os {
+                    Os::Darwin => {
+                        if macos.is_some() {
+                            return Err(AppError::InvalidInput(
+                                "duplicate target entry for macos".to_string(),
+                            ));
+                        }
+                        macos = Some(asset);
+                    }
+                    Os::Linux => {
+                        if linux.is_some() {
+                            return Err(AppError::InvalidInput(
+                                "duplicate target entry for linux".to_string(),
+                            ));
+                        }
+                        linux = Some(asset);
+                    }
+                }
+            }
+            TargetKey::OsArch(os, arch) => {
+                if matches!(mode, Some(TargetMode::PerOs)) {
+                    return Err(AppError::InvalidInput(
+                        "target keys must be all <os> or all <os>-<arch>".to_string(),
+                    ));
+                }
+                mode = Some(TargetMode::PerTarget);
+                let selection = AssetSelectionOptions {
+                    asset_name: target
+                        .asset_name
+                        .clone()
+                        .or_else(|| resolved.asset_name.clone()),
+                    asset_template: target
+                        .asset_template
+                        .clone()
+                        .or_else(|| resolved.asset_template.clone()),
+                    project_name: Some(resolved.project_name.clone()),
+                    version: Some(version.to_string()),
+                    os: Some(os),
+                    arch: Some(arch),
+                };
+                let asset = select_asset_for_release(client, release, selection, dry_run)?;
+                targets.push(TargetAsset { os, arch, asset });
+            }
+        }
     }
 
-    Ok(AssetMatrix::PerTarget(targets))
+    match mode {
+        Some(TargetMode::PerOs) => Ok(AssetMatrix::PerOs { macos, linux }),
+        Some(TargetMode::PerTarget) => Ok(AssetMatrix::PerTarget(targets)),
+        None => Ok(AssetMatrix::Universal(select_asset_for_release(
+            client,
+            release,
+            AssetSelectionOptions {
+                asset_name: resolved.asset_name.clone(),
+                asset_template: resolved.asset_template.clone(),
+                project_name: Some(resolved.project_name.clone()),
+                version: Some(version.to_string()),
+                os: None,
+                arch: None,
+            },
+            dry_run,
+        )?)),
+    }
 }
 
 fn select_asset_for_release(
@@ -691,7 +769,7 @@ fn select_asset_for_release(
         println!("dry-run: would download {}", asset.download_url);
         "DRY-RUN".to_string()
     } else {
-        client.download_sha256(&asset.download_url, None)?
+        client.download_sha256(&asset.download_url, Some(DEFAULT_ASSET_MAX_BYTES))?
     };
 
     Ok(FormulaAsset {
@@ -700,11 +778,38 @@ fn select_asset_for_release(
     })
 }
 
-fn parse_target_key(key: &str) -> Result<(Os, Arch), AppError> {
+fn read_template(path: &Path) -> Result<String, AppError> {
+    if !path.exists() {
+        return Err(AppError::InvalidInput(format!(
+            "template not found at {}",
+            path.display()
+        )));
+    }
+    std::fs::read_to_string(path).map_err(|err| {
+        AppError::InvalidInput(format!(
+            "failed to read template at {}: {err}",
+            path.display()
+        ))
+    })
+}
+
+#[derive(Debug, Clone, Copy)]
+enum TargetKey {
+    Os(Os),
+    OsArch(Os, Arch),
+}
+
+#[derive(Debug, Clone, Copy)]
+enum TargetMode {
+    PerOs,
+    PerTarget,
+}
+
+fn parse_target_key(key: &str) -> Result<TargetKey, AppError> {
     let lower = key.trim().to_ascii_lowercase();
     if lower.is_empty() {
         return Err(AppError::InvalidInput(format!(
-            "invalid target key '{key}': expected <os>-<arch>"
+            "invalid target key '{key}': expected <os> or <os>-<arch>"
         )));
     }
 
@@ -717,7 +822,7 @@ fn parse_target_key(key: &str) -> Result<(Os, Arch), AppError> {
         (false, false) => None,
         _ => {
             return Err(AppError::InvalidInput(format!(
-                "invalid target key '{key}': expected <os>-<arch>"
+                "invalid target key '{key}': expected <os> or <os>-<arch>"
             )))
         }
     };
@@ -731,23 +836,21 @@ fn parse_target_key(key: &str) -> Result<(Os, Arch), AppError> {
         (false, false) => None,
         _ => {
             return Err(AppError::InvalidInput(format!(
-                "invalid target key '{key}': expected <os>-<arch>"
+                "invalid target key '{key}': expected <os> or <os>-<arch>"
             )))
         }
     };
 
     let os = os.ok_or_else(|| {
         AppError::InvalidInput(format!(
-            "invalid target key '{key}': expected <os>-<arch>"
-        ))
-    })?;
-    let arch = arch.ok_or_else(|| {
-        AppError::InvalidInput(format!(
-            "invalid target key '{key}': expected <os>-<arch>"
+            "invalid target key '{key}': expected <os> or <os>-<arch>"
         ))
     })?;
 
-    Ok((os, arch))
+    match arch {
+        Some(arch) => Ok(TargetKey::OsArch(os, arch)),
+        None => Ok(TargetKey::Os(os)),
+    }
 }
 
 fn tap_root_from_formula_path(formula_path: &Path) -> Option<PathBuf> {
@@ -825,13 +928,26 @@ end
 
     #[test]
     fn parses_target_keys() {
-        let (os, arch) = parse_target_key("darwin-arm64").unwrap();
-        assert_eq!(os, Os::Darwin);
-        assert_eq!(arch, Arch::Arm64);
+        match parse_target_key("darwin-arm64").unwrap() {
+            TargetKey::OsArch(os, arch) => {
+                assert_eq!(os, Os::Darwin);
+                assert_eq!(arch, Arch::Arm64);
+            }
+            _ => panic!("expected os+arch target"),
+        }
 
-        let (os, arch) = parse_target_key("linux_x86_64").unwrap();
-        assert_eq!(os, Os::Linux);
-        assert_eq!(arch, Arch::Amd64);
+        match parse_target_key("linux_x86_64").unwrap() {
+            TargetKey::OsArch(os, arch) => {
+                assert_eq!(os, Os::Linux);
+                assert_eq!(arch, Arch::Amd64);
+            }
+            _ => panic!("expected os+arch target"),
+        }
+
+        match parse_target_key("darwin").unwrap() {
+            TargetKey::Os(os) => assert_eq!(os, Os::Darwin),
+            _ => panic!("expected os-only target"),
+        }
     }
 
     #[test]

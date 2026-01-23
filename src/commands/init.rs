@@ -1258,6 +1258,21 @@ fn read_optional(path: &Path) -> Result<Option<String>, AppError> {
     Ok(Some(fs::read_to_string(path)?))
 }
 
+fn read_template(path: &Path) -> Result<String, AppError> {
+    if !path.exists() {
+        return Err(AppError::InvalidInput(format!(
+            "template not found at {}",
+            path.display()
+        )));
+    }
+    fs::read_to_string(path).map_err(|err| {
+        AppError::InvalidInput(format!(
+            "failed to read template at {}: {err}",
+            path.display()
+        ))
+    })
+}
+
 fn resolve_formula_path(resolved: &ResolvedInit, config: &Config) -> Option<PathBuf> {
     config
         .tap
@@ -1281,6 +1296,10 @@ fn render_formula(resolved: &ResolvedInit, config: &Config) -> Result<String, Ap
         assets: AssetMatrix::Universal(asset),
         install_block: config.template.install_block.clone(),
     };
+    if let Some(path) = config.template.path.as_ref() {
+        let template = read_template(path)?;
+        return spec.render_with_template(&template);
+    }
     spec.render()
 }
 

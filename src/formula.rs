@@ -175,24 +175,35 @@ impl FormulaSpec {
         );
         output.push('\n');
         output.push_str("  def install\n");
-        if let Some(install_block) = self.install_block.as_deref() {
-            render_install_block(&mut output, install_block)?;
-        } else {
-            let bins = normalized_bins(&self.bins)?;
-            let install = if bins.len() == 1 {
-                format!("    bin.install \"{}\"\n", escape_ruby(&bins[0]))
-            } else {
-                let joined = bins
-                    .iter()
-                    .map(|bin| format!("\"{}\"", escape_ruby(bin)))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                format!("    bin.install {joined}\n")
-            };
-            output.push_str(&install);
-        }
+        output.push_str(&render_install_block_string(
+            self.install_block.as_deref(),
+            &self.bins,
+        )?);
         output.push_str("  end\n");
         output.push_str("end\n");
+        Ok(output)
+    }
+
+    pub fn render_with_template(&self, template: &str) -> Result<String, AppError> {
+        self.validate()?;
+
+        let class_name = formula_class_name(&self.name)?;
+        let assets_block = render_assets_block(&self.assets)?;
+        let install_block = render_install_block_string(self.install_block.as_deref(), &self.bins)?;
+
+        let mut output = template.to_string();
+        replace_required(&mut output, "{class}", &class_name)?;
+        replace_required(&mut output, "{desc}", &escape_ruby(&self.desc))?;
+        replace_required(&mut output, "{homepage}", &escape_ruby(&self.homepage))?;
+        replace_required(&mut output, "{license}", &escape_ruby(&self.license))?;
+        replace_required(&mut output, "{version}", &escape_ruby(&self.version))?;
+        replace_required(&mut output, "{assets}", &assets_block)?;
+        replace_required(&mut output, "{install_block}", &install_block)?;
+
+        if output.contains("{name}") {
+            output = output.replace("{name}", &escape_ruby(&self.name));
+        }
+
         Ok(output)
     }
 
@@ -268,6 +279,31 @@ fn render_install_block(output: &mut String, install_block: &str) -> Result<(), 
     Ok(())
 }
 
+fn render_install_block_string(
+    install_block: Option<&str>,
+    bins: &[String],
+) -> Result<String, AppError> {
+    let mut output = String::new();
+    if let Some(install_block) = install_block {
+        render_install_block(&mut output, install_block)?;
+        return Ok(output);
+    }
+
+    let bins = normalized_bins(bins)?;
+    let install = if bins.len() == 1 {
+        format!("    bin.install \"{}\"\n", escape_ruby(&bins[0]))
+    } else {
+        let joined = bins
+            .iter()
+            .map(|bin| format!("\"{}\"", escape_ruby(bin)))
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!("    bin.install {joined}\n")
+    };
+    output.push_str(&install);
+    Ok(output)
+}
+
 fn render_assets(output: &mut String, assets: &AssetMatrix) -> Result<(), AppError> {
     match assets {
         AssetMatrix::Universal(asset) => {
@@ -298,6 +334,12 @@ fn render_assets(output: &mut String, assets: &AssetMatrix) -> Result<(), AppErr
         }
     }
     Ok(())
+}
+
+fn render_assets_block(assets: &AssetMatrix) -> Result<String, AppError> {
+    let mut output = String::new();
+    render_assets(&mut output, assets)?;
+    Ok(output)
 }
 
 fn render_os_block(output: &mut String, os: Os, asset: &FormulaAsset) -> Result<(), AppError> {
@@ -453,6 +495,16 @@ fn escape_ruby(input: &str) -> String {
         }
     }
     escaped
+}
+
+fn replace_required(output: &mut String, key: &str, value: &str) -> Result<(), AppError> {
+    if !output.contains(key) {
+        return Err(AppError::InvalidInput(format!(
+            "template is missing required placeholder {key}"
+        )));
+    }
+    *output = output.replace(key, value);
+    Ok(())
 }
 
 fn normalized_bins(bins: &[String]) -> Result<Vec<String>, AppError> {
@@ -679,6 +731,64 @@ mod tests {
         };
 
         let err = spec.render().unwrap_err();
+        assert!(matches!(err, AppError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn renders_custom_template() {
+        let spec = FormulaSpec {
+            name: "brewtool".to_string(),
+            desc: "Brew tool".to_string(),
+            homepage: "https://example.com".to_string(),
+            license: "MIT".to_string(),
+            version: "1.2.3".to_string(),
+            bins: vec!["brewtool".to_string()],
+            assets: AssetMatrix::Universal(FormulaAsset {
+                url: "https://example.com/brewtool.tar.gz".to_string(),
+                sha256: "deadbeef".to_string(),
+            }),
+            install_block: None,
+        };
+
+        let template = concat!(
+            "class {class} < Formula\n",
+            "  desc \"{desc}\"\n",
+            "  homepage \"{homepage}\"\n",
+            "{assets}",
+            "  license \"{license}\"\n",
+            "  version \"{version}\"\n",
+            "\n",
+            "  def install\n",
+            "{install_block}",
+            "  end\n",
+            "end\n"
+        );
+
+        let rendered = spec.render_with_template(template).unwrap();
+        assert!(rendered.contains("class Brewtool < Formula"));
+        assert!(rendered.contains("url \"https://example.com/brewtool.tar.gz\""));
+        assert!(rendered.contains("bin.install \"brewtool\""));
+    }
+
+    #[test]
+    fn custom_template_requires_placeholders() {
+        let spec = FormulaSpec {
+            name: "brewtool".to_string(),
+            desc: "Brew tool".to_string(),
+            homepage: "https://example.com".to_string(),
+            license: "MIT".to_string(),
+            version: "1.2.3".to_string(),
+            bins: vec!["brewtool".to_string()],
+            assets: AssetMatrix::Universal(FormulaAsset {
+                url: "https://example.com/brewtool.tar.gz".to_string(),
+                sha256: "deadbeef".to_string(),
+            }),
+            install_block: None,
+        };
+
+        let err = spec
+            .render_with_template("class {class} < Formula\n")
+            .unwrap_err();
         assert!(matches!(err, AppError::InvalidInput(_)));
     }
 }
