@@ -1,7 +1,57 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-23T15:27:00.461255Z",
+  "generated_at": "2026-01-23T15:44:02.531227Z",
   "tasks": [
+    {
+      "id": "sv-642",
+      "title": "Default artifact strategy during init",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-23T15:39:14.697120Z",
+      "updated_at": "2026-01-23T15:39:44.429541Z",
+      "body": "Acceptance:\\n- When bd init writes config and no artifact.strategy provided, default to release-asset.\\n- Existing config value is preserved when set.\\n- Add regression test for non-interactive init default.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T15:39:22.324472Z",
+      "closed_at": "2026-01-23T15:39:44.429541Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-33n",
+      "title": "EPIC: Init Workflow",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:41:13.061876Z",
+      "updated_at": "2026-01-23T15:39:19.000077Z",
+      "body": "Implementation tasks for bd init interactive and non-interactive flows, tap setup, and formula bootstrap.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-6aq",
+      "title": "Add README install + usage instructions for early testing",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-23T15:31:50.285283Z",
+      "updated_at": "2026-01-23T15:31:50.285283Z",
+      "body": "Add README section covering how to build/install the brewdistillery CLI locally (cargo install/run), basic usage examples, and any required deps so early testers can try the tool before Homebrew packaging.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-wgt",
+      "title": "Define preview/confirm UX + atomic writes",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:38.107511Z",
+      "updated_at": "2026-01-23T15:31:00.881516Z",
+      "body": "DoD:\\n- Atomic write + rollback spec.\\n- Temp file strategy.\\nNotes: PRD E18 (status: open).",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-23T15:30:01.563254Z",
+      "closed_at": "2026-01-23T15:31:00.881516Z",
+      "comments_count": 0
+    },
     {
       "id": "sv-j2d",
       "title": "Write README install + usage for brewdistillery",
@@ -142,16 +192,6 @@
       "branch": "main",
       "started_at": "2026-01-23T14:48:13.735856Z",
       "closed_at": "2026-01-23T14:50:02.763020Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-33n",
-      "title": "EPIC: Init Workflow",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-22T13:41:13.061876Z",
-      "updated_at": "2026-01-23T14:48:04.952949Z",
-      "body": "Implementation tasks for bd init interactive and non-interactive flows, tap setup, and formula bootstrap.",
       "comments_count": 0
     },
     {
@@ -1297,16 +1337,6 @@
       "created_at": "2026-01-22T13:31:38.296330Z",
       "updated_at": "2026-01-22T13:31:38.469313Z",
       "body": "DoD:\\n- Diff format examples + ordering rules.\\n- Dry-run output contract.\\nNotes: PRD E18b (status: open).",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-wgt",
-      "title": "Define preview/confirm UX + atomic writes",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-22T13:31:38.107511Z",
-      "updated_at": "2026-01-22T13:31:38.270402Z",
-      "body": "DoD:\\n- Atomic write + rollback spec.\\n- Temp file strategy.\\nNotes: PRD E18 (status: open).",
       "comments_count": 0
     },
     {

@@ -1504,6 +1504,10 @@ fn apply_resolved(config: &mut Config, resolved: &ResolvedInit) {
         config.artifact.strategy = Some(strategy.clone());
     }
 
+    if config.artifact.strategy.is_none() {
+        config.artifact.strategy = Some("release-asset".to_string());
+    }
+
     if let Some(template) = resolved.asset_template.as_ref() {
         config.artifact.asset_template = Some(template.clone());
     }
@@ -1702,6 +1706,7 @@ mod tests {
         assert_eq!(config.project.name.as_deref(), Some("brewtool"));
         assert_eq!(config.tap.formula.as_deref(), Some("brewtool"));
         assert_eq!(config.cli.owner.as_deref(), Some("acme"));
+        assert_eq!(config.artifact.strategy.as_deref(), Some("release-asset"));
 
         let formula_path = tap_path.join("Formula").join("brewtool.rb");
         let formula = fs::read_to_string(formula_path).unwrap();
