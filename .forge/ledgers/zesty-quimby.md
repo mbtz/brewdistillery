@@ -3617,3 +3617,80 @@ If you want, I can pick the next P0 spec task or start an implementation task. S
 2) Tackle sv-61v (release orchestration + idempotency flow spec).
 ```
 
+## 2026-01-23T14:10:29Z
+
+- run_id: 922c97f6-8c71-40db-be66-780a6fead0ee
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T14:06:57Z
+- finished_at: 2026-01-23T14:10:29Z
+- exit_code: 0
+
+```
+--- a/README.md
++++ b/README.md
+@@ -27,7 +27,18 @@
+ bd --help
+ ```
+ 
+-Option A: build from source (release binary)
++Option A: install locally with cargo (recommended)
++
++```
++git clone <repo-url>
++cd brewdistillery
++cargo install --path .
++```
++
++Binary path:
++- `~/.cargo/bin/bd`
++
++Option B: build from source (release binary)
+ 
+ ```
+ git clone <repo-url>
+@@ -50,20 +61,10 @@
+ install -m 755 target/release/bd /opt/homebrew/bin/bd
+ ```
+ 
+-Option B: install locally with cargo
+-
+-```
+-cd brewdistillery
+-cargo install --path .
+-```
+-
+-Binary path:
+-- `~/.cargo/bin/bd`
+-
+ Option C: run from source (no install)
+ 
+ ```
+-git clone <this-repo>
++git clone <repo-url>
+ cd brewdistillery
+ cargo run -- --help
+ ```
+
+tokens used
+29 699
+Used `sv-issue-tracking` to add/close the README task, `workflow-pattern` for status updates, and `session-protocol` for the git checklist.
+
+Updated the README install/usage guidance to make early setup clearer and tracked it via a dedicated task, then committed the pre-existing ledger change separately as requested. The edits are in `README.md`, with task state recorded in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`. The unrelated change was committed as a chore in `.forge/ledgers/zesty-quimby.md`.
+
+- README: clarified install options and usage flow for early testing in `README.md`
+- Tasking: created/closed `sv-dqj` and linked it under the docs epic in `.tasks/tasks.jsonl`
+- Chore commit: pre-existing ledger change committed separately per instruction
+
+Tests not run (docs-only change).
+
+Next steps (pick one):
+1. Start the next P0 design task (e.g., `sv-7ye` formula naming rules) and I’ll draft the spec.
+2. Start an implementation task (e.g., `sv-a9s` asset selection helper) and I’ll code it.
+```
+
