@@ -3387,3 +3387,80 @@ Next steps (pick one):
 3) Draft the error strategy + exit code catalog doc.
 ```
 
+## 2026-01-23T13:57:43Z
+
+- run_id: bbaea335-c7d6-467e-96d2-561eff13c8c0
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T13:54:39Z
+- finished_at: 2026-01-23T13:57:43Z
+- exit_code: 0
+
+```
++
+ Option A: build from source (release binary)
+ 
+ ```
+
+
+
+thinking
+**Summarizing final actions with skills mention**
+
+I'm including a note that sv-issue-tracking, workflow-pattern, and session-protocol were used to track tasks, manage the workflow, and run the git checklist. I'll also summarize changes, mention the chore commit for the ledger, confirm the closed task, and note that no further updates to USER_TODO.md were required.
+thinking
+**Outlining final response details**
+
+I'm planning to include the skills used, summarize changes including README update and task closure, note the ledger chore commit and absence of tests, and offer concise next-step suggestions based on open tasks to guide user priorities.
+codex
+Using sv-issue-tracking, workflow-pattern, and session-protocol (task tracking/status + git checklist).
+
+Added a quick install path in `README.md` so you can build and run the CLI immediately, and created/closed the README task (sv-35c) tied to the Testing & Docs epic. I also committed the unrelated `.forge/ledgers/zesty-quimby.md` change as a separate chore, per your instruction.
+
+Tests not run (docs/task tracking only).
+
+Next steps (pick one):
+1) Tackle release asset selection rules + OS/arch normalization (sv-rae).
+2) Define preview/diff UX contract for multi-repo changes (sv-3tr).
+3) Draft error strategy + exit code catalog (sv-hp2).
+file update:
+diff --git a/README.md b/README.md
+index 3b2045d6d3d08dd7bea08a76f48bfea4654eacae..f549e0060868ce7170a72b7487722a5906135341
+--- a/README.md
++++ b/README.md
+@@ -18,6 +18,15 @@
+ - Git (for cloning this repo)
+ - Homebrew (optional; only needed for `bd doctor --audit` or `bd init --tap-new`)
+ 
++Recommended quick path:
++
++```
++git clone <repo-url>
++cd brewdistillery
++cargo install --path .
++bd --help
++```
++
+ Option A: build from source (release binary)
+ 
+ ```
+
+tokens used
+47 469
+Using sv-issue-tracking, workflow-pattern, and session-protocol (task tracking/status + git checklist).
+
+Added a quick install path in `README.md` so you can build and run the CLI immediately, and created/closed the README task (sv-35c) tied to the Testing & Docs epic. I also committed the unrelated `.forge/ledgers/zesty-quimby.md` change as a separate chore, per your instruction.
+
+Tests not run (docs/task tracking only).
+
+Next steps (pick one):
+1) Tackle release asset selection rules + OS/arch normalization (sv-rae).
+2) Define preview/diff UX contract for multi-repo changes (sv-3tr).
+3) Draft error strategy + exit code catalog (sv-hp2).
+```
+
