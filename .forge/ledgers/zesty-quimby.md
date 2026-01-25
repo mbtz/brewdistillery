@@ -4923,3 +4923,80 @@ Next steps (optional):
 2) If you want non-interactive runs to skip writing when there are no changes, I can gate the apply step on `preview.changed_files`.
 ```
 
+## 2026-01-25T12:47:56Z
+
+- run_id: 1df2a39d-1007-4fef-b730-a43d5e265503
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-25T12:31:08Z
+- finished_at: 2026-01-25T12:47:56Z
+- exit_code: 0
+
+```
++    }
+ }
+diff --git a/src/version_update.rs b/src/version_update.rs
+index 6c0bc7ac7f0bd663ca5c5ddd13db59e96c8b59ba..35696915546b9330cc6b0634bc1a9a6a9ab8e741
+--- a/src/version_update.rs
++++ b/src/version_update.rs
+@@ -341,6 +341,7 @@
+             regex_file: None,
+             regex_pattern: None,
+             regex_replacement: None,
++            extra: Default::default(),
+         };
+ 
+         let changed = apply_version_update(&config, dir.path(), "1.2.3", false).unwrap();
+@@ -373,6 +374,7 @@
+             regex_file: None,
+             regex_pattern: None,
+             regex_replacement: None,
++            extra: Default::default(),
+         };
+ 
+         let changed = apply_version_update(&config, dir.path(), "2.0.0", false).unwrap();
+@@ -393,6 +395,7 @@
+             regex_file: Some(PathBuf::from("version.txt")),
+             regex_pattern: Some("VERSION=\\d+\\.\\d+\\.\\d+".to_string()),
+             regex_replacement: Some("VERSION={version}".to_string()),
++            extra: Default::default(),
+         };
+ 
+         let changed = apply_version_update(&config, dir.path(), "3.1.4", false).unwrap();
+
+tokens used
+1 021 441
+Done — I used `sv` to align tasks with the PRD, implemented several P0/P1 items in Rust, and pushed to `main`.
+
+What I changed:
+- Closed design tasks that already had specs in `docs/`.
+- Added and completed implementation tasks: `sv-xyx`, `sv-kzz`, `sv-7x5`.
+- Updated config schema behavior in `src/config.rs`:
+  - Preserve unknown fields within sections.
+  - Default `schema_version = 1` on save.
+  - Added unit tests.
+- Enforced release non-interactive requirements in `src/commands/release.rs`:
+  - Early asset selection validation.
+  - Early target-shape validation.
+  - Added unit tests.
+- Aligned asset selection errors with the spec in `src/asset_selection.rs`:
+  - Target-aware messages.
+  - Added tests.
+  - Wired target keys through `src/commands/release.rs`.
+- Updated tests in `src/version_update.rs` for the new config shape.
+
+Validation:
+- Ran `cargo test -q` (69 passed).
+
+Commits:
+- `168ae5b feat: enforce release asset selection and config schema v1`
+- `3cdfd10 chore: update forge ledger` (separate chore for unrelated change)
+
+Everything is clean and pushed.
+```
+
