@@ -26,6 +26,11 @@ owner = "acme"
 repo = "brewdistillery"
 strategy = "release-asset"
 asset_template = "brewdistillery-{version}-{os}-{arch}.tar.gz"
+checksum_max_bytes = 209715200
+checksum_timeout_secs = 60
+checksum_max_retries = 3
+checksum_retry_base_delay_ms = 250
+checksum_retry_max_delay_ms = 2000
 
 [artifact.targets."darwin-arm64"]
 asset_template = "brewdistillery-{version}-macos-arm64.tar.gz"

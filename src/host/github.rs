@@ -1,5 +1,5 @@
 use crate::errors::AppError;
-use crate::host::{HostClient, Release, ReleaseAsset};
+use crate::host::{DownloadPolicy, HostClient, Release, ReleaseAsset};
 use reqwest::blocking::Client;
 use reqwest::header::{HeaderMap, ACCEPT, AUTHORIZATION, USER_AGENT};
 use reqwest::Method;
@@ -13,9 +13,6 @@ use std::time::Duration;
 
 const DEFAULT_API_BASE: &str = "https://api.github.com";
 const DEFAULT_USER_AGENT: &str = "brewdistillery";
-const DOWNLOAD_MAX_RETRIES: usize = 3;
-const DOWNLOAD_RETRY_BASE_DELAY_MS: u64 = 250;
-const DOWNLOAD_RETRY_MAX_DELAY_MS: u64 = 2000;
 
 enum DownloadFailure {
     Retryable(String),
@@ -27,18 +24,23 @@ pub struct GitHubClient {
     base_url: String,
     token: Option<String>,
     client: Client,
+    download_policy: DownloadPolicy,
 }
 
 impl GitHubClient {
-    pub fn from_env(api_base: Option<&str>) -> Result<Self, AppError> {
+    pub fn from_env(
+        api_base: Option<&str>,
+        download_policy: DownloadPolicy,
+    ) -> Result<Self, AppError> {
         let token = read_token();
         let base_url = api_base
             .map(|value| value.trim().trim_end_matches('/').to_string())
             .filter(|value| !value.is_empty())
             .unwrap_or_else(|| DEFAULT_API_BASE.to_string());
 
+        let timeout_secs = download_policy.timeout_secs.max(1);
         let client = Client::builder()
-            .timeout(Duration::from_secs(60))
+            .timeout(Duration::from_secs(timeout_secs))
             .build()
             .map_err(|err| AppError::Network(format!("failed to build HTTP client: {err}")))?;
 
@@ -46,6 +48,7 @@ impl GitHubClient {
             base_url,
             token,
             client,
+            download_policy,
         })
     }
 
@@ -245,16 +248,17 @@ impl HostClient for GitHubClient {
     }
 
     fn download_sha256(&self, url: &str, max_bytes: Option<u64>) -> Result<String, AppError> {
-        for attempt in 1..=DOWNLOAD_MAX_RETRIES {
+        let max_retries = self.download_policy.max_retries.max(1);
+        for attempt in 1..=max_retries {
             match self.download_sha256_once(url, max_bytes) {
                 Ok(sha) => return Ok(sha),
                 Err(DownloadFailure::Retryable(message)) => {
-                    if attempt < DOWNLOAD_MAX_RETRIES {
-                        std::thread::sleep(retry_delay(attempt));
+                    if attempt < max_retries {
+                        std::thread::sleep(retry_delay(attempt, &self.download_policy));
                         continue;
                     }
                     return Err(AppError::Network(format!(
-                        "{message} (after {DOWNLOAD_MAX_RETRIES} attempts)"
+                        "{message} (after {max_retries} attempts)"
                     )));
                 }
                 Err(DownloadFailure::Fatal(err)) => return Err(err),
@@ -332,11 +336,13 @@ fn should_retry_status(status: StatusCode) -> bool {
     status == StatusCode::TOO_MANY_REQUESTS || status.is_server_error()
 }
 
-fn retry_delay(attempt: usize) -> Duration {
+fn retry_delay(attempt: usize, policy: &DownloadPolicy) -> Duration {
     let shift = attempt.saturating_sub(1);
     let exp = 1u64 << shift;
-    let delay = DOWNLOAD_RETRY_BASE_DELAY_MS.saturating_mul(exp);
-    Duration::from_millis(delay.min(DOWNLOAD_RETRY_MAX_DELAY_MS))
+    let base = policy.retry_base_delay_ms.max(1);
+    let cap = policy.retry_max_delay_ms.max(base);
+    let delay = base.saturating_mul(exp);
+    Duration::from_millis(delay.min(cap))
 }
 
 fn read_token() -> Option<String> {
@@ -461,13 +467,10 @@ fn ensure_release_allowed(
 }
 
 fn select_latest_release(releases: Vec<GitHubRelease>) -> Option<GitHubRelease> {
-    for release in releases {
-        if release.draft {
-            continue;
-        }
-        return Some(release);
-    }
-    None
+    // GitHub returns releases newest-first. We select the first non-draft
+    // release so that --include-prerelease can pick the newest prerelease
+    // when it appears ahead of the latest stable.
+    releases.into_iter().find(|release| !release.draft)
 }
 
 #[derive(Debug, Deserialize)]
@@ -573,6 +576,44 @@ mod tests {
     }
 
     #[test]
+    fn include_prerelease_selects_latest_prerelease_when_ordered_first() {
+        let releases = vec![
+            GitHubRelease {
+                tag_name: "v2.0.0-rc.1".to_string(),
+                draft: false,
+                prerelease: true,
+                assets: vec![],
+            },
+            GitHubRelease {
+                tag_name: "v1.9.0".to_string(),
+                draft: false,
+                prerelease: false,
+                assets: vec![],
+            },
+        ];
+
+        let selected = select_latest_release(releases).unwrap();
+        assert_eq!(selected.tag_name, "v2.0.0-rc.1");
+        assert!(selected.prerelease);
+    }
+
+    #[test]
+    fn rejects_prerelease_when_flag_is_not_set() {
+        let release = GitHubRelease {
+            tag_name: "v1.2.0-beta.1".to_string(),
+            draft: false,
+            prerelease: true,
+            assets: vec![],
+        };
+
+        let err = ensure_release_allowed(&release, false).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "GitHub release 'v1.2.0-beta.1' is a prerelease; re-run with --include-prerelease"
+        );
+    }
+
+    #[test]
     fn detects_rate_limit_from_headers() {
         let mut headers = HeaderMap::new();
         headers.insert("x-ratelimit-remaining", "0".parse().unwrap());
@@ -596,11 +637,12 @@ mod tests {
 
     #[test]
     fn retry_delay_grows_and_caps() {
-        let first = retry_delay(1);
-        let second = retry_delay(2);
-        let third = retry_delay(3);
+        let policy = DownloadPolicy::default();
+        let first = retry_delay(1, &policy);
+        let second = retry_delay(2, &policy);
+        let third = retry_delay(3, &policy);
         assert!(second > first);
         assert!(third >= second);
-        assert!(third <= Duration::from_millis(DOWNLOAD_RETRY_MAX_DELAY_MS));
+        assert!(third <= Duration::from_millis(policy.retry_max_delay_ms));
     }
 }

@@ -2,6 +2,31 @@ use crate::errors::AppError;
 
 pub mod github;
 
+pub const DEFAULT_CHECKSUM_MAX_BYTES: u64 = 200 * 1024 * 1024;
+pub const DEFAULT_CHECKSUM_TIMEOUT_SECS: u64 = 60;
+pub const DEFAULT_CHECKSUM_MAX_RETRIES: usize = 3;
+pub const DEFAULT_CHECKSUM_RETRY_BASE_DELAY_MS: u64 = 250;
+pub const DEFAULT_CHECKSUM_RETRY_MAX_DELAY_MS: u64 = 2000;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DownloadPolicy {
+    pub timeout_secs: u64,
+    pub max_retries: usize,
+    pub retry_base_delay_ms: u64,
+    pub retry_max_delay_ms: u64,
+}
+
+impl Default for DownloadPolicy {
+    fn default() -> Self {
+        Self {
+            timeout_secs: DEFAULT_CHECKSUM_TIMEOUT_SECS,
+            max_retries: DEFAULT_CHECKSUM_MAX_RETRIES,
+            retry_base_delay_ms: DEFAULT_CHECKSUM_RETRY_BASE_DELAY_MS,
+            retry_max_delay_ms: DEFAULT_CHECKSUM_RETRY_MAX_DELAY_MS,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Release {
     pub tag_name: String,

@@ -1,6 +1,6 @@
 use crate::asset_selection::{select_asset_name, AssetSelectionOptions};
 use crate::cli::ReleaseArgs;
-use crate::config::{ArtifactTarget, Config};
+use crate::config::{ArtifactConfig, ArtifactTarget, Config};
 use crate::context::AppContext;
 use crate::errors::AppError;
 use crate::formula::{Arch, AssetMatrix, FormulaAsset, FormulaSpec, Os, TargetAsset};
@@ -8,7 +8,11 @@ use crate::git::{
     commit_paths, create_tag, ensure_clean_repo, git_clone, push_head, push_tag, RemoteContext,
 };
 use crate::host::github::GitHubClient;
-use crate::host::{HostClient, Release};
+use crate::host::{
+    DownloadPolicy, HostClient, Release, DEFAULT_CHECKSUM_MAX_BYTES, DEFAULT_CHECKSUM_MAX_RETRIES,
+    DEFAULT_CHECKSUM_RETRY_BASE_DELAY_MS, DEFAULT_CHECKSUM_RETRY_MAX_DELAY_MS,
+    DEFAULT_CHECKSUM_TIMEOUT_SECS,
+};
 use crate::preview::{preview_and_apply, PlannedWrite, RepoPlan};
 use crate::version::{resolve_version_tag, ResolvedVersionTag};
 use crate::version_update::apply_version_update;
@@ -16,7 +20,6 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use tempfile::{Builder as TempBuilder, TempDir};
 
-const DEFAULT_ASSET_MAX_BYTES: u64 = 200 * 1024 * 1024;
 const DEFAULT_TARBALL_URL_TEMPLATE: &str =
     "https://github.com/{owner}/{repo}/archive/refs/tags/{tag}.tar.gz";
 
@@ -44,6 +47,8 @@ struct ReleaseContext {
     install_block: Option<String>,
     template_path: Option<PathBuf>,
     cli_remote_url: Option<String>,
+    checksum_max_bytes: u64,
+    download_policy: DownloadPolicy,
 }
 
 #[derive(Debug)]
@@ -98,7 +103,10 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
     if args.dry_run {
         return run_dry_run_release(ctx, args, &resolved, &version_tag);
     }
-    let client = GitHubClient::from_env(resolved.host_api_base.as_deref())?;
+    let client = GitHubClient::from_env(
+        resolved.host_api_base.as_deref(),
+        resolved.download_policy,
+    )?;
 
     let (version, tag_to_create, asset_matrix) = match resolved.artifact_strategy.as_str() {
         "release-asset" => {
@@ -150,8 +158,14 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
                 &version_tag,
                 args.include_prerelease,
             )?;
-            let tarball =
-                build_tarball_asset(&client, &resolved, &version, &source_tag, args.dry_run)?;
+            let tarball = build_tarball_asset(
+                &client,
+                &resolved,
+                &version,
+                &source_tag,
+                resolved.checksum_max_bytes,
+                args.dry_run,
+            )?;
             let tag_to_create = if args.skip_tag {
                 None
             } else {
@@ -645,6 +659,9 @@ fn resolve_release_context(
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| formula_name.clone());
 
+    let checksum_max_bytes = resolve_checksum_max_bytes(&config.artifact);
+    let download_policy = resolve_download_policy(&config.artifact);
+
     let artifact_strategy = resolve_string(
         args.artifact_strategy.as_ref(),
         config.artifact.strategy.as_ref(),
@@ -775,6 +792,8 @@ fn resolve_release_context(
         install_block: config.template.install_block.clone(),
         template_path: config.template.path.clone(),
         cli_remote_url,
+        checksum_max_bytes,
+        download_policy,
     })
 }
 
@@ -872,6 +891,42 @@ fn resolve_string(flag: Option<&String>, config: Option<&String>) -> Option<Stri
         .map(|value| value.trim())
         .filter(|value| !value.is_empty())
         .map(|value| value.to_string())
+}
+
+fn resolve_checksum_max_bytes(config: &ArtifactConfig) -> u64 {
+    config
+        .checksum_max_bytes
+        .unwrap_or(DEFAULT_CHECKSUM_MAX_BYTES)
+        .max(1)
+}
+
+fn resolve_download_policy(config: &ArtifactConfig) -> DownloadPolicy {
+    let timeout_secs = config
+        .checksum_timeout_secs
+        .unwrap_or(DEFAULT_CHECKSUM_TIMEOUT_SECS)
+        .max(1);
+
+    let max_retries = config
+        .checksum_max_retries
+        .map(|value| value as usize)
+        .unwrap_or(DEFAULT_CHECKSUM_MAX_RETRIES)
+        .max(1);
+
+    let base_delay = config
+        .checksum_retry_base_delay_ms
+        .unwrap_or(DEFAULT_CHECKSUM_RETRY_BASE_DELAY_MS)
+        .max(1);
+    let max_delay = config
+        .checksum_retry_max_delay_ms
+        .unwrap_or(DEFAULT_CHECKSUM_RETRY_MAX_DELAY_MS)
+        .max(base_delay);
+
+    DownloadPolicy {
+        timeout_secs,
+        max_retries,
+        retry_base_delay_ms: base_delay,
+        retry_max_delay_ms: max_delay,
+    }
 }
 
 fn normalize_bins(mut bins: Vec<String>) -> Vec<String> {
@@ -1256,7 +1311,13 @@ fn build_assets(
             arch: None,
             target_key: Some("universal".to_string()),
         };
-        let asset = select_asset_for_release(client, release, selection, dry_run)?;
+        let asset = select_asset_for_release(
+            client,
+            release,
+            selection,
+            resolved.checksum_max_bytes,
+            dry_run,
+        )?;
         return Ok(AssetMatrix::Universal(asset));
     }
 
@@ -1288,7 +1349,13 @@ fn build_assets(
                     arch: None,
                     target_key: Some(key.clone()),
                 };
-                let asset = select_asset_for_release(client, release, selection, dry_run)?;
+                let asset = select_asset_for_release(
+                    client,
+                    release,
+                    selection,
+                    resolved.checksum_max_bytes,
+                    dry_run,
+                )?;
                 match os {
                     Os::Darwin => {
                         if macos.is_some() {
@@ -1330,7 +1397,13 @@ fn build_assets(
                     arch: Some(arch),
                     target_key: Some(key.clone()),
                 };
-                let asset = select_asset_for_release(client, release, selection, dry_run)?;
+                let asset = select_asset_for_release(
+                    client,
+                    release,
+                    selection,
+                    resolved.checksum_max_bytes,
+                    dry_run,
+                )?;
                 targets.push(TargetAsset { os, arch, asset });
             }
         }
@@ -1351,6 +1424,7 @@ fn build_assets(
                 arch: None,
                 target_key: Some("universal".to_string()),
             },
+            resolved.checksum_max_bytes,
             dry_run,
         )?)),
     }
@@ -1434,6 +1508,7 @@ fn build_tarball_asset(
     resolved: &ReleaseContext,
     version: &str,
     tag: &str,
+    max_bytes: u64,
     dry_run: bool,
 ) -> Result<FormulaAsset, AppError> {
     let url = render_tarball_url(
@@ -1448,7 +1523,7 @@ fn build_tarball_asset(
         println!("dry-run: would download {}", url);
         "DRY-RUN".to_string()
     } else {
-        client.download_sha256(&url, Some(DEFAULT_ASSET_MAX_BYTES))?
+        client.download_sha256(&url, Some(max_bytes))?
     };
 
     Ok(FormulaAsset { url, sha256 })
@@ -1532,6 +1607,7 @@ fn select_asset_for_release(
     client: &GitHubClient,
     release: &Release,
     selection: AssetSelectionOptions,
+    max_bytes: u64,
     dry_run: bool,
 ) -> Result<FormulaAsset, AppError> {
     let available = release
@@ -1553,7 +1629,7 @@ fn select_asset_for_release(
         println!("dry-run: would download {}", asset.download_url);
         "DRY-RUN".to_string()
     } else {
-        client.download_sha256(&asset.download_url, Some(DEFAULT_ASSET_MAX_BYTES))?
+        client.download_sha256(&asset.download_url, Some(max_bytes))?
     };
 
     Ok(FormulaAsset {
@@ -1813,6 +1889,48 @@ mod tests {
             repo: RepoInfo::default(),
             verbose: 0,
         }
+    }
+
+    #[test]
+    fn checksum_policy_defaults_apply_when_not_configured() {
+        let dir = tempdir().unwrap();
+        let tap_path = dir.path().join("homebrew-brewtool");
+        let mut config = base_config(&tap_path);
+        config.artifact.asset_template = Some("brewtool-{version}.tar.gz".to_string());
+        let ctx = base_context(config, dir.path());
+        let args = base_release_args();
+
+        let resolved = resolve_release_context(&ctx, &args, Some(&tap_path), None).unwrap();
+        assert_eq!(resolved.checksum_max_bytes, DEFAULT_CHECKSUM_MAX_BYTES);
+        assert_eq!(resolved.download_policy, DownloadPolicy::default());
+    }
+
+    #[test]
+    fn checksum_policy_respects_config_overrides() {
+        let dir = tempdir().unwrap();
+        let tap_path = dir.path().join("homebrew-brewtool");
+        let mut config = base_config(&tap_path);
+        config.artifact.asset_template = Some("brewtool-{version}.tar.gz".to_string());
+        config.artifact.checksum_max_bytes = Some(10 * 1024 * 1024);
+        config.artifact.checksum_timeout_secs = Some(15);
+        config.artifact.checksum_max_retries = Some(5);
+        config.artifact.checksum_retry_base_delay_ms = Some(400);
+        config.artifact.checksum_retry_max_delay_ms = Some(1600);
+
+        let ctx = base_context(config, dir.path());
+        let args = base_release_args();
+
+        let resolved = resolve_release_context(&ctx, &args, Some(&tap_path), None).unwrap();
+        assert_eq!(resolved.checksum_max_bytes, 10 * 1024 * 1024);
+        assert_eq!(
+            resolved.download_policy,
+            DownloadPolicy {
+                timeout_secs: 15,
+                max_retries: 5,
+                retry_base_delay_ms: 400,
+                retry_max_delay_ms: 1600,
+            }
+        );
     }
 
     #[test]

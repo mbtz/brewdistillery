@@ -84,6 +84,11 @@ pub struct ArtifactConfig {
     pub strategy: Option<String>,
     pub asset_template: Option<String>,
     pub asset_name: Option<String>,
+    pub checksum_max_bytes: Option<u64>,
+    pub checksum_timeout_secs: Option<u64>,
+    pub checksum_max_retries: Option<u32>,
+    pub checksum_retry_base_delay_ms: Option<u64>,
+    pub checksum_retry_max_delay_ms: Option<u64>,
 
     #[serde(default)]
     pub targets: BTreeMap<String, ArtifactTarget>,
@@ -210,6 +215,53 @@ impl Config {
             }
         }
 
+        if matches!(self.artifact.checksum_max_bytes, Some(0)) {
+            return Err(AppError::InvalidInput(format!(
+                "invalid config at {}: artifact.checksum_max_bytes must be > 0",
+                path.display()
+            )));
+        }
+
+        if matches!(self.artifact.checksum_timeout_secs, Some(0)) {
+            return Err(AppError::InvalidInput(format!(
+                "invalid config at {}: artifact.checksum_timeout_secs must be > 0",
+                path.display()
+            )));
+        }
+
+        if matches!(self.artifact.checksum_max_retries, Some(0)) {
+            return Err(AppError::InvalidInput(format!(
+                "invalid config at {}: artifact.checksum_max_retries must be > 0",
+                path.display()
+            )));
+        }
+
+        if matches!(self.artifact.checksum_retry_base_delay_ms, Some(0)) {
+            return Err(AppError::InvalidInput(format!(
+                "invalid config at {}: artifact.checksum_retry_base_delay_ms must be > 0",
+                path.display()
+            )));
+        }
+
+        if matches!(self.artifact.checksum_retry_max_delay_ms, Some(0)) {
+            return Err(AppError::InvalidInput(format!(
+                "invalid config at {}: artifact.checksum_retry_max_delay_ms must be > 0",
+                path.display()
+            )));
+        }
+
+        if let (Some(base), Some(max)) = (
+            self.artifact.checksum_retry_base_delay_ms,
+            self.artifact.checksum_retry_max_delay_ms,
+        ) {
+            if max < base {
+                return Err(AppError::InvalidInput(format!(
+                    "invalid config at {}: artifact.checksum_retry_max_delay_ms must be >= artifact.checksum_retry_base_delay_ms",
+                    path.display()
+                )));
+            }
+        }
+
         if let Some(mode) = &self.version_update.mode {
             let normalized = mode.trim();
             if !matches!(normalized, "none" | "cargo" | "regex") {
@@ -269,6 +321,41 @@ strategy = "mystery"
             .unwrap_err();
 
         assert!(matches!(err, AppError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn rejects_zero_checksum_limits() {
+        let raw = r#"schema_version = 1
+
+[artifact]
+strategy = "release-asset"
+checksum_max_bytes = 0
+"#;
+
+        let err = Config::from_str(raw, Path::new("config.toml"))
+            .and_then(|config| config.validate(Path::new("config.toml")))
+            .unwrap_err();
+
+        assert!(matches!(err, AppError::InvalidInput(_)));
+        assert!(err.to_string().contains("checksum_max_bytes must be > 0"));
+    }
+
+    #[test]
+    fn rejects_retry_cap_less_than_base_delay() {
+        let raw = r#"schema_version = 1
+
+[artifact]
+strategy = "release-asset"
+checksum_retry_base_delay_ms = 500
+checksum_retry_max_delay_ms = 100
+"#;
+
+        let err = Config::from_str(raw, Path::new("config.toml"))
+            .and_then(|config| config.validate(Path::new("config.toml")))
+            .unwrap_err();
+
+        assert!(matches!(err, AppError::InvalidInput(_)));
+        assert!(err.to_string().contains("checksum_retry_max_delay_ms must be >="));
     }
 
     #[test]

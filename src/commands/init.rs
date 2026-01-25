@@ -5,6 +5,7 @@ use crate::errors::AppError;
 use crate::formula::{normalize_formula_name, AssetMatrix, FormulaAsset, FormulaSpec};
 use crate::git::git_clone;
 use crate::host::github::GitHubClient;
+use crate::host::DownloadPolicy;
 use crate::preview::{PlannedWrite, RepoPlan};
 use crate::repo_detect::{MetadataConflict, ProjectMetadata};
 use crate::version::resolve_version_tag;
@@ -1246,7 +1247,10 @@ fn create_tap_remote_if_requested(
         return Ok(());
     }
 
-    let client = GitHubClient::from_env(ctx.config.host.api_base.as_deref())?;
+    let client = GitHubClient::from_env(
+        ctx.config.host.api_base.as_deref(),
+        DownloadPolicy::default(),
+    )?;
     let created = client.create_public_repo(&owner, &repo)?;
     let remote_url = created.ssh_url.unwrap_or(created.clone_url);
     let display = created.html_url.or_else(|| {
