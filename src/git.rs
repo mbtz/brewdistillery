@@ -371,78 +371,58 @@ mod tests {
     use super::*;
     use tempfile::tempdir;
 
+    fn run_git_quiet(repo: &Path, args: &[&str]) {
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(args)
+            .output()
+            .expect("git command");
+        if output.status.success() {
+            return;
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        panic!(
+            "git command failed: git -C {} {}\nstdout:\n{}\nstderr:\n{}",
+            repo.display(),
+            args.join(" "),
+            stdout.trim(),
+            stderr.trim()
+        );
+    }
+
     fn init_repo() -> (tempfile::TempDir, std::path::PathBuf) {
         let dir = tempdir().expect("tempdir");
         let repo = dir.path().join("repo");
         std::fs::create_dir_all(&repo).expect("create repo dir");
-        let status = Command::new("git")
+        let output = Command::new("git")
             .args(["init", "-q"])
             .arg(&repo)
-            .status()
+            .output()
             .expect("git init");
-        assert!(status.success(), "git init should succeed");
+        assert!(output.status.success(), "git init should succeed");
         (dir, repo)
     }
 
     fn add_remote(repo: &Path, name: &str, url: &str) {
-        let status = Command::new("git")
-            .arg("-C")
-            .arg(repo)
-            .args(["remote", "add", name, url])
-            .status()
-            .expect("git remote add");
-        assert!(status.success(), "git remote add should succeed");
+        run_git_quiet(repo, &["remote", "add", name, url]);
     }
 
     fn make_initial_commit(repo: &Path) {
-        let config_email = Command::new("git")
-            .arg("-C")
-            .arg(repo)
-            .args(["config", "user.email", "codex@example.com"])
-            .status()
-            .expect("git config user.email");
-        assert!(
-            config_email.success(),
-            "git config user.email should succeed"
-        );
-
-        let config_name = Command::new("git")
-            .arg("-C")
-            .arg(repo)
-            .args(["config", "user.name", "Codex"])
-            .status()
-            .expect("git config user.name");
-        assert!(config_name.success(), "git config user.name should succeed");
-
-        let config_sign = Command::new("git")
-            .arg("-C")
-            .arg(repo)
-            .args(["config", "commit.gpgsign", "false"])
-            .status()
-            .expect("git config commit.gpgsign");
-        assert!(
-            config_sign.success(),
-            "git config commit.gpgsign should succeed"
-        );
+        run_git_quiet(repo, &["config", "user.email", "codex@example.com"]);
+        run_git_quiet(repo, &["config", "user.name", "Codex"]);
+        run_git_quiet(repo, &["config", "commit.gpgsign", "false"]);
 
         let readme = repo.join("README.md");
         std::fs::write(&readme, "init\n").expect("write README");
 
-        let add_status = Command::new("git")
-            .arg("-C")
-            .arg(repo)
-            .args(["add", "README.md"])
-            .status()
-            .expect("git add");
-        assert!(add_status.success(), "git add should succeed");
-
-        let commit_status = Command::new("git")
-            .arg("-C")
-            .arg(repo)
-            .args(["-c", "commit.gpgsign=false", "commit", "-m", "init"])
-            .status()
-            .expect("git commit");
-        assert!(commit_status.success(), "git commit should succeed");
+        run_git_quiet(repo, &["add", "README.md"]);
+        run_git_quiet(
+            repo,
+            &["-c", "commit.gpgsign=false", "commit", "-q", "-m", "init"],
+        );
     }
 
     #[test]

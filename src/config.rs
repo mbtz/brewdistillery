@@ -1,4 +1,5 @@
 use crate::errors::AppError;
+use crate::license::canonicalize_spdx;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
@@ -168,6 +169,12 @@ impl Config {
             to_save.schema_version = Some(SCHEMA_VERSION_V1);
         }
 
+        if let Some(license) = to_save.project.license.as_deref() {
+            let label = format!("invalid config at {}: project.license", path.display());
+            let canonical = canonicalize_spdx(license, &label)?;
+            to_save.project.license = Some(canonical);
+        }
+
         to_save.validate(path)?;
         let content = toml::to_string_pretty(&to_save).map_err(|err| {
             AppError::InvalidInput(format!(
@@ -203,6 +210,18 @@ impl Config {
                 "invalid config at {}: project.bin entries cannot be empty",
                 path.display()
             )));
+        }
+
+        if let Some(license) = self.project.license.as_deref() {
+            let trimmed = license.trim();
+            if trimmed.is_empty() {
+                return Err(AppError::InvalidInput(format!(
+                    "invalid config at {}: project.license cannot be empty",
+                    path.display()
+                )));
+            }
+            let label = format!("invalid config at {}: project.license", path.display());
+            canonicalize_spdx(trimmed, &label)?;
         }
 
         if let Some(strategy) = &self.artifact.strategy {
@@ -434,6 +453,51 @@ custom_target = "target-extra"
                 .and_then(|entry| entry.get("custom_target"))
                 .and_then(|entry| entry.as_str()),
             Some("target-extra")
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_spdx_license() {
+        let raw = r#"schema_version = 1
+
+[project]
+name = "brew"
+bin = ["brew"]
+license = "not-a-license"
+"#;
+
+        let err = Config::from_str(raw, Path::new("config.toml"))
+            .and_then(|config| config.validate(Path::new("config.toml")))
+            .expect_err("invalid license should error");
+
+        assert!(matches!(err, AppError::InvalidInput(_)));
+        assert!(err.to_string().contains("project.license"));
+        assert!(err.to_string().contains("valid SPDX"));
+    }
+
+    #[test]
+    fn canonicalizes_spdx_license_on_save() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        let raw = r#"schema_version = 1
+
+[project]
+name = "brew"
+bin = ["brew"]
+license = "mit"
+"#;
+
+        let config = Config::from_str(raw, &path).expect("parse");
+        config.save(&path).expect("save");
+
+        let saved = fs::read_to_string(&path).expect("read saved");
+        let value: TomlValue = toml::from_str(&saved).expect("parse saved");
+        assert_eq!(
+            value
+                .get("project")
+                .and_then(|entry| entry.get("license"))
+                .and_then(|entry| entry.as_str()),
+            Some("MIT")
         );
     }
 }

@@ -176,6 +176,7 @@ struct FormulaOverview {
     has_homepage: bool,
     has_url: bool,
     has_sha256: bool,
+    sha256_placeholder: bool,
     has_license: bool,
     has_version: bool,
 }
@@ -225,6 +226,12 @@ fn check_formula_contents(path: &Path, formula_name: &str, issues: &mut Vec<Issu
     }
     if !overview.has_sha256 {
         push_issue(issues, true, "formula is missing sha256");
+    } else if overview.sha256_placeholder {
+        push_issue(
+            issues,
+            false,
+            "formula sha256 appears to be a placeholder (TODO)",
+        );
     }
     if !overview.has_license {
         push_issue(issues, true, "formula is missing license");
@@ -259,6 +266,7 @@ fn parse_formula_overview(content: &str) -> FormulaOverview {
         }
         if trimmed.starts_with("sha256 ") {
             overview.has_sha256 = true;
+            overview.sha256_placeholder = sha256_has_placeholder(trimmed);
             continue;
         }
         if trimmed.starts_with("license ") {
@@ -270,6 +278,10 @@ fn parse_formula_overview(content: &str) -> FormulaOverview {
         }
     }
     overview
+}
+
+fn sha256_has_placeholder(line: &str) -> bool {
+    line.to_ascii_lowercase().contains("todo")
 }
 
 fn parse_class_name(line: &str) -> Option<String> {
@@ -447,6 +459,31 @@ mod tests {
         assert!(messages
             .iter()
             .any(|message| message.contains("formula is missing version")));
+    }
+
+    #[test]
+    fn warns_on_placeholder_sha256() {
+        let dir = tempdir().unwrap();
+        let content = concat!(
+            "class Brewtool < Formula\n",
+            "  desc \"Brew tool\"\n",
+            "  homepage \"https://example.com\"\n",
+            "  url \"https://example.com/brewtool.tar.gz\"\n",
+            "  sha256 \"TODO\"\n",
+            "  license \"MIT\"\n",
+            "  version \"1.2.3\"\n",
+            "end\n"
+        );
+        let path = write_formula(dir.path(), content);
+
+        let mut issues = Vec::new();
+        check_formula_contents(&path, "brewtool", &mut issues);
+
+        let placeholder_issue = issues
+            .iter()
+            .find(|issue| issue.message.contains("placeholder"))
+            .expect("placeholder warning present");
+        assert!(!placeholder_issue.is_error);
     }
 
     #[test]

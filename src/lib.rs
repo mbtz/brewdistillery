@@ -7,6 +7,7 @@ pub mod errors;
 pub mod formula;
 pub mod git;
 pub mod host;
+pub mod license;
 pub mod preview;
 pub mod repo_detect;
 pub mod version;

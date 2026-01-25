@@ -6,6 +6,7 @@ use crate::formula::{normalize_formula_name, AssetMatrix, FormulaAsset, FormulaS
 use crate::git::git_clone;
 use crate::host::github::GitHubClient;
 use crate::host::DownloadPolicy;
+use crate::license::canonicalize_spdx;
 use crate::preview::{PlannedWrite, RepoPlan};
 use crate::repo_detect::{MetadataConflict, ProjectMetadata};
 use crate::version::resolve_version_tag;
@@ -94,7 +95,7 @@ fn run_interactive(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError> {
         ),
     )?;
 
-    let license = prompt_required(
+    let license = prompt_license(
         &theme,
         "License (SPDX)",
         resolve_string(
@@ -491,7 +492,7 @@ fn run_interactive_import(ctx: &AppContext, args: &InitArgs) -> Result<(), AppEr
         resolved.homepage = prompt_required(&theme, "Homepage", homepage_default)?;
     }
     if resolved.license.trim().is_empty() {
-        resolved.license = prompt_required(&theme, "License (SPDX)", license_default)?;
+        resolved.license = prompt_license(&theme, "License (SPDX)", license_default)?;
     }
     if resolved.version.trim().is_empty() {
         resolved.version = prompt_version(&theme, "Version", version_default)?;
@@ -709,6 +710,12 @@ fn resolve_required(
         }
         String::new()
     });
+
+    let license = if license.trim().is_empty() {
+        license
+    } else {
+        canonicalize_spdx(&license, "license")?
+    };
 
     let version = match resolve_string(
         args.version.as_ref(),
@@ -1085,7 +1092,7 @@ fn apply_imported_formula(
         resolved.homepage = value.clone();
     }
     if let Some(value) = imported.parsed.license.as_ref() {
-        resolved.license = value.clone();
+        resolved.license = canonicalize_spdx(value, "license")?;
     }
     if let Some(value) = imported.parsed.version.as_ref() {
         let resolved_version = resolve_version_tag(Some(value.as_str()), None)?;
@@ -1567,6 +1574,20 @@ fn prompt_version(
             Err(err) => {
                 println!("invalid version: {err}");
             }
+        }
+    }
+}
+
+fn prompt_license(
+    theme: &ColorfulTheme,
+    label: &str,
+    default: Option<String>,
+) -> Result<String, AppError> {
+    loop {
+        let value = prompt_required(theme, label, default.clone())?;
+        match canonicalize_spdx(&value, "license") {
+            Ok(canonical) => return Ok(canonical),
+            Err(err) => println!("invalid license: {err}"),
         }
     }
 }
