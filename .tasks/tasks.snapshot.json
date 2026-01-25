@@ -1,7 +1,103 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-25T12:44:57.670824Z",
+  "generated_at": "2026-01-25T13:03:25.310931Z",
   "tasks": [
+    {
+      "id": "sv-61v",
+      "title": "Design release orchestration + idempotency",
+      "status": "closed",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:36.765605Z",
+      "updated_at": "2026-01-25T13:02:54.853218Z",
+      "body": "DoD:\\n- Step-by-step flow + idempotency matrix.\\n- Dry-run output sample.\\n- Exact error messages/exit codes for common failures.\\nNotes: PRD C11 (status: open).",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "closed_at": "2026-01-25T13:02:54.853218Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-r3k",
+      "title": "Decide git integration approach",
+      "status": "closed",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:36.956441Z",
+      "updated_at": "2026-01-25T13:02:54.827606Z",
+      "body": "DoD:\\n- Decision rationale (libgit2 vs shell).\\n- Remote selection rules + error code mapping.\\nNotes: PRD C12 (status: open).",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "closed_at": "2026-01-25T13:02:54.827606Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-zsw",
+      "title": "Document release orchestration flow + align missing-field errors",
+      "status": "closed",
+      "priority": "P0",
+      "created_at": "2026-01-25T12:52:07.348291Z",
+      "updated_at": "2026-01-25T13:02:54.801306Z",
+      "body": "Acceptance criteria:\\n- Add docs/release-orchestration.md with step-by-step flow, idempotency matrix, dry-run sample, and canonical errors/exit codes.\\n- Update release missing-field reporting to mention tap.remote when tap.path is absent.\\n- Tests assert canonical missing-field message includes tap.remote.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-25T12:52:34.553689Z",
+      "closed_at": "2026-01-25T13:02:54.801306Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-5x9",
+      "title": "Implement git remote selection for push + shell git module",
+      "status": "closed",
+      "priority": "P0",
+      "created_at": "2026-01-25T12:51:56.684479Z",
+      "updated_at": "2026-01-25T13:02:54.772703Z",
+      "body": "Acceptance criteria:\\n- Introduce a dedicated git module that shells out to git CLI (documented decision).\\n- Remote selection prefers a configured remote URL when it matches a named remote.\\n- Otherwise: prefer origin, else single remote, else fail with actionable message.\\n- Push/tag operations use the shared remote selection logic.\\n- Unit tests cover: configured-remote match, origin fallback, single remote fallback, and ambiguity error.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-25T12:52:33.887263Z",
+      "closed_at": "2026-01-25T13:02:54.772703Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-xf8",
+      "title": "EPIC: Release & Artifacts",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:32.540537Z",
+      "updated_at": "2026-01-25T12:51:59.564718Z",
+      "body": "Scope: release discovery, asset selection, checksums, idempotency, git flow.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-sf1",
+      "title": "TMP test",
+      "status": "closed",
+      "priority": "P4",
+      "created_at": "2026-01-22T13:30:30.481452Z",
+      "updated_at": "2026-01-25T12:50:00.933347Z",
+      "body": "tmp",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "closed_at": "2026-01-25T12:50:00.933347Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-8jh",
+      "title": "EPIC: Identity & Config",
+      "status": "closed",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:30:09.170840Z",
+      "updated_at": "2026-01-25T12:50:00.070749Z",
+      "body": "Scope: identity resolution + config schema + metadata detection.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "closed_at": "2026-01-25T12:50:00.070749Z",
+      "comments_count": 0
+    },
     {
       "id": "sv-7x5",
       "title": "Align asset selection error messages with spec (target-aware)",
@@ -49,16 +145,6 @@
       "closed_at": "2026-01-25T12:38:05.910439Z",
       "comments_count": 1,
       "last_comment_at": "2026-01-25T12:38:05.887925Z"
-    },
-    {
-      "id": "sv-xf8",
-      "title": "EPIC: Release & Artifacts",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:31:32.540537Z",
-      "updated_at": "2026-01-25T12:35:35.863864Z",
-      "body": "Scope: release discovery, asset selection, checksums, idempotency, git flow.\\nDoD: Epics only; child tasks define acceptance criteria.",
-      "comments_count": 0
     },
     {
       "id": "sv-mf7",
@@ -1560,26 +1646,6 @@
       "comments_count": 0
     },
     {
-      "id": "sv-r3k",
-      "title": "Decide git integration approach",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:31:36.956441Z",
-      "updated_at": "2026-01-22T13:31:37.120807Z",
-      "body": "DoD:\\n- Decision rationale (libgit2 vs shell).\\n- Remote selection rules + error code mapping.\\nNotes: PRD C12 (status: open).",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-61v",
-      "title": "Design release orchestration + idempotency",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:31:36.765605Z",
-      "updated_at": "2026-01-22T13:31:36.929204Z",
-      "body": "DoD:\\n- Step-by-step flow + idempotency matrix.\\n- Dry-run output sample.\\n- Exact error messages/exit codes for common failures.\\nNotes: PRD C11 (status: open).",
-      "comments_count": 0
-    },
-    {
       "id": "sv-fw1",
       "title": "Define version/tag precedence + validation",
       "status": "open",
@@ -1627,26 +1693,6 @@
       "created_at": "2026-01-22T13:31:34.228097Z",
       "updated_at": "2026-01-22T13:31:34.385236Z",
       "body": "DoD:\\n- Field-level merge table (formula wins for formula fields).\\n- Explicit overwrite prompts.\\n- Non-interactive overwrite policy.\\nNotes: PRD A4 (status: in_progress).",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-sf1",
-      "title": "TMP test",
-      "status": "open",
-      "priority": "P4",
-      "created_at": "2026-01-22T13:30:30.481452Z",
-      "updated_at": "2026-01-22T13:30:30.481452Z",
-      "body": "tmp",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-8jh",
-      "title": "EPIC: Identity & Config",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:30:09.170840Z",
-      "updated_at": "2026-01-22T13:30:09.170840Z",
-      "body": "Scope: identity resolution + config schema + metadata detection.\\nDoD: Epics only; child tasks define acceptance criteria.",
       "comments_count": 0
     }
   ]

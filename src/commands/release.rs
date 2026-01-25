@@ -4,6 +4,7 @@ use crate::config::{ArtifactTarget, Config};
 use crate::context::AppContext;
 use crate::errors::AppError;
 use crate::formula::{Arch, AssetMatrix, FormulaAsset, FormulaSpec, Os, TargetAsset};
+use crate::git::{commit_paths, create_tag, ensure_clean_repo, git_clone, push_head, push_tag};
 use crate::host::github::GitHubClient;
 use crate::host::{HostClient, Release};
 use crate::preview::{preview_and_apply, PlannedWrite, RepoPlan};
@@ -11,7 +12,6 @@ use crate::version::{resolve_version_tag, ResolvedVersionTag};
 use crate::version_update::apply_version_update;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use tempfile::{Builder as TempBuilder, TempDir};
 
 const DEFAULT_ASSET_MAX_BYTES: u64 = 200 * 1024 * 1024;
@@ -32,6 +32,7 @@ struct ReleaseContext {
     asset_name: Option<String>,
     asset_template: Option<String>,
     targets: BTreeMap<String, ArtifactTarget>,
+    tap_remote_url: Option<String>,
     host_owner: String,
     host_repo: String,
     host_api_base: Option<String>,
@@ -40,6 +41,7 @@ struct ReleaseContext {
     commit_message_template: Option<String>,
     install_block: Option<String>,
     template_path: Option<PathBuf>,
+    cli_remote_url: Option<String>,
 }
 
 #[derive(Debug)]
@@ -47,6 +49,7 @@ struct TapRoot {
     path: Option<PathBuf>,
     temp_dir: Option<TempDir>,
     cloned_from: Option<String>,
+    remote_url: Option<String>,
 }
 
 pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
@@ -67,7 +70,12 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
     }
     let _tap_root_guard = tap_root.temp_dir.as_ref();
 
-    let resolved = resolve_release_context(ctx, args, tap_root.path.as_ref())?;
+    let resolved = resolve_release_context(
+        ctx,
+        args,
+        tap_root.path.as_ref(),
+        tap_root.remote_url.as_deref(),
+    )?;
 
     let client = GitHubClient::from_env(resolved.host_api_base.as_deref())?;
     let version_tag = resolve_version_tag(args.version.as_deref(), args.tag.as_deref())?;
@@ -183,7 +191,7 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
                 let message = build_version_update_message(&version);
                 commit_version_update(cli_root, &updated_files, &message)?;
                 if !args.no_push {
-                    push_repo(cli_root)?;
+                    push_head(cli_root, resolved.cli_remote_url.as_deref())?;
                 }
             }
         }
@@ -233,7 +241,7 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
     if !preview.changed_files.is_empty() {
         commit_formula_update(&resolved.tap_root, &resolved.formula_path, &commit_message)?;
         if !args.no_push {
-            push_repo(&resolved.tap_root)?;
+            push_head(&resolved.tap_root, resolved.tap_remote_url.as_deref())?;
         }
     } else {
         println!("release: no formula changes to commit");
@@ -246,7 +254,7 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
             })?;
         create_tag(cli_root, tag_name)?;
         if !args.no_push {
-            push_tag(cli_root, tag_name)?;
+            push_tag(cli_root, tag_name, resolved.cli_remote_url.as_deref())?;
         }
     }
 
@@ -258,6 +266,7 @@ fn resolve_release_context(
     ctx: &AppContext,
     args: &ReleaseArgs,
     tap_path_override: Option<&PathBuf>,
+    tap_remote_override: Option<&str>,
 ) -> Result<ReleaseContext, AppError> {
     let config = &ctx.config;
     let mut missing = Vec::new();
@@ -272,7 +281,7 @@ fn resolve_release_context(
     let formula_path = match formula_path {
         Some(path) => path,
         None => {
-            missing.push("tap.path or tap.formula_path".to_string());
+            missing.push("tap.path, tap.remote, or tap.formula_path".to_string());
             PathBuf::new()
         }
     };
@@ -281,6 +290,20 @@ fn resolve_release_context(
         .clone()
         .or_else(|| tap_root_from_formula_path(&formula_path))
         .unwrap_or_else(|| ctx.cwd.clone());
+
+    let tap_remote_url = tap_remote_override
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string())
+        .or_else(|| {
+            config
+                .tap
+                .remote
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(|value| value.to_string())
+        });
 
     let description = resolve_string(None, config.project.description.as_ref()).unwrap_or_default();
     if description.trim().is_empty() {
@@ -381,6 +404,14 @@ fn resolve_release_context(
         missing.push("host-repo".to_string());
     }
 
+    let cli_remote_url = config
+        .cli
+        .remote
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string());
+
     if let Some(provider) = config.host.provider.as_deref() {
         let normalized = provider.trim();
         if !normalized.is_empty() && normalized != "github" {
@@ -413,6 +444,7 @@ fn resolve_release_context(
         asset_name,
         asset_template,
         targets,
+        tap_remote_url,
         host_owner,
         host_repo,
         host_api_base: config.host.api_base.clone(),
@@ -421,10 +453,27 @@ fn resolve_release_context(
         commit_message_template: config.release.commit_message_template.clone(),
         install_block: config.template.install_block.clone(),
         template_path: config.template.path.clone(),
+        cli_remote_url,
     })
 }
 
 fn resolve_tap_root_for_release(ctx: &AppContext, args: &ReleaseArgs) -> Result<TapRoot, AppError> {
+    let remote_url = args
+        .tap_remote
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string())
+        .or_else(|| {
+            ctx.config
+                .tap
+                .remote
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(|value| value.to_string())
+        });
+
     let tap_path = args
         .tap_path
         .clone()
@@ -434,6 +483,7 @@ fn resolve_tap_root_for_release(ctx: &AppContext, args: &ReleaseArgs) -> Result<
             path: tap_path,
             temp_dir: None,
             cloned_from: None,
+            remote_url,
         });
     }
 
@@ -443,26 +493,20 @@ fn resolve_tap_root_for_release(ctx: &AppContext, args: &ReleaseArgs) -> Result<
                 path: None,
                 temp_dir: None,
                 cloned_from: None,
+                remote_url,
             });
         }
     }
 
-    let remote = ctx
-        .config
-        .tap
-        .remote
-        .as_deref()
-        .map(|value| value.trim())
-        .filter(|value| !value.is_empty());
-
-    if let Some(remote) = remote {
+    if let Some(remote) = remote_url.as_deref() {
         let temp_dir = TempBuilder::new().prefix("brewdistillery-tap-").tempdir()?;
         let dest = temp_dir.path().join("tap");
-        run_git_clone(remote, &dest)?;
+        git_clone(remote, &dest)?;
         return Ok(TapRoot {
             path: Some(dest),
             temp_dir: Some(temp_dir),
             cloned_from: Some(remote.to_string()),
+            remote_url,
         });
     }
 
@@ -470,6 +514,7 @@ fn resolve_tap_root_for_release(ctx: &AppContext, args: &ReleaseArgs) -> Result<
         path: None,
         temp_dir: None,
         cloned_from: None,
+        remote_url,
     })
 }
 
@@ -595,152 +640,13 @@ fn format_paths(paths: &[PathBuf]) -> String {
         .join(", ")
 }
 
-fn ensure_clean_repo(repo: &Path, label: &str) -> Result<(), AppError> {
-    let output = run_git(repo, &["status", "--porcelain"])?;
-    let status = String::from_utf8_lossy(&output.stdout);
-    if status.trim().is_empty() {
-        return Ok(());
-    }
-    Err(AppError::GitState(format!(
-        "{label} has uncommitted changes; re-run with --allow-dirty to continue"
-    )))
-}
-
 fn commit_formula_update(repo: &Path, formula_path: &Path, message: &str) -> Result<(), AppError> {
-    let relative = formula_path
-        .strip_prefix(repo)
-        .map(|path| path.to_path_buf())
-        .map_err(|_| {
-            AppError::GitState(format!(
-                "formula path {} is not inside tap repo {}",
-                formula_path.display(),
-                repo.display()
-            ))
-        })?;
-
-    run_git(
-        repo,
-        &[
-            "add",
-            relative.to_str().ok_or_else(|| {
-                AppError::GitState("formula path contains invalid UTF-8".to_string())
-            })?,
-        ],
-    )?;
-
-    let diff = run_git(repo, &["diff", "--cached", "--name-only"])?;
-    if String::from_utf8_lossy(&diff.stdout).trim().is_empty() {
-        return Ok(());
-    }
-
-    run_git(repo, &["commit", "-m", message])?;
-    Ok(())
+    commit_paths(repo, &[formula_path], message)
 }
 
 fn commit_version_update(repo: &Path, files: &[PathBuf], message: &str) -> Result<(), AppError> {
-    for path in files {
-        let relative = path
-            .strip_prefix(repo)
-            .map(|path| path.to_path_buf())
-            .map_err(|_| {
-                AppError::GitState(format!(
-                    "version update file {} is not inside cli repo {}",
-                    path.display(),
-                    repo.display()
-                ))
-            })?;
-
-        let relative = relative.to_str().ok_or_else(|| {
-            AppError::GitState("version update path contains invalid UTF-8".to_string())
-        })?;
-
-        run_git(repo, &["add", relative])?;
-    }
-
-    let diff = run_git(repo, &["diff", "--cached", "--name-only"])?;
-    if String::from_utf8_lossy(&diff.stdout).trim().is_empty() {
-        return Ok(());
-    }
-
-    run_git(repo, &["commit", "-m", message])?;
-    Ok(())
-}
-
-fn create_tag(repo: &Path, tag: &str) -> Result<(), AppError> {
-    let exists = run_git(repo, &["tag", "--list", tag])?;
-    if !String::from_utf8_lossy(&exists.stdout).trim().is_empty() {
-        return Err(AppError::GitState(format!(
-            "tag '{tag}' already exists; re-run with --skip-tag or choose a new version"
-        )));
-    }
-    run_git(repo, &["tag", tag])?;
-    Ok(())
-}
-
-fn push_repo(repo: &Path) -> Result<(), AppError> {
-    let remote = select_git_remote(repo)?;
-    run_git(repo, &["push", &remote, "HEAD"])?;
-    Ok(())
-}
-
-fn push_tag(repo: &Path, tag: &str) -> Result<(), AppError> {
-    let remote = select_git_remote(repo)?;
-    run_git(repo, &["push", &remote, tag])?;
-    Ok(())
-}
-
-fn select_git_remote(repo: &Path) -> Result<String, AppError> {
-    let output = run_git(repo, &["remote"])?;
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let remotes = stdout
-        .lines()
-        .map(|line| line.trim())
-        .filter(|line| !line.is_empty())
-        .collect::<Vec<_>>();
-
-    if remotes.is_empty() {
-        return Err(AppError::GitState("git remote not configured".to_string()));
-    }
-
-    if remotes.iter().any(|remote| *remote == "origin") {
-        return Ok("origin".to_string());
-    }
-
-    if remotes.len() == 1 {
-        return Ok(remotes[0].to_string());
-    }
-
-    Err(AppError::GitState(
-        "multiple git remotes found; configure origin or use a single remote".to_string(),
-    ))
-}
-
-fn run_git(repo: &Path, args: &[&str]) -> Result<std::process::Output, AppError> {
-    let output = Command::new("git")
-        .arg("-C")
-        .arg(repo)
-        .args(args)
-        .output()
-        .map_err(|err| AppError::GitState(format!("failed to run git: {err}")))?;
-
-    if output.status.success() {
-        return Ok(output);
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    let mut message = format!("git command failed: git {}", args.join(" "));
-    if !stdout.trim().is_empty() || !stderr.trim().is_empty() {
-        message.push_str(":\n");
-        if !stdout.trim().is_empty() {
-            message.push_str(stdout.trim());
-            message.push('\n');
-        }
-        if !stderr.trim().is_empty() {
-            message.push_str(stderr.trim());
-        }
-    }
-    Err(AppError::GitState(message))
+    let paths = files.iter().map(PathBuf::as_path).collect::<Vec<_>>();
+    commit_paths(repo, &paths, message)
 }
 
 fn extract_formula_version(content: &str) -> Option<String> {
@@ -1201,34 +1107,6 @@ fn tap_root_from_formula_path(formula_path: &Path) -> Option<PathBuf> {
     Some(parent.to_path_buf())
 }
 
-fn run_git_clone(remote: &str, dest: &Path) -> Result<(), AppError> {
-    let output = Command::new("git")
-        .arg("clone")
-        .arg(remote)
-        .arg(dest)
-        .output()
-        .map_err(|err| AppError::GitState(format!("failed to run git clone: {err}")))?;
-
-    if !output.status.success() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let mut message = format!("failed to clone tap repo from {remote}");
-        if !stdout.trim().is_empty() || !stderr.trim().is_empty() {
-            message.push_str(":\n");
-            if !stdout.trim().is_empty() {
-                message.push_str(stdout.trim());
-                message.push('\n');
-            }
-            if !stderr.trim().is_empty() {
-                message.push_str(stderr.trim());
-            }
-        }
-        return Err(AppError::GitState(message));
-    }
-
-    Ok(())
-}
-
 fn print_preview(preview: &crate::preview::PreviewOutput) {
     if !preview.summary.trim().is_empty() {
         println!("{}", preview.summary.trim_end());
@@ -1321,10 +1199,27 @@ end
         let ctx = base_context(config, dir.path());
         let args = base_release_args();
 
-        let err = resolve_release_context(&ctx, &args, Some(&tap_path)).unwrap_err();
+        let err = resolve_release_context(&ctx, &args, Some(&tap_path), None).unwrap_err();
         assert!(matches!(err, AppError::MissingConfig(_)));
         let message = err.to_string();
         assert!(message.contains("artifact.asset_name or artifact.asset_template"));
+    }
+
+    #[test]
+    fn release_missing_tap_path_message_mentions_remote() {
+        let dir = tempdir().unwrap();
+        let tap_path = dir.path().join("homebrew-brewtool");
+        let mut config = base_config(&tap_path);
+        config.tap.path = None;
+        config.tap.formula_path = None;
+        config.artifact.asset_template = Some("brewtool-{version}.tar.gz".to_string());
+
+        let ctx = base_context(config, dir.path());
+        let args = base_release_args();
+
+        let err = resolve_release_context(&ctx, &args, None, None).unwrap_err();
+        assert!(matches!(err, AppError::MissingConfig(_)));
+        assert!(err.to_string().contains("tap.remote"));
     }
 
     #[test]
@@ -1356,7 +1251,7 @@ end
         let ctx = base_context(config, dir.path());
         let args = base_release_args();
 
-        let err = resolve_release_context(&ctx, &args, Some(&tap_path)).unwrap_err();
+        let err = resolve_release_context(&ctx, &args, Some(&tap_path), None).unwrap_err();
         assert!(matches!(err, AppError::InvalidInput(_)));
         assert_eq!(
             err.to_string(),

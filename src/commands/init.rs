@@ -3,11 +3,12 @@ use crate::config::Config;
 use crate::context::AppContext;
 use crate::errors::AppError;
 use crate::formula::{normalize_formula_name, AssetMatrix, FormulaAsset, FormulaSpec};
+use crate::git::git_clone;
 use crate::preview::{PlannedWrite, RepoPlan};
 use crate::repo_detect::ProjectMetadata;
 use crate::version::resolve_version_tag;
-use dialoguer::{Confirm, Input};
 use dialoguer::theme::ColorfulTheme;
+use dialoguer::{Confirm, Input};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -146,7 +147,8 @@ fn run_interactive(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError> {
         None,
     );
 
-    let mut tap_owner = resolve_string(args.tap_owner.as_ref(), ctx.config.tap.owner.as_ref(), None);
+    let mut tap_owner =
+        resolve_string(args.tap_owner.as_ref(), ctx.config.tap.owner.as_ref(), None);
     let mut tap_repo = resolve_string(args.tap_repo.as_ref(), ctx.config.tap.repo.as_ref(), None);
 
     if tap_owner.is_none() || tap_repo.is_none() {
@@ -359,7 +361,10 @@ fn run_interactive_import(ctx: &AppContext, args: &InitArgs) -> Result<(), AppEr
     let cli_owner = prompt_required(&theme, "GitHub owner", owner_default)?;
     let cli_repo = prompt_required(&theme, "GitHub repo", repo_default)?;
 
-    let mut tap_path = args.tap_path.clone().or_else(|| ctx.config.tap.path.clone());
+    let mut tap_path = args
+        .tap_path
+        .clone()
+        .or_else(|| ctx.config.tap.path.clone());
     if tap_path.is_none() && args.tap_remote.is_none() && ctx.config.tap.remote.is_none() {
         let fallback_project = if project_name.is_empty() {
             cli_repo.clone()
@@ -386,7 +391,8 @@ fn run_interactive_import(ctx: &AppContext, args: &InitArgs) -> Result<(), AppEr
         None,
     );
 
-    let mut tap_owner = resolve_string(args.tap_owner.as_ref(), ctx.config.tap.owner.as_ref(), None);
+    let mut tap_owner =
+        resolve_string(args.tap_owner.as_ref(), ctx.config.tap.owner.as_ref(), None);
     let mut tap_repo = resolve_string(args.tap_repo.as_ref(), ctx.config.tap.repo.as_ref(), None);
 
     if tap_owner.is_none() || tap_repo.is_none() {
@@ -707,7 +713,11 @@ fn resolve_required(
         }
     };
 
-    let mut cli_owner = resolve_string(args.host_owner.as_ref(), ctx.config.cli.owner.as_ref(), None);
+    let mut cli_owner = resolve_string(
+        args.host_owner.as_ref(),
+        ctx.config.cli.owner.as_ref(),
+        None,
+    );
     let mut cli_repo = resolve_string(args.host_repo.as_ref(), ctx.config.cli.repo.as_ref(), None);
 
     if cli_owner.is_none() || cli_repo.is_none() {
@@ -733,12 +743,17 @@ fn resolve_required(
         String::new()
     });
 
-    let tap_owner =
-        resolve_string(args.tap_owner.as_ref(), ctx.config.tap.owner.as_ref(), None);
+    let tap_owner = resolve_string(args.tap_owner.as_ref(), ctx.config.tap.owner.as_ref(), None);
     let tap_repo = resolve_string(args.tap_repo.as_ref(), ctx.config.tap.repo.as_ref(), None);
-    let tap_remote =
-        resolve_string(args.tap_remote.as_ref(), ctx.config.tap.remote.as_ref(), None);
-    let tap_path = args.tap_path.clone().or_else(|| ctx.config.tap.path.clone());
+    let tap_remote = resolve_string(
+        args.tap_remote.as_ref(),
+        ctx.config.tap.remote.as_ref(),
+        None,
+    );
+    let tap_path = args
+        .tap_path
+        .clone()
+        .or_else(|| ctx.config.tap.path.clone());
 
     if tap_path.is_none() && tap_remote.is_none() && !(tap_owner.is_some() && tap_repo.is_some()) {
         missing.push("tap-path or tap-remote or tap-owner+tap-repo".to_string());
@@ -797,10 +812,16 @@ fn resolve_required(
     )
     .unwrap_or_else(|| formula_name.clone());
 
-    let artifact_strategy =
-        resolve_string(args.artifact_strategy.as_ref(), ctx.config.artifact.strategy.as_ref(), None);
-    let asset_template =
-        resolve_string(args.asset_template.as_ref(), ctx.config.artifact.asset_template.as_ref(), None);
+    let artifact_strategy = resolve_string(
+        args.artifact_strategy.as_ref(),
+        ctx.config.artifact.strategy.as_ref(),
+        None,
+    );
+    let asset_template = resolve_string(
+        args.asset_template.as_ref(),
+        ctx.config.artifact.asset_template.as_ref(),
+        None,
+    );
 
     Ok(ResolvedInit {
         formula_name,
@@ -839,7 +860,10 @@ struct ImportedFormula {
     parsed: ParsedFormula,
 }
 
-fn load_imported_formula(config: &Config, resolved: &ResolvedInit) -> Result<ImportedFormula, AppError> {
+fn load_imported_formula(
+    config: &Config,
+    resolved: &ResolvedInit,
+) -> Result<ImportedFormula, AppError> {
     let formula_path = if let Some(path) = config.tap.formula_path.clone() {
         path
     } else if !resolved.formula_name.trim().is_empty() {
@@ -882,8 +906,7 @@ fn load_imported_formula(config: &Config, resolved: &ResolvedInit) -> Result<Imp
             1 => candidates.remove(0),
             _ => {
                 return Err(AppError::InvalidInput(
-                    "multiple formula files found; pass --formula-name to select one"
-                        .to_string(),
+                    "multiple formula files found; pass --formula-name to select one".to_string(),
                 ))
             }
         }
@@ -1054,16 +1077,8 @@ fn resolve_tap_repo(
     resolved: &mut ResolvedInit,
 ) -> Result<(), AppError> {
     if args.tap_new {
-        let owner = resolved
-            .tap_owner
-            .as_deref()
-            .unwrap_or_default()
-            .trim();
-        let repo = resolved
-            .tap_repo
-            .as_deref()
-            .unwrap_or_default()
-            .trim();
+        let owner = resolved.tap_owner.as_deref().unwrap_or_default().trim();
+        let repo = resolved.tap_repo.as_deref().unwrap_or_default().trim();
         if owner.is_empty() || repo.is_empty() {
             return Err(AppError::MissingConfig(
                 "missing required fields for --tap-new: tap-owner, tap-repo".to_string(),
@@ -1181,7 +1196,7 @@ fn resolve_tap_repo(
     if let Some(parent) = tap_path.parent() {
         fs::create_dir_all(parent)?;
     }
-    run_git_clone(remote, &tap_path)?;
+    git_clone(remote, &tap_path)?;
     Ok(())
 }
 
@@ -1191,14 +1206,11 @@ fn default_tap_path(ctx: &AppContext, repo: &str) -> PathBuf {
 }
 
 fn brew_repo_root() -> Result<PathBuf, AppError> {
-    let output = Command::new("brew")
-        .arg("--repo")
-        .output()
-        .map_err(|err| {
-            AppError::InvalidInput(format!(
-                "brew tap-new requires Homebrew; failed to run brew --repo: {err}"
-            ))
-        })?;
+    let output = Command::new("brew").arg("--repo").output().map_err(|err| {
+        AppError::InvalidInput(format!(
+            "brew tap-new requires Homebrew; failed to run brew --repo: {err}"
+        ))
+    })?;
 
     if !output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -1232,9 +1244,7 @@ fn run_brew_tap_new(owner: &str, repo: &str) -> Result<(), AppError> {
         .arg(format!("{owner}/{repo}"))
         .output()
         .map_err(|err| {
-            AppError::InvalidInput(format!(
-                "failed to run brew tap-new {owner}/{repo}: {err}"
-            ))
+            AppError::InvalidInput(format!("failed to run brew tap-new {owner}/{repo}: {err}"))
         })?;
 
     if !output.status.success() {
@@ -1259,34 +1269,6 @@ fn run_brew_tap_new(owner: &str, repo: &str) -> Result<(), AppError> {
 
 fn parse_owner_repo_from_remote(remote: &str) -> Option<(String, String)> {
     parse_owner_repo_from_github(remote)
-}
-
-fn run_git_clone(remote: &str, dest: &Path) -> Result<(), AppError> {
-    let output = Command::new("git")
-        .arg("clone")
-        .arg(remote)
-        .arg(dest)
-        .output()
-        .map_err(|err| AppError::GitState(format!("failed to run git clone: {err}")))?;
-
-    if !output.status.success() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let mut message = format!("failed to clone tap repo from {remote}");
-        if !stdout.trim().is_empty() || !stderr.trim().is_empty() {
-            message.push_str(":\n");
-            if !stdout.trim().is_empty() {
-                message.push_str(stdout.trim());
-                message.push('\n');
-            }
-            if !stderr.trim().is_empty() {
-                message.push_str(stderr.trim());
-            }
-        }
-        return Err(AppError::GitState(message));
-    }
-
-    Ok(())
 }
 
 fn is_dir_empty(path: &Path) -> Result<bool, AppError> {
@@ -1457,10 +1439,7 @@ fn infer_owner_repo_defaults(
 
     if let Some(homepage) = homepage {
         if let Some((derived_owner, derived_repo)) = parse_owner_repo_from_homepage(homepage) {
-            return (
-                owner.or(Some(derived_owner)),
-                repo.or(Some(derived_repo)),
-            );
+            return (owner.or(Some(derived_owner)), repo.or(Some(derived_repo)));
         }
     }
 
@@ -1519,8 +1498,11 @@ fn apply_resolved(config: &mut Config, resolved: &ResolvedInit) {
     config.tap.formula = Some(resolved.formula_name.clone());
 
     if let Some(tap_path) = resolved.tap_path.as_ref() {
-        config.tap.formula_path =
-            Some(tap_path.join("Formula").join(format!("{}.rb", resolved.formula_name)));
+        config.tap.formula_path = Some(
+            tap_path
+                .join("Formula")
+                .join(format!("{}.rb", resolved.formula_name)),
+        );
     }
 
     if let Some(strategy) = resolved.artifact_strategy.as_ref() {
@@ -1538,7 +1520,10 @@ fn apply_resolved(config: &mut Config, resolved: &ResolvedInit) {
 
 fn render_config(config: &Config, path: &Path) -> Result<String, AppError> {
     let content = toml::to_string_pretty(config).map_err(|err| {
-        AppError::InvalidInput(format!("failed to serialize config {}: {err}", path.display()))
+        AppError::InvalidInput(format!(
+            "failed to serialize config {}: {err}",
+            path.display()
+        ))
     })?;
     Ok(format!("{content}\n"))
 }
@@ -1566,14 +1551,12 @@ fn read_template(path: &Path) -> Result<String, AppError> {
 }
 
 fn resolve_formula_path(resolved: &ResolvedInit, config: &Config) -> Option<PathBuf> {
-    config
-        .tap
-        .formula_path
-        .clone()
-        .or_else(|| resolved.tap_path.as_ref().map(|path| {
+    config.tap.formula_path.clone().or_else(|| {
+        resolved.tap_path.as_ref().map(|path| {
             path.join("Formula")
                 .join(format!("{}.rb", resolved.formula_name))
-        }))
+        })
+    })
 }
 
 fn render_formula(resolved: &ResolvedInit, config: &Config) -> Result<String, AppError> {

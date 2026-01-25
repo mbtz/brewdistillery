@@ -1,12 +1,13 @@
+pub mod asset_selection;
 pub mod cli;
 pub mod commands;
 pub mod config;
 pub mod context;
 pub mod errors;
-pub mod asset_selection;
 pub mod formula;
+pub mod git;
 pub mod host;
 pub mod preview;
 pub mod repo_detect;
-pub mod version_update;
 pub mod version;
+pub mod version_update;
