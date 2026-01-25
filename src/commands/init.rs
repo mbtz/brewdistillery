@@ -4,6 +4,7 @@ use crate::context::AppContext;
 use crate::errors::AppError;
 use crate::formula::{normalize_formula_name, AssetMatrix, FormulaAsset, FormulaSpec};
 use crate::git::git_clone;
+use crate::host::github::GitHubClient;
 use crate::preview::{PlannedWrite, RepoPlan};
 use crate::repo_detect::ProjectMetadata;
 use crate::version::resolve_version_tag;
@@ -14,6 +15,12 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 pub fn run(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError> {
+    if args.tap_new && args.create_tap {
+        return Err(AppError::InvalidInput(
+            "--create-tap cannot be used with --tap-new".to_string(),
+        ));
+    }
+
     if args.non_interactive {
         return run_non_interactive(ctx, args);
     }
@@ -109,6 +116,13 @@ fn run_interactive(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError> {
     )
     .unwrap_or_else(|| formula_name.clone());
 
+    let default_tap_repo = ctx
+        .config
+        .tap
+        .repo
+        .clone()
+        .unwrap_or_else(|| format!("homebrew-{}", project_name));
+
     let (owner_default, repo_default) = infer_owner_repo_defaults(
         args.host_owner.as_ref(),
         args.host_repo.as_ref(),
@@ -127,13 +141,7 @@ fn run_interactive(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError> {
     {
         Some(path)
     } else {
-        let default_repo = ctx
-            .config
-            .tap
-            .repo
-            .clone()
-            .unwrap_or_else(|| format!("homebrew-{}", project_name));
-        let default_path = default_tap_path(ctx, &default_repo);
+        let default_path = default_tap_path(ctx, &default_tap_repo);
         Some(prompt_path(
             &theme,
             "Tap path",
@@ -177,17 +185,13 @@ fn run_interactive(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError> {
         }
     }
 
-    if args.tap_new {
-        tap_owner = Some(prompt_required(
-            &theme,
-            "Tap owner (for brew tap-new)",
-            tap_owner.clone(),
-        )?);
-        tap_repo = Some(prompt_required(
-            &theme,
-            "Tap repo (for brew tap-new)",
-            tap_repo.clone(),
-        )?);
+    if (args.tap_new || args.create_tap) && tap_repo.is_none() {
+        tap_repo = Some(default_tap_repo.clone());
+    }
+
+    if args.tap_new || args.create_tap {
+        tap_owner = Some(prompt_required(&theme, "Tap owner", tap_owner.clone())?);
+        tap_repo = Some(prompt_required(&theme, "Tap repo", tap_repo.clone())?);
     }
 
     let artifact_strategy = resolve_string(
@@ -220,6 +224,7 @@ fn run_interactive(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError> {
         allow_overwrite: args.force || args.yes,
     };
 
+    create_tap_remote_if_requested(ctx, args, &mut resolved)?;
     resolve_tap_repo(ctx, args, &mut resolved)?;
 
     let mut next_config = ctx.config.clone();
@@ -361,23 +366,24 @@ fn run_interactive_import(ctx: &AppContext, args: &InitArgs) -> Result<(), AppEr
     let cli_owner = prompt_required(&theme, "GitHub owner", owner_default)?;
     let cli_repo = prompt_required(&theme, "GitHub repo", repo_default)?;
 
+    let default_project = if project_name.trim().is_empty() {
+        cli_repo.clone()
+    } else {
+        project_name.clone()
+    };
+    let default_tap_repo = ctx
+        .config
+        .tap
+        .repo
+        .clone()
+        .unwrap_or_else(|| format!("homebrew-{}", default_project));
+
     let mut tap_path = args
         .tap_path
         .clone()
         .or_else(|| ctx.config.tap.path.clone());
     if tap_path.is_none() && args.tap_remote.is_none() && ctx.config.tap.remote.is_none() {
-        let fallback_project = if project_name.is_empty() {
-            cli_repo.clone()
-        } else {
-            project_name.clone()
-        };
-        let default_repo = ctx
-            .config
-            .tap
-            .repo
-            .clone()
-            .unwrap_or_else(|| format!("homebrew-{}", fallback_project));
-        let default_path = default_tap_path(ctx, &default_repo);
+        let default_path = default_tap_path(ctx, &default_tap_repo);
         tap_path = Some(prompt_path(
             &theme,
             "Tap path",
@@ -421,17 +427,13 @@ fn run_interactive_import(ctx: &AppContext, args: &InitArgs) -> Result<(), AppEr
         }
     }
 
-    if args.tap_new {
-        tap_owner = Some(prompt_required(
-            &theme,
-            "Tap owner (for brew tap-new)",
-            tap_owner.clone(),
-        )?);
-        tap_repo = Some(prompt_required(
-            &theme,
-            "Tap repo (for brew tap-new)",
-            tap_repo.clone(),
-        )?);
+    if (args.tap_new || args.create_tap) && tap_repo.is_none() {
+        tap_repo = Some(default_tap_repo.clone());
+    }
+
+    if args.tap_new || args.create_tap {
+        tap_owner = Some(prompt_required(&theme, "Tap owner", tap_owner.clone())?);
+        tap_repo = Some(prompt_required(&theme, "Tap repo", tap_repo.clone())?);
     }
 
     let artifact_strategy = resolve_string(
@@ -464,6 +466,7 @@ fn run_interactive_import(ctx: &AppContext, args: &InitArgs) -> Result<(), AppEr
         allow_overwrite: args.force || args.yes,
     };
 
+    create_tap_remote_if_requested(ctx, args, &mut resolved)?;
     resolve_tap_repo(ctx, args, &mut resolved)?;
 
     let imported = load_imported_formula(&ctx.config, &resolved)?;
@@ -550,6 +553,7 @@ fn run_interactive_import(ctx: &AppContext, args: &InitArgs) -> Result<(), AppEr
 
 fn run_non_interactive(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError> {
     let mut resolved = resolve_required(ctx, args, args.import_formula)?;
+    create_tap_remote_if_requested(ctx, args, &mut resolved)?;
     resolve_tap_repo(ctx, args, &mut resolved)?;
 
     let mut imported = None;
@@ -759,6 +763,14 @@ fn resolve_required(
         missing.push("tap-path or tap-remote or tap-owner+tap-repo".to_string());
     }
     if args.tap_new {
+        if tap_owner.is_none() {
+            missing.push("tap-owner".to_string());
+        }
+        if tap_repo.is_none() {
+            missing.push("tap-repo".to_string());
+        }
+    }
+    if args.create_tap {
         if tap_owner.is_none() {
             missing.push("tap-owner".to_string());
         }
@@ -1069,6 +1081,84 @@ fn extract_quoted_strings(input: &str) -> Vec<String> {
         }
     }
     values
+}
+
+fn create_tap_remote_if_requested(
+    ctx: &AppContext,
+    args: &InitArgs,
+    resolved: &mut ResolvedInit,
+) -> Result<(), AppError> {
+    if !args.create_tap {
+        return Ok(());
+    }
+
+    let existing_remote = resolved
+        .tap_remote
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    if existing_remote.is_some() {
+        return Err(AppError::InvalidInput(
+            "--create-tap cannot be used with --tap-remote".to_string(),
+        ));
+    }
+
+    let owner = resolved
+        .tap_owner
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string());
+    let repo = resolved
+        .tap_repo
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string());
+
+    let mut missing = Vec::new();
+    if owner.is_none() {
+        missing.push("tap-owner");
+    }
+    if repo.is_none() {
+        missing.push("tap-repo");
+    }
+    if !missing.is_empty() {
+        return Err(AppError::MissingConfig(format!(
+            "missing required fields for --create-tap: {}",
+            missing.join(", ")
+        )));
+    }
+
+    let owner = owner.unwrap_or_default();
+    let repo = repo.unwrap_or_default();
+
+    if args.dry_run {
+        println!("dry-run: would create tap repo {owner}/{repo} on GitHub");
+        resolved.tap_remote = Some(format!("https://github.com/{owner}/{repo}.git"));
+        resolved.tap_owner = Some(owner);
+        resolved.tap_repo = Some(repo);
+        return Ok(());
+    }
+
+    let client = GitHubClient::from_env(ctx.config.host.api_base.as_deref())?;
+    let created = client.create_public_repo(&owner, &repo)?;
+    let remote_url = created.ssh_url.unwrap_or(created.clone_url);
+    let display = created.html_url.or_else(|| {
+        created
+            .full_name
+            .map(|name| format!("https://github.com/{name}"))
+    });
+    if let Some(url) = display {
+        println!("init: created tap repo {url}");
+    } else {
+        println!("init: created tap repo {owner}/{repo}");
+    }
+
+    resolved.tap_remote = Some(remote_url);
+    resolved.tap_owner = Some(owner);
+    resolved.tap_repo = Some(repo);
+    Ok(())
 }
 
 fn resolve_tap_repo(
@@ -1661,6 +1751,7 @@ mod tests {
             force: false,
             dry_run: false,
             tap_new: false,
+            create_tap: false,
             import_formula: false,
         }
     }
@@ -1694,6 +1785,44 @@ mod tests {
 
         let err = run_non_interactive(&ctx, &args).unwrap_err();
         assert!(matches!(err, AppError::MissingConfig(_)));
+    }
+
+    #[test]
+    fn rejects_create_tap_with_tap_new() {
+        let dir = tempdir().unwrap();
+        let ctx = base_context(dir.path());
+        let mut args = base_args();
+        args.tap_new = true;
+        args.create_tap = true;
+
+        let err = run(&ctx, &args).unwrap_err();
+        match err {
+            AppError::InvalidInput(message) => {
+                assert_eq!(message, "--create-tap cannot be used with --tap-new");
+            }
+            other => panic!("expected invalid input error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn infers_tap_remote_for_create_tap_dry_run() {
+        let dir = tempdir().unwrap();
+        let ctx = base_context(dir.path());
+        let mut args = base_args();
+        args.dry_run = true;
+        args.create_tap = true;
+        args.tap_owner = Some("acme".to_string());
+        args.tap_repo = Some("homebrew-brewtool".to_string());
+        args.host_owner = Some("acme".to_string());
+        args.host_repo = Some("brewtool".to_string());
+
+        let mut resolved = resolve_required(&ctx, &args, false).unwrap();
+        create_tap_remote_if_requested(&ctx, &args, &mut resolved).unwrap();
+
+        assert_eq!(
+            resolved.tap_remote.as_deref(),
+            Some("https://github.com/acme/homebrew-brewtool.git")
+        );
     }
 
     #[test]

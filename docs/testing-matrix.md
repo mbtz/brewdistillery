@@ -13,7 +13,9 @@ avoid external dependencies.
 | init | overwrite blocked | pre-existing config/formula | exit code 3 unless `--force` | confirm no writes without `--force` |
 | init | import-formula | existing formula with desc/homepage/license/bin | config pulls formula fields; formula unchanged | ensure file is not re-rendered |
 | init | tap path missing | tap path absent | creates `Formula/` + file | verify scaffolded tree |
-| release | dry-run success | config + mock release assets | prints preview, no writes, SHA=DRY-RUN | no network calls |
+| release | dry-run success | local tap path + explicit version/tag + asset selection | prints preview, no writes, SHA=DRY-RUN | no network calls |
+| release | dry-run remote-only | tap.remote set without tap.path or absolute formula path | exit code 2 with dry-run tap path error | proves no clone attempt |
+| release | dry-run missing version/tag | dry-run without version/tag | exit code 2 with missing version/tag error | fails before any network |
 | release | asset selection missing | release with no matching assets | exit code 3 + list available assets | check error message |
 | release | prerelease excluded | latest is prerelease, flag off | exit code 3 with prerelease note | include `--include-prerelease` case |
 | release | version/tag mismatch | `--version` != normalized `--tag` | exit code 3 | validate exact error wording |

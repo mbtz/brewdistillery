@@ -21,6 +21,8 @@ Notes:
 - Draft releases are never selected.
 - If `--version` is provided, the resolved release tag must match the requested
   version after normalization, or the command fails.
+- In `--dry-run` mode, release discovery is skipped and `--version` or `--tag`
+  is required.
 
 ## Draft and prerelease rules
 

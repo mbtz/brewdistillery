@@ -1,216 +1,156 @@
 # brewdistillery
 
-Homebrew formula initialization and release helper. This is an early, in-progress CLI; the command surface is wired, but some workflows are still stubbed.
+Homebrew formula initialization and release helper for CLI authors.
 
 ## Status
 
-- Early development (pre-Homebrew). Expect incomplete behavior.
-- CLI commands are available (`bd init`, `bd release`, `bd doctor`), but some workflows are still stubbed.
-- `bd init` is interactive by default (use `--non-interactive` for CI) and writes `.distill/config.toml` plus a starter formula.
-- `bd release` fetches GitHub releases, selects assets, computes SHA256, updates the formula with a preview, and commits/pushes by default (use `--no-push` or `--skip-tag`).
+- Rust CLI, GitHub-only v0.
+- Core commands implemented: `bd init`, `bd release` (alias `bd ship`), `bd doctor`.
+- Dry-run is network-free and safe for CI input validation.
 
 ## Install (early build)
 
-Homebrew installation is not available yet. Use one of the source-based options below.
-
 Requirements:
-- Rust toolchain (rustup + cargo, stable)
-- Git (for cloning this repo)
-- Homebrew (optional; only needed for `bd doctor --audit` or `bd init --tap-new`)
-- Binary name is `bd` (crate name is `brewdistillery`).
+- Rust (stable toolchain)
+- Git
+- Homebrew (optional; required only for `bd init --tap-new` or `bd doctor --audit`)
 
-Already have a local clone? Install from the workspace:
+Install from the workspace:
 
-```
+```bash
 cargo install --path . --locked --bin bd
 ```
 
-Recommended quick path (clone + local install):
+Run without installing:
 
-```
-git clone https://github.com/mbtz/brewdistillery.git
-cd brewdistillery
-cargo install --path . --locked
-bd --help
-```
-
-Option A: install locally with cargo (recommended)
-
-```
-git clone https://github.com/mbtz/brewdistillery.git
-cd brewdistillery
-cargo install --path . --locked
-# or explicitly:
-cargo install --path . --locked --bin bd
-bd --help
-```
-
-Binary path:
-- `~/.cargo/bin/bd`
-
-Make sure `~/.cargo/bin` is on your PATH (or use the full path above).
-
-Option B: install directly from git (no manual build)
-
-```
-cargo install --git https://github.com/mbtz/brewdistillery.git --locked --bin bd
-```
-
-Option C: build from source (release binary)
-
-```
-git clone https://github.com/mbtz/brewdistillery.git
-cd brewdistillery
-cargo build --release
-```
-
-Binary path:
-- `target/release/bd`
-
-Add it to your PATH (optional):
-
-```
-install -m 755 target/release/bd /usr/local/bin/bd
-```
-
-On Apple Silicon (Homebrew default prefix):
-
-```
-install -m 755 target/release/bd /opt/homebrew/bin/bd
-```
-
-Option D: run from source (no install)
-
-```
-git clone https://github.com/mbtz/brewdistillery.git
-cd brewdistillery
+```bash
 cargo run -- --help
 ```
 
-Verify the install:
+## Quickstart
 
-```
-bd --help
-```
+### 1) Initialize config and formula
 
-Uninstall:
+Example non-interactive init:
 
-```
-cargo uninstall brewdistillery
-```
-
-If you installed the binary manually, remove it from the path you used
-(`/usr/local/bin/bd` or `/opt/homebrew/bin/bd`).
-
-## Usage (early testing)
-
-If you did not install the binary, run via `cargo run --` instead of `bd`.
-
-Quick start:
-
-```
-bd --help
-bd init --help
-bd release --help
-bd doctor --help
-```
-
-Alias (same as `bd release`):
-
-```
-bd ship --help
-```
-
-From source (no install):
-
-```
-cargo run -- --help
-cargo run -- init --help
-cargo run -- release --help
-cargo run -- doctor --help
-```
-
-If you want to test against a real repo, run `bd init` from inside the CLI repository
-(public GitHub remotes only in v0). Metadata detection currently supports `Cargo.toml`,
-`package.json`, `pyproject.toml`, and `go.mod`.
-
-Example (explicit fields):
-
-```
+```bash
 bd init --non-interactive \
   --tap-path ../homebrew-brewtool \
   --host-owner acme \
   --host-repo brewtool \
+  --tap-owner acme \
+  --tap-repo homebrew-brewtool \
   --formula-name brewtool \
   --description "Brew tool" \
   --homepage "https://github.com/acme/brewtool" \
   --license MIT \
   --bin-name brewtool \
-  --version 0.1.0
+  --version 0.1.0 \
+  --asset-template "brewtool-{version}.tar.gz"
 ```
 
-Import an existing formula into config (keeps formula file untouched):
+Create the tap repo via the GitHub API by adding `--create-tap` to the command
+above and running with `GITHUB_TOKEN` (or `GH_TOKEN`) set.
 
-```
+Import an existing formula without overwriting it:
+
+```bash
 bd init --import-formula --tap-path ../homebrew-brewtool
 ```
 
-This writes `.distill/config.toml` in the CLI repo and a placeholder formula in the
-tap path. Tap scaffolding and git automation are still in progress.
+### 2) Dry-run a release (no network calls)
 
-Dry-run init (no writes):
-
-```
-bd init --non-interactive --dry-run \
-  --tap-path ../homebrew-brewtool \
-  --host-owner acme \
-  --host-repo brewtool \
-  --formula-name brewtool \
-  --description "Brew tool" \
-  --homepage "https://github.com/acme/brewtool" \
-  --license MIT \
-  --bin-name brewtool \
-  --version 0.1.0
-```
-
-Release testing (writes formula + commit by default; use `--dry-run` or `--no-push`):
-
-```
+```bash
 bd release --version 0.1.0 --dry-run
 ```
 
-`bd release` currently expects a public GitHub Release with matching assets for the
-requested version. If asset selection fails, pass `--asset-name` or
-`--asset-template` explicitly.
+Notes:
+- Dry-run requires `--version` or `--tag`.
+- Dry-run requires a local tap path (or an absolute `tap.formula_path`) when `tap.remote` is configured.
+- If your release tags use a `v` prefix, set `[release] tag_format = "v{version}"`.
 
-## Current capabilities
+### 3) Validate setup
 
-- `bd init` (interactive or `--non-interactive`): writes `.distill/config.toml` and a starter formula file with preview support.
-- `bd init --import-formula`: imports an existing formula into config without overwriting the formula file.
-- `bd release`: fetches the GitHub release, selects assets, computes SHA256, updates the formula, and commits/pushes to the tap (use `--no-push` and `--skip-tag` to opt out).
-- `bd doctor`: validates required config fields, checks tap/formula paths, and optionally runs `brew audit --new-formula`.
+```bash
+bd doctor
+bd doctor --audit   # requires Homebrew
+```
 
-If you run into missing fields in non-interactive mode, provide explicit flags for
-all required inputs (see `bd init --help`).
+## Config Sample
 
-## Config location
+See `docs/config.example.toml` for a full example. Minimal shape:
 
-By default, config is read from and written to:
+```toml
+schema_version = 1
 
-- `.distill/config.toml` in your CLI repo
+[project]
+name = "brewtool"
+description = "Brew tool"
+homepage = "https://github.com/acme/brewtool"
+license = "MIT"
+bin = ["brewtool"]
 
-Use `--config <path>` to point elsewhere.
+[cli]
+owner = "acme"
+repo = "brewtool"
 
-## Notes
+[tap]
+owner = "acme"
+repo = "homebrew-brewtool"
+path = "../homebrew-brewtool"
+formula = "brewtool"
 
-- Homebrew-based install is not available yet.
-- The planned config path is `.distill/config.toml` in your CLI repo.
+[artifact]
+strategy = "release-asset"
+asset_template = "brewtool-{version}.tar.gz"
+```
+
+## Formula Sample
+
+Rendered formulae always include an explicit version stanza:
+
+```ruby
+class Brewtool < Formula
+  desc "Brew tool"
+  homepage "https://github.com/acme/brewtool"
+  url "https://github.com/acme/brewtool/releases/download/0.1.0/brewtool-0.1.0.tar.gz"
+  sha256 "deadbeef"
+  license "MIT"
+  version "0.1.0"
+
+  def install
+    bin.install "brewtool"
+  end
+end
+```
+
+## Exit Codes
+
+See `docs/errors.md` for the full catalog.
+
+| Code | Meaning |
+| --- | --- |
+| 0 | success |
+| 1 | unexpected/internal |
+| 2 | missing config/inputs |
+| 3 | invalid input/blocked overwrite |
+| 4 | git state error |
+| 5 | network/API failure |
+| 6 | audit failure |
+
+## Specs and References
+
+- `docs/documentation-outputs.md`
+- `docs/init-prompt-flow.md`
+- `docs/release-orchestration.md`
+- `docs/non-interactive.md`
 
 ## Contributing
 
-Run tests:
+Run checks locally:
 
-```
+```bash
+cargo fmt
 cargo test
 ```
 

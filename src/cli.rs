@@ -2,7 +2,11 @@ use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[command(name = "bd", version, about = "Homebrew formula initialization and release helper")]
+#[command(
+    name = "bd",
+    version,
+    about = "Homebrew formula initialization and release helper"
+)]
 pub struct Cli {
     #[arg(global = true, long, value_name = "FILE")]
     pub config: Option<PathBuf>,
@@ -83,6 +87,9 @@ pub struct InitArgs {
 
     #[arg(long)]
     pub tap_new: bool,
+
+    #[arg(long)]
+    pub create_tap: bool,
 
     #[arg(long)]
     pub import_formula: bool,

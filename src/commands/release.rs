@@ -60,7 +60,7 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         )));
     }
 
-    let tap_root = resolve_tap_root_for_release(ctx, args)?;
+    let tap_root = resolve_tap_root_for_release(ctx, args, args.dry_run)?;
     if let (Some(path), Some(remote)) = (tap_root.path.as_ref(), tap_root.cloned_from.as_ref()) {
         println!(
             "release: cloned tap repo from {} to {}",
@@ -70,6 +70,16 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
     }
     let _tap_root_guard = tap_root.temp_dir.as_ref();
 
+    if args.dry_run
+        && tap_root.path.is_none()
+        && tap_root.remote_url.is_some()
+        && !has_absolute_formula_path(&ctx.config)
+    {
+        return Err(AppError::MissingConfig(
+            "dry-run requires tap.path or an absolute tap.formula_path; tap.remote cannot be auto-cloned".to_string(),
+        ));
+    }
+
     let resolved = resolve_release_context(
         ctx,
         args,
@@ -77,8 +87,11 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         tap_root.remote_url.as_deref(),
     )?;
 
-    let client = GitHubClient::from_env(resolved.host_api_base.as_deref())?;
     let version_tag = resolve_version_tag(args.version.as_deref(), args.tag.as_deref())?;
+    if args.dry_run {
+        return run_dry_run_release(ctx, args, &resolved, &version_tag);
+    }
+    let client = GitHubClient::from_env(resolved.host_api_base.as_deref())?;
 
     let (version, tag_to_create, asset_matrix) = match resolved.artifact_strategy.as_str() {
         "release-asset" => {
@@ -259,6 +272,133 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
     }
 
     drop(tap_root);
+    Ok(())
+}
+
+fn has_absolute_formula_path(config: &Config) -> bool {
+    config
+        .tap
+        .formula_path
+        .as_ref()
+        .map(|path| path.is_absolute())
+        .unwrap_or(false)
+}
+
+fn run_dry_run_release(
+    ctx: &AppContext,
+    args: &ReleaseArgs,
+    resolved: &ReleaseContext,
+    version_tag: &ResolvedVersionTag,
+) -> Result<(), AppError> {
+    let version = version_tag.version.clone().ok_or_else(|| {
+        AppError::MissingConfig("missing required fields for --dry-run: version or tag".to_string())
+    })?;
+
+    let release_tag = resolve_tag_name(&version, version_tag, resolved.tag_format.as_deref(), "")?;
+
+    let (version, tag_to_create, asset_matrix) = match resolved.artifact_strategy.as_str() {
+        "release-asset" => {
+            let asset_matrix = build_assets_dry_run(resolved, &version, &release_tag)?;
+            let tag_to_create = if args.skip_tag {
+                None
+            } else {
+                Some(release_tag.clone())
+            };
+            (version, tag_to_create, asset_matrix)
+        }
+        "source-tarball" => {
+            validate_source_tarball_inputs(resolved)?;
+            let source_tag = resolve_source_tarball_tag(
+                version_tag,
+                resolved.tag_format.as_deref(),
+                None,
+                &version,
+            )?;
+            let tarball = build_tarball_asset_dry_run(resolved, &version, &source_tag)?;
+            let tag_to_create = if args.skip_tag {
+                None
+            } else {
+                Some(resolve_tag_name(
+                    &version,
+                    version_tag,
+                    resolved.tag_format.as_deref(),
+                    &source_tag,
+                )?)
+            };
+            (version, tag_to_create, AssetMatrix::Universal(tarball))
+        }
+        _ => return Err(AppError::InvalidInput(format!(
+            "artifact.strategy '{}' is not supported yet (use 'release-asset' or 'source-tarball')",
+            resolved.artifact_strategy
+        ))),
+    };
+
+    ensure_formula_target(&resolved.formula_path, &version, args.force)?;
+
+    let version_update_mode = ctx
+        .config
+        .version_update
+        .mode
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("none");
+    let needs_cli_repo = tag_to_create.is_some() || version_update_mode != "none";
+
+    if !args.allow_dirty {
+        ensure_clean_repo(&resolved.tap_root, "tap repo")?;
+        if needs_cli_repo {
+            let cli_root = ctx.repo.git_root.as_ref().ok_or_else(|| {
+                AppError::GitState("cli repo is not a git repository".to_string())
+            })?;
+            ensure_clean_repo(cli_root, "cli repo")?;
+        }
+    }
+
+    if version_update_mode != "none" {
+        let cli_root =
+            ctx.repo.git_root.as_ref().ok_or_else(|| {
+                AppError::GitState("cli repo is not a git repository".to_string())
+            })?;
+        let updated_files =
+            apply_version_update(&ctx.config.version_update, cli_root, &version, true)?;
+        if !updated_files.is_empty() {
+            println!(
+                "dry-run: would update version in {}",
+                format_paths(&updated_files)
+            );
+        }
+    }
+
+    let spec = FormulaSpec {
+        name: resolved.formula_name.clone(),
+        desc: resolved.description.clone(),
+        homepage: resolved.homepage.clone(),
+        license: resolved.license.clone(),
+        version: version.clone(),
+        bins: resolved.bins.clone(),
+        assets: asset_matrix,
+        install_block: resolved.install_block.clone(),
+    };
+
+    let rendered = if let Some(path) = resolved.template_path.as_ref() {
+        let template = read_template(path)?;
+        spec.render_with_template(&template)?
+    } else {
+        spec.render()?
+    };
+
+    let plan = RepoPlan {
+        label: "tap".to_string(),
+        repo_root: resolved.tap_root.clone(),
+        writes: vec![PlannedWrite {
+            path: resolved.formula_path.clone(),
+            content: rendered,
+        }],
+    };
+
+    let preview = preview_and_apply(&[plan], true)?;
+    print_preview(&preview);
     Ok(())
 }
 
@@ -457,7 +597,11 @@ fn resolve_release_context(
     })
 }
 
-fn resolve_tap_root_for_release(ctx: &AppContext, args: &ReleaseArgs) -> Result<TapRoot, AppError> {
+fn resolve_tap_root_for_release(
+    ctx: &AppContext,
+    args: &ReleaseArgs,
+    dry_run: bool,
+) -> Result<TapRoot, AppError> {
     let remote_url = args
         .tap_remote
         .as_deref()
@@ -499,6 +643,14 @@ fn resolve_tap_root_for_release(ctx: &AppContext, args: &ReleaseArgs) -> Result<
     }
 
     if let Some(remote) = remote_url.as_deref() {
+        if dry_run {
+            return Ok(TapRoot {
+                path: None,
+                temp_dir: None,
+                cloned_from: None,
+                remote_url,
+            });
+        }
         let temp_dir = TempBuilder::new().prefix("brewdistillery-tap-").tempdir()?;
         let dest = temp_dir.path().join("tap");
         git_clone(remote, &dest)?;
@@ -675,6 +827,235 @@ fn extract_quoted(input: &str) -> Option<String> {
         output.push(ch);
     }
     None
+}
+
+fn build_assets_dry_run(
+    resolved: &ReleaseContext,
+    version: &str,
+    tag: &str,
+) -> Result<AssetMatrix, AppError> {
+    if resolved.targets.is_empty() {
+        let asset =
+            build_release_asset_dry_run(resolved, None, version, tag, "universal", None, None)?;
+        return Ok(AssetMatrix::Universal(asset));
+    }
+
+    let mut targets = Vec::new();
+    let mut macos: Option<FormulaAsset> = None;
+    let mut linux: Option<FormulaAsset> = None;
+    let mut mode: Option<TargetMode> = None;
+    for (key, target) in &resolved.targets {
+        match parse_target_key(key)? {
+            TargetKey::Os(os) => {
+                if matches!(mode, Some(TargetMode::PerTarget)) {
+                    return Err(AppError::InvalidInput(
+                        "target keys must be all <os> or all <os>-<arch>".to_string(),
+                    ));
+                }
+                mode = Some(TargetMode::PerOs);
+                let asset = build_release_asset_dry_run(
+                    resolved,
+                    Some(target),
+                    version,
+                    tag,
+                    key,
+                    Some(os),
+                    None,
+                )?;
+                match os {
+                    Os::Darwin => {
+                        if macos.is_some() {
+                            return Err(AppError::InvalidInput(
+                                "duplicate target entry for macos".to_string(),
+                            ));
+                        }
+                        macos = Some(asset);
+                    }
+                    Os::Linux => {
+                        if linux.is_some() {
+                            return Err(AppError::InvalidInput(
+                                "duplicate target entry for linux".to_string(),
+                            ));
+                        }
+                        linux = Some(asset);
+                    }
+                }
+            }
+            TargetKey::OsArch(os, arch) => {
+                if matches!(mode, Some(TargetMode::PerOs)) {
+                    return Err(AppError::InvalidInput(
+                        "target keys must be all <os> or all <os>-<arch>".to_string(),
+                    ));
+                }
+                mode = Some(TargetMode::PerTarget);
+                let asset = build_release_asset_dry_run(
+                    resolved,
+                    Some(target),
+                    version,
+                    tag,
+                    key,
+                    Some(os),
+                    Some(arch),
+                )?;
+                targets.push(TargetAsset { os, arch, asset });
+            }
+        }
+    }
+
+    match mode {
+        Some(TargetMode::PerOs) => Ok(AssetMatrix::PerOs { macos, linux }),
+        Some(TargetMode::PerTarget) => Ok(AssetMatrix::PerTarget(targets)),
+        None => Ok(AssetMatrix::Universal(build_release_asset_dry_run(
+            resolved,
+            None,
+            version,
+            tag,
+            "universal",
+            None,
+            None,
+        )?)),
+    }
+}
+
+fn build_release_asset_dry_run(
+    resolved: &ReleaseContext,
+    target: Option<&ArtifactTarget>,
+    version: &str,
+    tag: &str,
+    target_key: &str,
+    os: Option<Os>,
+    arch: Option<Arch>,
+) -> Result<FormulaAsset, AppError> {
+    let (asset_name, asset_template) = resolve_target_selection(resolved, target);
+    let name = if let Some(name) = asset_name {
+        name
+    } else if let Some(template) = asset_template {
+        render_asset_template_dry_run(&template, &resolved.project_name, version, os, arch)?
+    } else {
+        return Err(AppError::MissingConfig(format!(
+            "missing required fields for --dry-run: asset-name or asset-template for target '{target_key}'"
+        )));
+    };
+
+    let url = release_asset_url(&resolved.host_owner, &resolved.host_repo, tag, &name)?;
+    println!("dry-run: would download {}", url);
+    Ok(FormulaAsset {
+        url,
+        sha256: "DRY-RUN".to_string(),
+    })
+}
+
+fn resolve_target_selection(
+    resolved: &ReleaseContext,
+    target: Option<&ArtifactTarget>,
+) -> (Option<String>, Option<String>) {
+    let asset_name = target
+        .and_then(|value| selection_value(value.asset_name.as_ref()))
+        .or_else(|| selection_value(resolved.asset_name.as_ref()));
+    let asset_template = target
+        .and_then(|value| selection_value(value.asset_template.as_ref()))
+        .or_else(|| selection_value(resolved.asset_template.as_ref()));
+    (asset_name, asset_template)
+}
+
+fn selection_value(value: Option<&String>) -> Option<String> {
+    value
+        .map(|entry| entry.trim())
+        .filter(|entry| !entry.is_empty())
+        .map(|entry| entry.to_string())
+}
+
+fn render_asset_template_dry_run(
+    template: &str,
+    project_name: &str,
+    version: &str,
+    os: Option<Os>,
+    arch: Option<Arch>,
+) -> Result<String, AppError> {
+    let mut output = template.to_string();
+
+    if output.contains("{name}") {
+        if project_name.trim().is_empty() {
+            return Err(AppError::InvalidInput(
+                "asset_template requires {name}".to_string(),
+            ));
+        }
+        output = output.replace("{name}", project_name.trim());
+    }
+
+    if output.contains("{version}") {
+        if version.trim().is_empty() {
+            return Err(AppError::InvalidInput(
+                "asset_template requires {version}".to_string(),
+            ));
+        }
+        output = output.replace("{version}", version.trim());
+    }
+
+    if output.contains("{os}") {
+        let os =
+            os.ok_or_else(|| AppError::InvalidInput("asset_template requires {os}".to_string()))?;
+        output = output.replace("{os}", os_token(os));
+    }
+
+    if output.contains("{arch}") {
+        let arch = arch
+            .ok_or_else(|| AppError::InvalidInput("asset_template requires {arch}".to_string()))?;
+        output = output.replace("{arch}", arch_token(arch));
+    }
+
+    let trimmed = output.trim();
+    if trimmed.is_empty() {
+        return Err(AppError::InvalidInput(
+            "asset_template rendered an empty asset name".to_string(),
+        ));
+    }
+    Ok(trimmed.to_string())
+}
+
+fn os_token(os: Os) -> &'static str {
+    match os {
+        Os::Darwin => "darwin",
+        Os::Linux => "linux",
+    }
+}
+
+fn arch_token(arch: Arch) -> &'static str {
+    match arch {
+        Arch::Arm64 => "arm64",
+        Arch::Amd64 => "amd64",
+    }
+}
+
+fn release_asset_url(
+    owner: &str,
+    repo: &str,
+    tag: &str,
+    asset_name: &str,
+) -> Result<String, AppError> {
+    let owner = owner.trim();
+    let repo = repo.trim();
+    let tag = tag.trim();
+    if owner.is_empty() || repo.is_empty() {
+        return Err(AppError::InvalidInput(
+            "release asset URL requires host owner and repo".to_string(),
+        ));
+    }
+    if tag.is_empty() {
+        return Err(AppError::InvalidInput(
+            "release asset URL requires a non-empty tag".to_string(),
+        ));
+    }
+    if asset_name.trim().is_empty() {
+        return Err(AppError::InvalidInput(
+            "release asset URL requires a non-empty asset name".to_string(),
+        ));
+    }
+
+    Ok(format!(
+        "https://github.com/{owner}/{repo}/releases/download/{tag}/{}",
+        asset_name.trim()
+    ))
 }
 
 fn build_assets(
@@ -890,6 +1271,25 @@ fn build_tarball_asset(
     };
 
     Ok(FormulaAsset { url, sha256 })
+}
+
+fn build_tarball_asset_dry_run(
+    resolved: &ReleaseContext,
+    version: &str,
+    tag: &str,
+) -> Result<FormulaAsset, AppError> {
+    let url = render_tarball_url(
+        resolved.tarball_url_template.as_deref(),
+        &resolved.host_owner,
+        &resolved.host_repo,
+        tag,
+        version,
+    )?;
+    println!("dry-run: would download {}", url);
+    Ok(FormulaAsset {
+        url,
+        sha256: "DRY-RUN".to_string(),
+    })
 }
 
 fn render_tarball_url(
@@ -1168,9 +1568,11 @@ mod tests {
     }
 
     fn base_context(config: Config, cwd: &Path) -> AppContext {
+        let config_path = cwd.join(".distill/config.toml");
+        config.save(&config_path).unwrap();
         AppContext {
             cwd: cwd.to_path_buf(),
-            config_path: cwd.join(".distill/config.toml"),
+            config_path,
             config,
             repo: RepoInfo::default(),
             verbose: 0,
@@ -1189,6 +1591,58 @@ mod tests {
 end
 "#;
         assert_eq!(extract_formula_version(content), Some("1.2.3".to_string()));
+    }
+
+    #[test]
+    fn dry_run_does_not_clone_remote() {
+        let dir = tempdir().unwrap();
+        let mut config = Config::default();
+        config.tap.remote = Some("ssh://invalid-remote".to_string());
+        let ctx = base_context(config, dir.path());
+        let args = base_release_args();
+
+        let tap_root = resolve_tap_root_for_release(&ctx, &args, true).unwrap();
+        assert!(tap_root.path.is_none());
+        assert_eq!(tap_root.remote_url.as_deref(), Some("ssh://invalid-remote"));
+    }
+
+    #[test]
+    fn dry_run_requires_local_tap_path_when_remote_only() {
+        let dir = tempdir().unwrap();
+        let tap_path = dir.path().join("homebrew-brewtool");
+        let mut config = base_config(&tap_path);
+        config.tap.path = None;
+        config.tap.remote = Some("ssh://invalid-remote".to_string());
+        let ctx = base_context(config, dir.path());
+        let args = base_release_args();
+
+        let err = run(&ctx, &args).unwrap_err();
+        assert!(matches!(err, AppError::MissingConfig(_)));
+        assert_eq!(
+            err.to_string(),
+            "dry-run requires tap.path or an absolute tap.formula_path; tap.remote cannot be auto-cloned"
+        );
+    }
+
+    #[test]
+    fn dry_run_requires_version_or_tag() {
+        let dir = tempdir().unwrap();
+        let tap_path = dir.path().join("homebrew-brewtool");
+        let mut config = base_config(&tap_path);
+        config.artifact.asset_template = Some("brewtool-{version}.tar.gz".to_string());
+        let ctx = base_context(config, dir.path());
+        let mut args = base_release_args();
+        args.tap_path = Some(tap_path.clone());
+
+        let resolved = resolve_release_context(&ctx, &args, Some(&tap_path), None).unwrap();
+        let version_tag = resolve_version_tag(None, None).unwrap();
+
+        let err = run_dry_run_release(&ctx, &args, &resolved, &version_tag).unwrap_err();
+        assert!(matches!(err, AppError::MissingConfig(_)));
+        assert_eq!(
+            err.to_string(),
+            "missing required fields for --dry-run: version or tag"
+        );
     }
 
     #[test]

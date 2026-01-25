@@ -48,6 +48,7 @@ must fail without writing files or making network requests.
   - `--version`
 - Binary names:
   - `--bin-name` (one or more)
+- When using `--tap-new` or `--create-tap`, `--tap-owner` and `--tap-repo` are required.
 
 ### Autodetect sources
 
@@ -78,6 +79,11 @@ must fail without writing files or making network requests.
   - `--version` or `--tag`, unless latest GitHub Release tag can be resolved
     (stable only unless `--include-prerelease`).
   See `docs/release-discovery.md` for the discovery and prerelease rules.
+
+### Dry-run notes
+
+- `--dry-run` requires `--version` or `--tag` because release discovery is skipped.
+- When only `tap.remote` is configured, dry-run requires `tap.path` or an absolute `tap.formula_path`.
 
 ### Autodetect sources
 
