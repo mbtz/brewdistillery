@@ -1,7 +1,47 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-25T14:48:37.673782Z",
+  "generated_at": "2026-01-25T15:04:47.110784Z",
   "tasks": [
+    {
+      "id": "sv-rxc",
+      "title": "Integrate version_update planning into bd release preview",
+      "status": "closed",
+      "priority": "P0",
+      "created_at": "2026-01-25T14:53:59.061605Z",
+      "updated_at": "2026-01-25T15:04:47.102658Z",
+      "body": "Acceptance:\\n- bd release previews CLI repo version changes alongside tap formula changes\\n- no CLI repo writes/commits occur before preview succeeds\\n- a failure after planning (e.g., missing template) leaves CLI repo files unchanged\\n- add tests covering the atomicity guarantee",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-25T15:04:47.076162Z",
+      "closed_at": "2026-01-25T15:04:47.102658Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-nzb",
+      "title": "Plan version_update changes for preview and atomic apply",
+      "status": "closed",
+      "priority": "P0",
+      "created_at": "2026-01-25T14:53:49.539340Z",
+      "updated_at": "2026-01-25T15:04:43.588715Z",
+      "body": "Acceptance:\\n- version_update can compute planned changes without writing files\\n- planned changes include path + new content for preview\\n- non-interactive errors are unchanged and validated before any writes\\n- release can abort before writes when planning fails",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-25T14:54:08.253946Z",
+      "closed_at": "2026-01-25T15:04:43.588715Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-bp2",
+      "title": "EPIC: UX & Safety",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:32.877452Z",
+      "updated_at": "2026-01-25T14:54:01.285553Z",
+      "body": "Scope: prompt flows, preview/confirm UX, error strategy, atomic writes.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
     {
       "id": "sv-m0c",
       "title": "Define latest release selection when --include-prerelease is set",
@@ -87,16 +127,6 @@
       "branch": "main",
       "started_at": "2026-01-25T14:30:33.738644Z",
       "closed_at": "2026-01-25T14:31:49.023290Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-bp2",
-      "title": "EPIC: UX & Safety",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-22T13:31:32.877452Z",
-      "updated_at": "2026-01-25T14:30:25.507488Z",
-      "body": "Scope: prompt flows, preview/confirm UX, error strategy, atomic writes.\\nDoD: Epics only; child tasks define acceptance criteria.",
       "comments_count": 0
     },
     {

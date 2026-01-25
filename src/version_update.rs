@@ -4,12 +4,17 @@ use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-pub fn apply_version_update(
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VersionUpdateChange {
+    pub path: PathBuf,
+    pub content: String,
+}
+
+pub fn plan_version_update(
     config: &VersionUpdateConfig,
     repo_root: &Path,
     version: &str,
-    dry_run: bool,
-) -> Result<Vec<PathBuf>, AppError> {
+) -> Result<Vec<VersionUpdateChange>, AppError> {
     let mode = config
         .mode
         .as_deref()
@@ -19,18 +24,34 @@ pub fn apply_version_update(
 
     match mode {
         "none" => Ok(Vec::new()),
-        "cargo" => update_cargo_version(config, repo_root, version, dry_run),
-        "regex" => update_regex_version(config, repo_root, version, dry_run),
+        "cargo" => update_cargo_version(config, repo_root, version),
+        "regex" => update_regex_version(config, repo_root, version),
         _ => Ok(Vec::new()),
     }
+}
+
+pub fn apply_version_update(
+    config: &VersionUpdateConfig,
+    repo_root: &Path,
+    version: &str,
+    dry_run: bool,
+) -> Result<Vec<PathBuf>, AppError> {
+    let changes = plan_version_update(config, repo_root, version)?;
+
+    if !dry_run {
+        for change in &changes {
+            fs::write(&change.path, &change.content)?;
+        }
+    }
+
+    Ok(changes.into_iter().map(|change| change.path).collect())
 }
 
 fn update_cargo_version(
     config: &VersionUpdateConfig,
     repo_root: &Path,
     version: &str,
-    dry_run: bool,
-) -> Result<Vec<PathBuf>, AppError> {
+) -> Result<Vec<VersionUpdateChange>, AppError> {
     let manifest = repo_root.join("Cargo.toml");
     if !manifest.exists() {
         return Err(AppError::InvalidInput(format!(
@@ -70,15 +91,14 @@ fn update_cargo_version(
             .map(|value| value == name)
             .unwrap_or(true)
         {
-            let changed = update_toml_version_in_section(&manifest, "package", version, dry_run)?;
-            return Ok(changed.then(|| manifest.clone()).into_iter().collect());
+            let change = plan_toml_version_in_section(&manifest, "package", version)?;
+            return Ok(change.into_iter().collect());
         }
     }
 
     if workspace_package.is_some() && target_package.is_none() {
-        let changed =
-            update_toml_version_in_section(&manifest, "workspace.package", version, dry_run)?;
-        return Ok(changed.then(|| manifest.clone()).into_iter().collect());
+        let change = plan_toml_version_in_section(&manifest, "workspace.package", version)?;
+        return Ok(change.into_iter().collect());
     }
 
     let target_package = target_package.ok_or_else(|| {
@@ -89,16 +109,15 @@ fn update_cargo_version(
     })?;
 
     let manifest = find_workspace_manifest(repo_root, &target_package)?;
-    let changed = update_toml_version_in_section(&manifest, "package", version, dry_run)?;
-    Ok(changed.then(|| manifest).into_iter().collect())
+    let change = plan_toml_version_in_section(&manifest, "package", version)?;
+    Ok(change.into_iter().collect())
 }
 
 fn update_regex_version(
     config: &VersionUpdateConfig,
     repo_root: &Path,
     version: &str,
-    dry_run: bool,
-) -> Result<Vec<PathBuf>, AppError> {
+) -> Result<Vec<VersionUpdateChange>, AppError> {
     let file = config
         .regex_file
         .as_ref()
@@ -156,19 +175,17 @@ fn update_regex_version(
         return Ok(Vec::new());
     }
 
-    if !dry_run {
-        fs::write(&path, updated)?;
-    }
-
-    Ok(vec![path])
+    Ok(vec![VersionUpdateChange {
+        path,
+        content: updated,
+    }])
 }
 
-fn update_toml_version_in_section(
+fn plan_toml_version_in_section(
     path: &Path,
     section: &str,
     version: &str,
-    dry_run: bool,
-) -> Result<bool, AppError> {
+) -> Result<Option<VersionUpdateChange>, AppError> {
     let content = fs::read_to_string(path)?;
     let mut output = Vec::new();
     let mut in_section = false;
@@ -207,14 +224,13 @@ fn update_toml_version_in_section(
     }
 
     if joined == content {
-        return Ok(false);
+        return Ok(None);
     }
 
-    if !dry_run {
-        fs::write(path, joined)?;
-    }
-
-    Ok(true)
+    Ok(Some(VersionUpdateChange {
+        path: path.to_path_buf(),
+        content: joined,
+    }))
 }
 
 fn replace_version_line(line: &str, version: &str) -> Option<String> {
@@ -324,6 +340,33 @@ fn should_skip_dir(path: &Path) -> bool {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn planning_does_not_write_files() {
+        let dir = tempdir().unwrap();
+        let manifest = dir.path().join("Cargo.toml");
+        fs::write(
+            &manifest,
+            "[package]\nname = \"demo\"\nversion = \"0.1.0\"\n",
+        )
+        .unwrap();
+
+        let config = VersionUpdateConfig {
+            mode: Some("cargo".to_string()),
+            cargo_package: None,
+            regex_file: None,
+            regex_pattern: None,
+            regex_replacement: None,
+            extra: Default::default(),
+        };
+
+        let planned = plan_version_update(&config, dir.path(), "1.2.3").unwrap();
+        assert_eq!(planned.len(), 1);
+        assert!(planned[0].content.contains("version = \"1.2.3\""));
+
+        let unchanged = fs::read_to_string(&manifest).unwrap();
+        assert!(unchanged.contains("version = \"0.1.0\""));
+    }
 
     #[test]
     fn updates_cargo_package_version() {

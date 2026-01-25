@@ -8,3 +8,4 @@
 
 ## Decisions needed
 - Confirm Cargo workspace version update policy: current implementation updates root `[package]` by default, uses `[workspace.package]` if present and no `version_update.cargo_package`, otherwise requires `version_update.cargo_package` to target a member package.
+- Confirm `--include-prerelease` latest-release behavior: current implementation selects the newest non-draft release even if it is a prerelease (i.e., latest overall, not "prefer stable").

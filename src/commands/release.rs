@@ -15,7 +15,7 @@ use crate::host::{
 };
 use crate::preview::{preview_and_apply, PlannedWrite, RepoPlan};
 use crate::version::{resolve_version_tag, ResolvedVersionTag};
-use crate::version_update::apply_version_update;
+use crate::version_update::{plan_version_update, VersionUpdateChange};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use tempfile::{Builder as TempBuilder, TempDir};
@@ -198,6 +198,14 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         .unwrap_or("none");
     let needs_cli_repo = tag_to_create.is_some() || version_update_mode != "none";
 
+    if !args.dry_run && needs_cli_repo && ctx.repo.git_root.is_none() {
+        return Err(AppError::GitState(
+            "cli repo is not a git repository".to_string(),
+        ));
+    }
+
+    let cli_repo_root = ctx.repo.git_root.as_ref().unwrap_or(&ctx.cwd);
+
     if !args.allow_dirty {
         ensure_clean_repo(&resolved.tap_root, "tap repo")?;
         if needs_cli_repo {
@@ -208,28 +216,12 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         }
     }
 
-    if version_update_mode != "none" {
-        let cli_root =
-            ctx.repo.git_root.as_ref().ok_or_else(|| {
-                AppError::GitState("cli repo is not a git repository".to_string())
-            })?;
-        let updated_files =
-            apply_version_update(&ctx.config.version_update, cli_root, &version, args.dry_run)?;
-        if !updated_files.is_empty() {
-            if args.dry_run {
-                println!(
-                    "dry-run: would update version in {}",
-                    format_paths(&updated_files)
-                );
-            } else {
-                let message = build_version_update_message(&version);
-                commit_version_update(cli_root, &updated_files, &message)?;
-                if !args.no_push {
-                    push_head(cli_root, resolved.cli_remote_url.as_deref(), RemoteContext::Cli)?;
-                }
-            }
-        }
-    }
+    let version_update_plan = if version_update_mode != "none" {
+        plan_version_update(&ctx.config.version_update, cli_repo_root, &version)?
+    } else {
+        Vec::new()
+    };
+    let version_update_paths = planned_paths(&version_update_plan);
 
     let spec = FormulaSpec {
         name: resolved.formula_name.clone(),
@@ -249,16 +241,24 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         spec.render()?
     };
 
-    let plan = RepoPlan {
+    let mut plans = Vec::new();
+    if !version_update_plan.is_empty() {
+        plans.push(RepoPlan {
+            label: "cli".to_string(),
+            repo_root: cli_repo_root.to_path_buf(),
+            writes: planned_writes(&version_update_plan),
+        });
+    }
+    plans.push(RepoPlan {
         label: "tap".to_string(),
         repo_root: resolved.tap_root.clone(),
         writes: vec![PlannedWrite {
             path: resolved.formula_path.clone(),
             content: rendered,
         }],
-    };
+    });
 
-    let preview = preview_and_apply(&[plan], args.dry_run)?;
+    let preview = preview_and_apply(&plans, args.dry_run)?;
     print_preview(&preview);
 
     if args.dry_run {
@@ -272,26 +272,60 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         &version,
     );
 
-    if !preview.changed_files.is_empty() {
-        commit_formula_update(&resolved.tap_root, &resolved.formula_path, &commit_message)?;
-        if !args.no_push {
+    let formula_changed = preview
+        .changed_files
+        .iter()
+        .any(|path| path == &resolved.formula_path);
+    let cli_changed = version_update_paths.iter().any(|path| {
+        preview
+            .changed_files
+            .iter()
+            .any(|changed| changed == path)
+    });
+
+    if !cli_changed && !formula_changed {
+        println!("release: no changes to commit");
+    } else {
+        if cli_changed {
+            let cli_root = ctx.repo.git_root.as_ref().ok_or_else(|| {
+                AppError::GitState("cli repo is not a git repository".to_string())
+            })?;
+            let message = build_version_update_message(&version);
+            commit_version_update(cli_root, &version_update_paths, &message)?;
+        }
+
+        if formula_changed {
+            commit_formula_update(&resolved.tap_root, &resolved.formula_path, &commit_message)?;
+        } else {
+            println!("release: no formula changes to commit");
+        }
+    }
+
+    if let Some(tag_name) = tag_to_create.as_deref() {
+        let cli_root = ctx.repo.git_root.as_ref().ok_or_else(|| {
+            AppError::GitState("cli repo is not a git repository".to_string())
+        })?;
+        create_tag(cli_root, tag_name)?;
+    }
+
+    if !args.no_push {
+        if formula_changed {
             push_head(
                 &resolved.tap_root,
                 resolved.tap_remote_url.as_deref(),
                 RemoteContext::Tap,
             )?;
         }
-    } else {
-        println!("release: no formula changes to commit");
-    }
-
-    if let Some(tag_name) = tag_to_create.as_deref() {
-        let cli_root =
-            ctx.repo.git_root.as_ref().ok_or_else(|| {
+        if cli_changed {
+            let cli_root = ctx.repo.git_root.as_ref().ok_or_else(|| {
                 AppError::GitState("cli repo is not a git repository".to_string())
             })?;
-        create_tag(cli_root, tag_name)?;
-        if !args.no_push {
+            push_head(cli_root, resolved.cli_remote_url.as_deref(), RemoteContext::Cli)?;
+        }
+        if let Some(tag_name) = tag_to_create.as_deref() {
+            let cli_root = ctx.repo.git_root.as_ref().ok_or_else(|| {
+                AppError::GitState("cli repo is not a git repository".to_string())
+            })?;
             push_tag(
                 cli_root,
                 tag_name,
@@ -534,6 +568,7 @@ fn run_dry_run_release(
         .filter(|value| !value.is_empty())
         .unwrap_or("none");
     let needs_cli_repo = tag_to_create.is_some() || version_update_mode != "none";
+    let cli_repo_root = ctx.repo.git_root.as_ref().unwrap_or(&ctx.cwd);
 
     if !args.allow_dirty {
         ensure_clean_repo(&resolved.tap_root, "tap repo")?;
@@ -545,19 +580,17 @@ fn run_dry_run_release(
         }
     }
 
-    if version_update_mode != "none" {
-        let cli_root =
-            ctx.repo.git_root.as_ref().ok_or_else(|| {
-                AppError::GitState("cli repo is not a git repository".to_string())
-            })?;
-        let updated_files =
-            apply_version_update(&ctx.config.version_update, cli_root, &version, true)?;
-        if !updated_files.is_empty() {
-            println!(
-                "dry-run: would update version in {}",
-                format_paths(&updated_files)
-            );
-        }
+    let version_update_plan = if version_update_mode != "none" {
+        plan_version_update(&ctx.config.version_update, cli_repo_root, &version)?
+    } else {
+        Vec::new()
+    };
+    let version_update_paths = planned_paths(&version_update_plan);
+    if !version_update_paths.is_empty() {
+        println!(
+            "dry-run: would update version in {}",
+            format_paths(&version_update_paths)
+        );
     }
 
     let spec = FormulaSpec {
@@ -578,16 +611,24 @@ fn run_dry_run_release(
         spec.render()?
     };
 
-    let plan = RepoPlan {
+    let mut plans = Vec::new();
+    if !version_update_plan.is_empty() {
+        plans.push(RepoPlan {
+            label: "cli".to_string(),
+            repo_root: cli_repo_root.to_path_buf(),
+            writes: planned_writes(&version_update_plan),
+        });
+    }
+    plans.push(RepoPlan {
         label: "tap".to_string(),
         repo_root: resolved.tap_root.clone(),
         writes: vec![PlannedWrite {
             path: resolved.formula_path.clone(),
             content: rendered,
         }],
-    };
+    });
 
-    let preview = preview_and_apply(&[plan], true)?;
+    let preview = preview_and_apply(&plans, true)?;
     print_preview(&preview);
     Ok(())
 }
@@ -1026,6 +1067,20 @@ fn format_paths(paths: &[PathBuf]) -> String {
         .map(|path| path.display().to_string())
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+fn planned_paths(changes: &[VersionUpdateChange]) -> Vec<PathBuf> {
+    changes.iter().map(|change| change.path.clone()).collect()
+}
+
+fn planned_writes(changes: &[VersionUpdateChange]) -> Vec<PlannedWrite> {
+    changes
+        .iter()
+        .map(|change| PlannedWrite {
+            path: change.path.clone(),
+            content: change.content.clone(),
+        })
+        .collect()
 }
 
 fn commit_formula_update(repo: &Path, formula_path: &Path, message: &str) -> Result<(), AppError> {
@@ -1841,7 +1896,11 @@ mod tests {
     use crate::context::AppContext;
     use crate::repo_detect::RepoInfo;
     use std::collections::BTreeMap;
+    use std::io::{ErrorKind, Read, Write};
+    use std::net::TcpListener;
     use std::path::Path;
+    use std::thread;
+    use std::time::Duration;
     use tempfile::tempdir;
 
     fn base_release_args() -> ReleaseArgs {
@@ -1889,6 +1948,40 @@ mod tests {
             repo: RepoInfo::default(),
             verbose: 0,
         }
+    }
+
+    fn spawn_tarball_server(body: Vec<u8>) -> (String, thread::JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind test server");
+        let addr = listener.local_addr().expect("local addr");
+        listener
+            .set_nonblocking(true)
+            .expect("set nonblocking listener");
+
+        let handle = thread::spawn(move || {
+            for _ in 0..500 {
+                match listener.accept() {
+                    Ok((mut stream, _)) => {
+                        let mut buffer = [0u8; 1024];
+                        let _ = stream.read(&mut buffer);
+
+                        let response = format!(
+                            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                            body.len()
+                        );
+                        let _ = stream.write_all(response.as_bytes());
+                        let _ = stream.write_all(&body);
+                        let _ = stream.flush();
+                        return;
+                    }
+                    Err(err) if err.kind() == ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(10));
+                    }
+                    Err(_) => return,
+                }
+            }
+        });
+
+        (format!("http://{}", addr), handle)
     }
 
     #[test]
@@ -2147,6 +2240,59 @@ end
             err.to_string(),
             "per-OS target 'darwin' cannot use {arch} in asset_template; use <os>-<arch> targets instead"
         );
+    }
+
+    #[test]
+    fn version_update_plan_does_not_write_when_template_missing() {
+        let dir = tempdir().unwrap();
+        let tap_path = dir.path().join("homebrew-brewtool");
+        let formula_path = tap_path.join("Formula/brewtool.rb");
+        std::fs::create_dir_all(formula_path.parent().unwrap()).unwrap();
+        std::fs::write(
+            &formula_path,
+            "class Brewtool < Formula\n  version \"0.1.0\"\nend\n",
+        )
+        .unwrap();
+
+        let cargo_manifest = dir.path().join("Cargo.toml");
+        std::fs::write(
+            &cargo_manifest,
+            "[package]\nname = \"brewtool\"\nversion = \"0.1.0\"\n",
+        )
+        .unwrap();
+
+        let (base_url, server) = spawn_tarball_server(b"tarball-data".to_vec());
+
+        let mut config = base_config(&tap_path);
+        config.artifact.strategy = Some("source-tarball".to_string());
+        config.artifact.asset_template = None;
+        config.artifact.asset_name = None;
+        config.release.tarball_url_template =
+            Some(format!("{base_url}/brewtool-{{version}}.tar.gz"));
+        config.version_update.mode = Some("cargo".to_string());
+        config.template.path = Some(dir.path().join("missing-template.rb"));
+
+        let mut ctx = base_context(config, dir.path());
+        ctx.repo.git_root = Some(dir.path().to_path_buf());
+
+        let mut args = base_release_args();
+        args.dry_run = false;
+        args.allow_dirty = true;
+        args.skip_tag = true;
+        args.tap_path = Some(tap_path.clone());
+        args.version = Some("1.2.3".to_string());
+        args.tag = Some("v1.2.3".to_string());
+
+        let err = run(&ctx, &args).unwrap_err();
+        assert!(matches!(err, AppError::InvalidInput(_)));
+        assert!(err.to_string().contains("template not found"));
+
+        server.join().unwrap();
+
+        let cargo_after = std::fs::read_to_string(&cargo_manifest).unwrap();
+        assert!(cargo_after.contains("version = \"0.1.0\""));
+        let formula_after = std::fs::read_to_string(&formula_path).unwrap();
+        assert!(formula_after.contains("version \"0.1.0\""));
     }
 
     #[test]
