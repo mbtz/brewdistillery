@@ -5231,3 +5231,80 @@ Commits pushed:
 Natural next step: I can start `sv-g9y` (Cargo workspace version_update defaults) next.
 ```
 
+## 2026-01-25T14:27:02Z
+
+- run_id: 9bb4d6b9-ec37-49da-a136-44eb85e31424
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-25T13:59:24Z
+- finished_at: 2026-01-25T14:27:02Z
+- exit_code: 0
+
+```
++
++        let changed = apply_version_update(&config, dir.path(), "2.0.0", false).unwrap();
++        assert_eq!(changed, vec![manifest.clone()]);
++
++        let updated = fs::read_to_string(&manifest).unwrap();
++        assert!(updated.contains("version = \"2.0.0\""));
++    }
++
++    #[test]
+     fn updates_workspace_member_version() {
+         let dir = tempdir().unwrap();
+         fs::write(
+@@ -384,6 +433,31 @@
+     }
+ 
+     #[test]
++    fn requires_cargo_package_for_workspace_without_root_versions() {
++        let dir = tempdir().unwrap();
++        fs::write(
++            dir.path().join("Cargo.toml"),
++            "[workspace]\nmembers = [\"crates/app\"]\n",
++        )
++        .unwrap();
++
++        let config = VersionUpdateConfig {
++            mode: Some("cargo".to_string()),
++            cargo_package: None,
++            regex_file: None,
++            regex_pattern: None,
++            regex_replacement: None,
++            extra: Default::default(),
++        };
++
++        let err = apply_version_update(&config, dir.path(), "1.0.0", false).unwrap_err();
++        assert_eq!(
++            err.to_string(),
++            "version_update.mode=cargo requires version_update.cargo_package for workspaces without [package] or [workspace.package]"
++        );
++    }
++
++    #[test]
+     fn updates_regex_file() {
+         let dir = tempdir().unwrap();
+         let file = dir.path().join("version.txt");
+
+tokens used
+1 276 755
+Done — I used `sv` to track the work, implemented the open tasks, ran tests, and pushed.
+
+Closed tasks: `sv-bk0`, `sv-05z`, `sv-x00`, `sv-g9y`, `sv-mgt`, `sv-ewx`, `sv-ggc`.
+
+Validation: `cargo test` (96 passed).
+
+Commits pushed:
+- `93714b9` chore: update forge ledger
+- `d370917` feat: harden validation for release, init import, and previews
+
+Skills used: `workflow-pattern` → `sv-issue-tracking` → `session-protocol`.
+
+If you want, I can now break down one of the open epics into the next concrete `sv` tasks and keep going.
+```
+
