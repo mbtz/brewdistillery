@@ -5616,3 +5616,80 @@ Commits pushed:
 Natural next step: I can pick the next highest-impact PRD gap (e.g., prerelease selection policy or workspace version policy from `USER_TODO.md`).
 ```
 
+## 2026-01-25T15:38:12Z
+
+- run_id: ca6b8554-45b1-4788-8793-dc3b9f878ab2
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-25T15:30:48Z
+- finished_at: 2026-01-25T15:38:12Z
+- exit_code: 0
+
+```
++    if trimmed.is_empty() {
++        return Err(AppError::InvalidInput(format!("{label} {SPDX_GUIDANCE}")));
++    }
++
++    let canonical = match spdx::Expression::canonicalize(trimmed) {
++        Ok(Some(value)) => value,
++        Ok(None) => trimmed.to_string(),
++        Err(_) => trimmed.to_string(),
++    };
++
++    if spdx::Expression::parse(&canonical).is_err() {
++        return Err(AppError::InvalidInput(format!("{label} {SPDX_GUIDANCE}")));
++    }
++
++    Ok(canonical)
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn canonicalizes_lowercase_identifier() {
++        let canonical = canonicalize_spdx("mit", "license").expect("canonicalize");
++        assert_eq!(canonical, "MIT");
++    }
++
++    #[test]
++    fn rejects_invalid_identifier() {
++        let err = canonicalize_spdx("not-a-license", "license").expect_err("invalid");
++        assert!(err.to_string().contains("valid SPDX"));
++    }
++}
++
+
+tokens used
+457 756
+Done. I created `sv` tasks, implemented them, validated, and pushed.
+
+What I changed:
+- SPDX license validation + canonicalization:
+  - Added `src/license.rs`
+  - Enforced in `src/config.rs` and `src/commands/init.rs`
+  - Added `spdx` dependency in `Cargo.toml`
+- Doctor safety improvement:
+  - Warn on placeholder `sha256 "TODO"` in `src/commands/doctor.rs`
+- Cleaner tests:
+  - Silenced git command noise in `src/git.rs`
+
+Task tracking:
+- Created and closed: `sv-c34`, `sv-4qe`, `sv-nwb`
+
+Validation:
+- Ran `cargo test` (115 passed)
+
+Commits:
+- `ccbe159 chore: update forge ledger`
+- `c7fdb4f feat: validate SPDX licenses and harden doctor checks`
+
+If you want, I can pick the next PRD gap and open/implement the next `sv` task.
+```
+
