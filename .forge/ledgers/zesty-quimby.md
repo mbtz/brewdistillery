@@ -5308,3 +5308,80 @@ Skills used: `workflow-pattern` → `sv-issue-tracking` → `session-protocol`.
 If you want, I can now break down one of the open epics into the next concrete `sv` tasks and keep going.
 ```
 
+## 2026-01-25T14:39:04Z
+
+- run_id: fb46d0ba-5c15-41bf-b1d1-0c95a5173546
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-25T14:27:32Z
+- finished_at: 2026-01-25T14:39:04Z
+- exit_code: 0
+
+```
++}
++
++pub fn main_with_exit() {
++    if let Err(err) = run_cli() {
++        eprintln!("error: {err}");
++        std::process::exit(err.exit_code());
++    }
++}
+diff --git a/src/main.rs b/src/main.rs
+deleted file mode 100644
+index 69d9a2bb5b1f6cc976375d5207d4296c7b399501..0000000000000000000000000000000000000000
+--- a/src/main.rs
++++ /dev/null
+@@ -1,22 +0,0 @@
+-use brewdistillery::cli::{Cli, Commands};
+-use brewdistillery::context::AppContext;
+-use brewdistillery::errors::AppError;
+-use clap::Parser;
+-
+-fn main() {
+-    if let Err(err) = run() {
+-        eprintln!("error: {err}");
+-        std::process::exit(err.exit_code());
+-    }
+-}
+-
+-fn run() -> Result<(), AppError> {
+-    let cli = Cli::parse();
+-    let ctx = AppContext::load(&cli)?;
+-
+-    match &cli.command {
+-        Commands::Init(args) => brewdistillery::commands::init::run(&ctx, args),
+-        Commands::Release(args) => brewdistillery::commands::release::run(&ctx, args),
+-        Commands::Doctor(args) => brewdistillery::commands::doctor::run(&ctx, args),
+-    }
+-}
+
+tokens used
+611 672
+Done — I created `sv` tasks from the PRD, implemented them, and pushed to `main`.
+
+Tasks completed:
+- `sv-18r` Add `brewdistillery` binary alias alongside `bd`
+- `sv-qcx` Improve git remote selection errors with tap/cli context
+- `sv-k5k` Add `bd template` command for template preview/validation
+
+Key changes:
+- Dual binaries via shared entrypoint: `Cargo.toml`, `src/lib.rs`, `src/bin/bd.rs`, `src/bin/brewdistillery.rs` (removed `src/main.rs`)
+- New template command: `src/cli.rs`, `src/commands/template.rs`, `src/commands/mod.rs`, `src/formula.rs`
+- Contextual git errors: `src/git.rs`, `src/commands/release.rs`
+- Docs/status updates: `README.md`, `USER_TODO.md`
+
+Validation:
+- Ran `cargo test` — 99 passed
+
+Commits:
+- `7cba0c9` chore: update forge ledger
+- `d1bcbe0` feat: add template command and improve CLI ergonomics
+
+One decision still queued in `USER_TODO.md`: Cargo workspace version update policy.
+```
+
