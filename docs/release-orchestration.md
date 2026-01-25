@@ -14,12 +14,15 @@ canonical error behavior for common failure paths.
 5. Discover the GitHub Release when using `release-asset` strategy (skipped in `--dry-run`).
 6. Select the release asset(s) and compute SHA256 values (dry-run derives asset URLs locally and uses `SHA256=DRY-RUN`).
 7. Enforce idempotency checks against the existing formula.
-8. Enforce clean git working trees unless `--allow-dirty` is set.
-9. Apply optional version update automation in the CLI repo.
-10. Render the formula.
-11. Preview the change and apply it atomically.
-12. Commit and push the tap repo update (unless `--no-push`).
-13. Create and push the tag in the CLI repo (unless `--skip-tag` or `--no-push`).
+8. Require a git root for the CLI repo when tagging or version updates are enabled (non-dry-run only).
+9. Enforce clean git working trees unless `--allow-dirty` is set.
+10. Plan optional version update automation in the CLI repo (no writes yet).
+11. Render the formula.
+12. Preview all repo changes together and apply them atomically.
+13. Commit CLI repo version updates when present.
+14. Commit the tap repo update when the formula changed.
+15. Create the tag in the CLI repo (unless `--skip-tag`).
+16. Push commits and tags (unless `--no-push`).
 
 Notes:
 - In `--dry-run` mode, the command performs no network calls (no tap clone,
@@ -27,6 +30,8 @@ Notes:
 - Dry-run requires an explicit `--version` or `--tag`.
 - Dry-run also requires `tap.path` or an absolute `tap.formula_path` when
   `tap.remote` is configured, because remotes are not auto-cloned.
+- In non-dry-run mode, tagging or version updates require the CLI repo to be a
+  git repository; the command fails before writing files otherwise.
 
 ## Tap root resolution rules
 
@@ -62,7 +67,10 @@ Canonical idempotency messages:
 Example dry-run output with a local tap path:
 
 ```text
+dry-run: would update version in /path/to/cli/Cargo.toml
 dry-run: would download https://github.com/acme/tool/releases/download/1.2.3/tool-1.2.3-darwin-arm64.tar.gz
+Repo: cli (/path/to/cli)
+  - Cargo.toml (modified)
 Repo: tap (/path/to/homebrew-tool)
   - Formula/tool.rb (modified)
 ```
@@ -83,4 +91,4 @@ Invalid user input (exit code 3):
 Git state failures (exit code 4):
 - `<label> has uncommitted changes; re-run with --allow-dirty to continue`
 - `tag '<tag>' already exists; re-run with --skip-tag or choose a new version`
-- `multiple git remotes found; configure origin or set a matching remote URL`
+- `multiple GitHub remotes found in <repo>; set a matching tap.remote/cli.remote URL`
