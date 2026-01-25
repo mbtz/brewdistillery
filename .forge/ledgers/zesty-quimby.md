@@ -5462,3 +5462,80 @@ What I completed:
 - Pushed to `main` successfully.
 ```
 
+## 2026-01-25T15:07:57Z
+
+- run_id: 641375b1-c169-4d1d-afe6-aea1bd50b72d
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-25T14:50:12Z
+- finished_at: 2026-01-25T15:07:57Z
+- exit_code: 0
+
+```
++    fn planning_does_not_write_files() {
++        let dir = tempdir().unwrap();
++        let manifest = dir.path().join("Cargo.toml");
++        fs::write(
++            &manifest,
++            "[package]\nname = \"demo\"\nversion = \"0.1.0\"\n",
++        )
++        .unwrap();
++
++        let config = VersionUpdateConfig {
++            mode: Some("cargo".to_string()),
++            cargo_package: None,
++            regex_file: None,
++            regex_pattern: None,
++            regex_replacement: None,
++            extra: Default::default(),
++        };
++
++        let planned = plan_version_update(&config, dir.path(), "1.2.3").unwrap();
++        assert_eq!(planned.len(), 1);
++        assert!(planned[0].content.contains("version = \"1.2.3\""));
++
++        let unchanged = fs::read_to_string(&manifest).unwrap();
++        assert!(unchanged.contains("version = \"0.1.0\""));
++    }
++
++    #[test]
+     fn updates_cargo_package_version() {
+         let dir = tempdir().unwrap();
+         let manifest = dir.path().join("Cargo.toml");
+
+tokens used
+1 067 424
+Done — I created `sv` tasks, implemented the changes, ran tests, and pushed.
+
+What I did:
+- Used `sv-issue-tracking` and added/closed:
+  - `sv-nzb` Plan version updates for preview/atomic apply
+  - `sv-rxc` Integrate version-update planning into `bd release` preview
+  - `sv-kdy` Document the updated release flow
+- Implemented multi-repo preview + safer ordering:
+  - `src/version_update.rs`
+  - `src/commands/release.rs`
+- Added an atomicity regression test:
+  - `src/commands/release.rs`
+- Updated docs to match behavior:
+  - `docs/release-orchestration.md`
+- Updated decisions needed:
+  - `USER_TODO.md`
+
+Validation:
+- Ran `cargo test` (107 passing)
+
+Commits pushed to `main`:
+- `700003a chore: update forge ledger`
+- `b5def4c feat: preview version updates in release`
+- `f5629e1 docs: update release orchestration flow`
+
+Next step for you:
+- Please review the decisions in `USER_TODO.md` and reply in `USER_FEEDBACK.md`.
+```
+
