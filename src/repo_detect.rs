@@ -1,5 +1,6 @@
 use crate::errors::AppError;
 use serde_json::Value as JsonValue;
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use toml::Value as TomlValue;
@@ -8,6 +9,7 @@ use toml::Value as TomlValue;
 pub struct RepoInfo {
     pub git_root: Option<PathBuf>,
     pub metadata: Option<ProjectMetadata>,
+    pub conflicts: Vec<MetadataConflict>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -19,6 +21,24 @@ pub struct ProjectMetadata {
     pub version: Option<String>,
     pub bin: Vec<String>,
     pub source: MetadataSource,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConflictPolicy {
+    Error,
+    Allow,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MetadataConflict {
+    pub field: String,
+    pub details: String,
+}
+
+#[derive(Debug, Clone, Default)]
+struct ResolvedMetadata {
+    metadata: Option<ProjectMetadata>,
+    conflicts: Vec<MetadataConflict>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,14 +72,15 @@ impl MetadataSource {
     }
 }
 
-pub fn detect_repo(start: &Path) -> Result<RepoInfo, AppError> {
+pub fn detect_repo(start: &Path, policy: ConflictPolicy) -> Result<RepoInfo, AppError> {
     let git_root = find_git_root(start);
     let root = git_root.as_deref().unwrap_or(start);
-    let metadata = detect_metadata(root)?;
+    let resolved = detect_metadata(root, policy)?;
 
     Ok(RepoInfo {
         git_root,
-        metadata,
+        metadata: resolved.metadata,
+        conflicts: resolved.conflicts,
     })
 }
 
@@ -75,7 +96,7 @@ fn find_git_root(start: &Path) -> Option<PathBuf> {
     None
 }
 
-fn detect_metadata(root: &Path) -> Result<Option<ProjectMetadata>, AppError> {
+fn detect_metadata(root: &Path, policy: ConflictPolicy) -> Result<ResolvedMetadata, AppError> {
     let mut metas = Vec::new();
     if let Some(meta) = detect_cargo_metadata(root)? {
         metas.push(meta);
@@ -97,22 +118,34 @@ fn detect_metadata(root: &Path) -> Result<Option<ProjectMetadata>, AppError> {
     }
 
     if metas.is_empty() {
-        return Ok(None);
+        return Ok(ResolvedMetadata::default());
     }
 
-    let mut resolved = resolve_metadata(&metas)?;
+    let mut resolved = resolve_metadata(&metas);
 
-    if resolved.license.is_none() {
-        resolved.license = detect_license_from_files(root);
-    }
-    if resolved.homepage.is_none() {
-        resolved.homepage = detect_homepage_from_git(root)?;
-    }
-    if resolved.name.is_none() {
-        resolved.name = detect_name_from_git(root)?;
+    if !resolved.conflicts.is_empty() && policy == ConflictPolicy::Error {
+        return Err(conflict_error(&resolved.conflicts));
     }
 
-    Ok(Some(resolved))
+    let conflict_fields = resolved
+        .conflicts
+        .iter()
+        .map(|conflict| conflict.field.as_str())
+        .collect::<HashSet<_>>();
+
+    if let Some(meta) = resolved.metadata.as_mut() {
+        if meta.license.is_none() && !conflict_fields.contains("license") {
+            meta.license = detect_license_from_files(root);
+        }
+        if meta.homepage.is_none() && !conflict_fields.contains("homepage") {
+            meta.homepage = detect_homepage_from_git(root)?;
+        }
+        if meta.name.is_none() && !conflict_fields.contains("name") {
+            meta.name = detect_name_from_git(root)?;
+        }
+    }
+
+    Ok(resolved)
 }
 
 fn detect_cargo_metadata(root: &Path) -> Result<Option<ProjectMetadata>, AppError> {
@@ -368,29 +401,56 @@ fn normalize_bins(bins: &mut Vec<String>) {
     bins.dedup();
 }
 
-fn resolve_metadata(metas: &[ProjectMetadata]) -> Result<ProjectMetadata, AppError> {
+fn resolve_metadata(metas: &[ProjectMetadata]) -> ResolvedMetadata {
     let source = if metas.len() == 1 {
         metas[0].source
     } else {
         MetadataSource::Mixed
     };
 
-    Ok(ProjectMetadata {
-        name: resolve_string_field("name", metas, |meta| meta.name.as_deref())?,
-        description: resolve_string_field("description", metas, |meta| meta.description.as_deref())?,
-        homepage: resolve_string_field("homepage", metas, |meta| meta.homepage.as_deref())?,
-        license: resolve_string_field("license", metas, |meta| meta.license.as_deref())?,
-        version: resolve_string_field("version", metas, |meta| meta.version.as_deref())?,
-        bin: resolve_bins_field(metas)?,
-        source,
-    })
+    let mut conflicts = Vec::new();
+
+    let (name, conflict) = resolve_string_field("name", metas, |meta| meta.name.as_deref());
+    push_conflict(&mut conflicts, conflict);
+
+    let (description, conflict) =
+        resolve_string_field("description", metas, |meta| meta.description.as_deref());
+    push_conflict(&mut conflicts, conflict);
+
+    let (homepage, conflict) =
+        resolve_string_field("homepage", metas, |meta| meta.homepage.as_deref());
+    push_conflict(&mut conflicts, conflict);
+
+    let (license, conflict) =
+        resolve_string_field("license", metas, |meta| meta.license.as_deref());
+    push_conflict(&mut conflicts, conflict);
+
+    let (version, conflict) =
+        resolve_string_field("version", metas, |meta| meta.version.as_deref());
+    push_conflict(&mut conflicts, conflict);
+
+    let (bin, conflict) = resolve_bins_field(metas);
+    push_conflict(&mut conflicts, conflict);
+
+    ResolvedMetadata {
+        metadata: Some(ProjectMetadata {
+            name,
+            description,
+            homepage,
+            license,
+            version,
+            bin,
+            source,
+        }),
+        conflicts,
+    }
 }
 
 fn resolve_string_field<F>(
     field: &str,
     metas: &[ProjectMetadata],
     getter: F,
-) -> Result<Option<String>, AppError>
+) -> (Option<String>, Option<MetadataConflict>)
 where
     F: Fn(&ProjectMetadata) -> Option<&str>,
 {
@@ -408,16 +468,19 @@ where
     }
 
     if values.len() > 1 {
-        return Err(AppError::InvalidInput(format!(
-            "conflicting {field} detected: {}",
-            format_conflicts(&values)
-        )));
+        return (
+            None,
+            Some(MetadataConflict {
+                field: field.to_string(),
+                details: format_conflicts(&values),
+            }),
+        );
     }
 
-    Ok(values.first().map(|(_, value)| value.clone()))
+    (values.first().map(|(_, value)| value.clone()), None)
 }
 
-fn resolve_bins_field(metas: &[ProjectMetadata]) -> Result<Vec<String>, AppError> {
+fn resolve_bins_field(metas: &[ProjectMetadata]) -> (Vec<String>, Option<MetadataConflict>) {
     let mut values: Vec<(MetadataSource, Vec<String>)> = Vec::new();
     for meta in metas {
         if meta.bin.is_empty() {
@@ -431,16 +494,39 @@ fn resolve_bins_field(metas: &[ProjectMetadata]) -> Result<Vec<String>, AppError
     }
 
     if values.len() > 1 {
-        return Err(AppError::InvalidInput(format!(
-            "conflicting bin lists detected: {}",
-            format_bins_conflicts(&values)
-        )));
+        return (
+            Vec::new(),
+            Some(MetadataConflict {
+                field: "bin".to_string(),
+                details: format_bins_conflicts(&values),
+            }),
+        );
     }
 
-    Ok(values
-        .first()
-        .map(|(_, bins)| bins.clone())
-        .unwrap_or_default())
+    (
+        values
+            .first()
+            .map(|(_, bins)| bins.clone())
+            .unwrap_or_default(),
+        None,
+    )
+}
+
+fn push_conflict(conflicts: &mut Vec<MetadataConflict>, conflict: Option<MetadataConflict>) {
+    if let Some(conflict) = conflict {
+        conflicts.push(conflict);
+    }
+}
+
+fn conflict_error(conflicts: &[MetadataConflict]) -> AppError {
+    let details = conflicts
+        .iter()
+        .map(|conflict| format!("{}: {}", conflict.field, conflict.details))
+        .collect::<Vec<_>>()
+        .join("; ");
+    AppError::InvalidInput(format!(
+        "conflicting metadata detected: {details}; run without --non-interactive or set explicit values"
+    ))
 }
 
 fn format_conflicts(values: &[(MetadataSource, String)]) -> String {
@@ -744,7 +830,20 @@ fn detect_license_from_files(root: &Path) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
+    use std::path::Path;
     use tempfile::tempdir;
+
+    fn detect_metadata_strict(root: &Path) -> ProjectMetadata {
+        detect_metadata(root, ConflictPolicy::Error)
+            .unwrap()
+            .metadata
+            .expect("metadata")
+    }
+
+    fn detect_metadata_allow(root: &Path) -> ResolvedMetadata {
+        detect_metadata(root, ConflictPolicy::Allow).unwrap()
+    }
 
     #[test]
     fn detects_cargo_metadata() {
@@ -765,7 +864,7 @@ name = "brewctl"
 
         fs::write(dir.path().join("Cargo.toml"), cargo).unwrap();
 
-        let meta = detect_metadata(dir.path()).unwrap().unwrap();
+        let meta = detect_metadata_strict(dir.path());
         assert_eq!(meta.name.as_deref(), Some("brewtool"));
         assert_eq!(meta.description.as_deref(), Some("Brew tool"));
         assert_eq!(meta.homepage.as_deref(), Some("https://example.com"));
@@ -789,7 +888,7 @@ name = "brewctl"
 
         fs::write(dir.path().join("package.json"), package_json).unwrap();
 
-        let meta = detect_metadata(dir.path()).unwrap().unwrap();
+        let meta = detect_metadata_strict(dir.path());
         assert_eq!(meta.name.as_deref(), Some("brewtool"));
         assert_eq!(meta.bin, vec!["brewctl".to_string(), "brewtool".to_string()]);
         assert_eq!(meta.source, MetadataSource::PackageJson);
@@ -813,7 +912,7 @@ brewpy = "brewpy:main"
 
         fs::write(dir.path().join("pyproject.toml"), pyproject).unwrap();
 
-        let meta = detect_metadata(dir.path()).unwrap().unwrap();
+        let meta = detect_metadata_strict(dir.path());
         assert_eq!(meta.name.as_deref(), Some("brewpy"));
         assert_eq!(meta.homepage.as_deref(), Some("https://example.com"));
         assert_eq!(meta.license.as_deref(), Some("MIT"));
@@ -827,7 +926,7 @@ brewpy = "brewpy:main"
         let go_mod = "module github.com/acme/brewgo\n";
         fs::write(dir.path().join("go.mod"), go_mod).unwrap();
 
-        let meta = detect_metadata(dir.path()).unwrap().unwrap();
+        let meta = detect_metadata_strict(dir.path());
         assert_eq!(meta.name.as_deref(), Some("brewgo"));
         assert_eq!(meta.bin, vec!["brewgo".to_string()]);
         assert_eq!(meta.source, MetadataSource::GoMod);
@@ -839,7 +938,7 @@ brewpy = "brewpy:main"
         fs::write(dir.path().join("Cargo.toml"), "[package]\nname = \"brew\"\n").unwrap();
         fs::write(dir.path().join("LICENSE-MIT"), "MIT License").unwrap();
 
-        let meta = detect_metadata(dir.path()).unwrap().unwrap();
+        let meta = detect_metadata_strict(dir.path());
         assert_eq!(meta.license.as_deref(), Some("MIT"));
     }
 
@@ -857,7 +956,7 @@ brewpy = "brewpy:main"
 
         fs::write(dir.path().join("Cargo.toml"), "[package]\nname = \"brew\"\n").unwrap();
 
-        let meta = detect_metadata(dir.path()).unwrap().unwrap();
+        let meta = detect_metadata_strict(dir.path());
         assert_eq!(
             meta.homepage.as_deref(),
             Some("https://github.com/acme/brewtool")
@@ -876,7 +975,7 @@ brewpy = "brewpy:main"
         )
         .unwrap();
 
-        let meta = detect_metadata(dir.path()).unwrap().unwrap();
+        let meta = detect_metadata_strict(dir.path());
         assert_eq!(meta.name.as_deref(), Some("brewtool"));
         assert_eq!(
             meta.homepage.as_deref(),
@@ -899,8 +998,40 @@ brewpy = "brewpy:main"
         )
         .unwrap();
 
-        let err = detect_metadata(dir.path()).unwrap_err();
+        let err = detect_metadata(dir.path(), ConflictPolicy::Error).unwrap_err();
         assert!(matches!(err, AppError::InvalidInput(_)));
+        assert!(err
+            .to_string()
+            .starts_with("conflicting metadata detected:"));
+    }
+
+    #[test]
+    fn allows_conflicts_when_policy_allows() {
+        let dir = tempdir().unwrap();
+        fs::write(
+            dir.path().join("Cargo.toml"),
+            "[package]\nname = \"brewtool\"\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.path().join("package.json"),
+            r#"{ "name": "other", "bin": { "other": "bin/other" } }"#,
+        )
+        .unwrap();
+
+        let resolved = detect_metadata_allow(dir.path());
+        let meta = resolved.metadata.expect("metadata");
+
+        assert!(meta.name.is_none());
+        assert!(meta.bin.is_empty());
+
+        let fields = resolved
+            .conflicts
+            .iter()
+            .map(|conflict| conflict.field.as_str())
+            .collect::<HashSet<_>>();
+        assert!(fields.contains("name"));
+        assert!(fields.contains("bin"));
     }
 
     #[test]

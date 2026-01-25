@@ -1,7 +1,132 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-25T13:41:16.101119Z",
+  "generated_at": "2026-01-25T13:57:26.396084Z",
   "tasks": [
+    {
+      "id": "sv-v77",
+      "title": "Handle metadata conflicts interactively",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-25T13:49:35.511449Z",
+      "updated_at": "2026-01-25T13:57:21.341236Z",
+      "body": "Acceptance:\n- Repo detection records conflicting manifest fields instead of erroring in interactive init.\n- Init prints concise conflict hints and prompts for explicit values.\n- Non-interactive commands fail fast with actionable conflict errors (exit code 3).\n- Add unit tests for both interactive-allowed and non-interactive conflict paths.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-25T13:49:40.286692Z",
+      "closed_at": "2026-01-25T13:57:21.341236Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-bp2",
+      "title": "EPIC: UX & Safety",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:32.877452Z",
+      "updated_at": "2026-01-25T13:49:35.899123Z",
+      "body": "Scope: prompt flows, preview/confirm UX, error strategy, atomic writes.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-ewx",
+      "title": "Improve multi-repo preview/diff summaries",
+      "status": "open",
+      "priority": "P2",
+      "created_at": "2026-01-25T13:49:35.873155Z",
+      "updated_at": "2026-01-25T13:49:35.899123Z",
+      "body": "Acceptance:\n- Preview output clearly labels repo roots and modified paths.\n- Dry-run output is stable and easy to diff in CI logs.\n- Add snapshot-style tests for preview summaries.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-33n",
+      "title": "EPIC: Init Workflow",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:41:13.061876Z",
+      "updated_at": "2026-01-25T13:49:35.847817Z",
+      "body": "Implementation tasks for bd init interactive and non-interactive flows, tap setup, and formula bootstrap.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-ggc",
+      "title": "Refine init --import-formula overwrite policy",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-25T13:49:35.820884Z",
+      "updated_at": "2026-01-25T13:49:35.847817Z",
+      "body": "Acceptance:\n- Formula fields remain source-of-truth; config fills gaps only.\n- Non-interactive mode requires --force to overwrite config or formula outputs.\n- Add tests around overwrite guards and merge precedence.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-bk0",
+      "title": "Tighten non-interactive required-field validation",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-25T13:49:35.769948Z",
+      "updated_at": "2026-01-25T13:49:35.796328Z",
+      "body": "Acceptance:\n- Each command reports missing required fields in a single, stable error message.\n- Validation happens before any writes, clones, or network calls.\n- Add tests asserting required-field errors and exit codes.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-05z",
+      "title": "Validate per-target asset config and formula mapping",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-25T13:49:35.717928Z",
+      "updated_at": "2026-01-25T13:49:35.746136Z",
+      "body": "Acceptance:\n- Target keys (e.g., darwin/arm64) are validated before any network calls.\n- Per-target config produces correct Homebrew DSL for macOS/Linux and CPU predicates.\n- Add tests for invalid keys and expected formula output.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-xf8",
+      "title": "EPIC: Release & Artifacts",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:32.540537Z",
+      "updated_at": "2026-01-25T13:49:35.746136Z",
+      "body": "Scope: release discovery, asset selection, checksums, idempotency, git flow.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-mgt",
+      "title": "Harden release idempotency around tags and assets",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-25T13:49:35.665854Z",
+      "updated_at": "2026-01-25T13:49:35.693018Z",
+      "body": "Acceptance:\n- When a tag already exists, the error is deterministic and suggests --skip-tag.\n- When a release exists but assets are missing, the error calls out asset selection guidance.\n- Add tests for existing-tag and missing-asset scenarios.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-mf7",
+      "title": "EPIC: Identity & Config",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:32.187194Z",
+      "updated_at": "2026-01-25T13:49:35.640066Z",
+      "body": "Scope: identity resolution + config schema + metadata detection.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-x00",
+      "title": "Enforce git remote selection rules consistently",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-25T13:49:35.614774Z",
+      "updated_at": "2026-01-25T13:49:35.640066Z",
+      "body": "Acceptance:\n- Remote selection behavior matches docs/git-remotes.md for origin preference and ambiguity errors.\n- Non-interactive errors suggest explicit --host-owner/--host-repo overrides.\n- Add tests for origin, single non-origin remote, and ambiguous remotes.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-g9y",
+      "title": "Clarify Cargo workspace version_update defaults",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-25T13:49:35.563516Z",
+      "updated_at": "2026-01-25T13:49:35.588993Z",
+      "body": "Acceptance:\n- Document and enforce a single default policy when both [package] and [workspace.package] exist.\n- Provide clear error guidance when cargo_package is required.\n- Add tests covering root package, workspace.package-only, and member-package updates.",
+      "comments_count": 0
+    },
     {
       "id": "sv-c4z",
       "title": "Make bd release dry-run network-free",
@@ -90,16 +215,6 @@
       "branch": "main",
       "started_at": "2026-01-25T13:40:20.903406Z",
       "closed_at": "2026-01-25T13:40:26.835705Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-xf8",
-      "title": "EPIC: Release & Artifacts",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:31:32.540537Z",
-      "updated_at": "2026-01-25T13:22:56.894716Z",
-      "body": "Scope: release discovery, asset selection, checksums, idempotency, git flow.\\nDoD: Epics only; child tasks define acceptance criteria.",
       "comments_count": 0
     },
     {
@@ -396,16 +511,6 @@
       "last_comment_at": "2026-01-25T12:38:05.887925Z"
     },
     {
-      "id": "sv-mf7",
-      "title": "EPIC: Identity & Config",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:31:32.187194Z",
-      "updated_at": "2026-01-25T12:35:35.808956Z",
-      "body": "Scope: identity resolution + config schema + metadata detection.\\nDoD: Epics only; child tasks define acceptance criteria.",
-      "comments_count": 0
-    },
-    {
       "id": "sv-z8f",
       "title": "Lock config schema + minimal example",
       "status": "closed",
@@ -698,16 +803,6 @@
       "branch": "main",
       "started_at": "2026-01-23T15:39:22.324472Z",
       "closed_at": "2026-01-23T15:39:44.429541Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-33n",
-      "title": "EPIC: Init Workflow",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-22T13:41:13.061876Z",
-      "updated_at": "2026-01-23T15:39:19.000077Z",
-      "body": "Implementation tasks for bd init interactive and non-interactive flows, tap setup, and formula bootstrap.",
       "comments_count": 0
     },
     {
@@ -1505,16 +1600,6 @@
       "branch": "main",
       "started_at": "2026-01-23T11:07:00.202783Z",
       "closed_at": "2026-01-23T11:08:31.709274Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-bp2",
-      "title": "EPIC: UX & Safety",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-22T13:31:32.877452Z",
-      "updated_at": "2026-01-23T11:06:56.482842Z",
-      "body": "Scope: prompt flows, preview/confirm UX, error strategy, atomic writes.\\nDoD: Epics only; child tasks define acceptance criteria.",
       "comments_count": 0
     },
     {

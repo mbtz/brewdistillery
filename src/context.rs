@@ -1,7 +1,7 @@
 use crate::cli::Cli;
 use crate::config::Config;
 use crate::errors::AppError;
-use crate::repo_detect::{detect_repo, RepoInfo};
+use crate::repo_detect::{detect_repo, ConflictPolicy, RepoInfo};
 use std::env;
 use std::path::PathBuf;
 
@@ -22,7 +22,7 @@ impl AppContext {
             .clone()
             .unwrap_or_else(|| cwd.join(".distill/config.toml"));
         let config = Config::load(&config_path)?;
-        let repo = detect_repo(&cwd)?;
+        let repo = detect_repo(&cwd, ConflictPolicy::Allow)?;
 
         Ok(Self {
             cwd,

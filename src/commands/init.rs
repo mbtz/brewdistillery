@@ -6,7 +6,7 @@ use crate::formula::{normalize_formula_name, AssetMatrix, FormulaAsset, FormulaS
 use crate::git::git_clone;
 use crate::host::github::GitHubClient;
 use crate::preview::{PlannedWrite, RepoPlan};
-use crate::repo_detect::ProjectMetadata;
+use crate::repo_detect::{MetadataConflict, ProjectMetadata};
 use crate::version::resolve_version_tag;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input};
@@ -55,6 +55,13 @@ struct ResolvedInit {
 fn run_interactive(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError> {
     let metadata = ctx.repo.metadata.as_ref();
     let theme = ColorfulTheme::default();
+
+    if !ctx.repo.conflicts.is_empty() {
+        println!("init: conflicting manifest metadata detected; prompting for explicit values:");
+        for conflict in &ctx.repo.conflicts {
+            println!("  - {}: {}", conflict.field, conflict.details);
+        }
+    }
 
     let formula_default = resolve_string(
         args.formula_name.as_ref(),
@@ -664,6 +671,8 @@ fn resolve_required(
     let metadata = ctx.repo.metadata.as_ref();
     let mut missing = Vec::new();
 
+    ensure_conflicts_resolved(ctx, args, allow_formula_missing)?;
+
     let description = resolve_string(
         args.description.as_ref(),
         ctx.config.project.description.as_ref(),
@@ -853,6 +862,102 @@ fn resolve_required(
         asset_template,
         allow_overwrite: args.force || args.yes,
     })
+}
+
+fn ensure_conflicts_resolved(
+    ctx: &AppContext,
+    args: &InitArgs,
+    allow_formula_missing: bool,
+) -> Result<(), AppError> {
+    if ctx.repo.conflicts.is_empty() {
+        return Ok(());
+    }
+
+    let mut required = Vec::new();
+
+    if let Some(conflict) = conflict_for_field(&ctx.repo.conflicts, "name") {
+        let explicit_name =
+            has_explicit_string(args.repo_name.as_ref(), ctx.config.project.name.as_ref())
+                || has_explicit_string(
+                    args.formula_name.as_ref(),
+                    ctx.config.tap.formula.as_ref(),
+                );
+        if !explicit_name {
+            required.push(conflict_requirement(conflict));
+        }
+    }
+
+    if !allow_formula_missing {
+        check_conflict(
+            &mut required,
+            conflict_for_field(&ctx.repo.conflicts, "description"),
+            has_explicit_string(args.description.as_ref(), ctx.config.project.description.as_ref()),
+        );
+        check_conflict(
+            &mut required,
+            conflict_for_field(&ctx.repo.conflicts, "homepage"),
+            has_explicit_string(args.homepage.as_ref(), ctx.config.project.homepage.as_ref()),
+        );
+        check_conflict(
+            &mut required,
+            conflict_for_field(&ctx.repo.conflicts, "license"),
+            has_explicit_string(args.license.as_ref(), ctx.config.project.license.as_ref()),
+        );
+        check_conflict(
+            &mut required,
+            conflict_for_field(&ctx.repo.conflicts, "version"),
+            has_explicit_string(args.version.as_ref(), None),
+        );
+        check_conflict(
+            &mut required,
+            conflict_for_field(&ctx.repo.conflicts, "bin"),
+            has_explicit_bins(args, &ctx.config),
+        );
+    }
+
+    if required.is_empty() {
+        return Ok(());
+    }
+
+    Err(AppError::InvalidInput(format!(
+        "conflicting metadata requires explicit values in --non-interactive mode: {}; set flags/config or run interactive",
+        required.join(", ")
+    )))
+}
+
+fn check_conflict(required: &mut Vec<String>, conflict: Option<&MetadataConflict>, explicit: bool) {
+    if explicit {
+        return;
+    }
+    if let Some(conflict) = conflict {
+        required.push(conflict_requirement(conflict));
+    }
+}
+
+fn conflict_for_field<'a>(
+    conflicts: &'a [MetadataConflict],
+    field: &str,
+) -> Option<&'a MetadataConflict> {
+    conflicts.iter().find(|conflict| conflict.field == field)
+}
+
+fn conflict_requirement(conflict: &MetadataConflict) -> String {
+    format!("{} ({})", conflict.field, conflict.details)
+}
+
+fn has_explicit_string(args_value: Option<&String>, config_value: Option<&String>) -> bool {
+    is_non_empty(args_value) || is_non_empty(config_value)
+}
+
+fn has_explicit_bins(args: &InitArgs, config: &Config) -> bool {
+    if !args.bin_name.is_empty() {
+        return true;
+    }
+    config.project.bin.iter().any(|bin| !bin.trim().is_empty())
+}
+
+fn is_non_empty(value: Option<&String>) -> bool {
+    value.map(|value| !value.trim().is_empty()).unwrap_or(false)
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1726,7 +1831,7 @@ fn render_asset_template(template: &str, name: &str, version: &str) -> Option<St
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::repo_detect::{MetadataSource, RepoInfo};
+    use crate::repo_detect::{MetadataConflict, MetadataSource, RepoInfo};
     use tempfile::tempdir;
 
     fn base_args() -> InitArgs {
@@ -1772,9 +1877,27 @@ mod tests {
                     bin: vec!["brewtool".to_string()],
                     source: MetadataSource::Cargo,
                 }),
+                conflicts: Vec::new(),
             },
             verbose: 0,
         }
+    }
+
+    fn ready_args(dir: &Path) -> InitArgs {
+        let mut args = base_args();
+        args.dry_run = true;
+        args.tap_path = Some(dir.join("homebrew-brewtool"));
+        args.host_owner = Some("acme".to_string());
+        args.host_repo = Some("brewtool".to_string());
+        args.artifact_strategy = Some("release-asset".to_string());
+        args.asset_template = Some("{name}-{version}.tar.gz".to_string());
+        args
+    }
+
+    fn context_with_conflicts(dir: &Path, conflicts: Vec<MetadataConflict>) -> AppContext {
+        let mut ctx = base_context(dir);
+        ctx.repo.conflicts = conflicts;
+        ctx
     }
 
     #[test]
@@ -1785,6 +1908,45 @@ mod tests {
 
         let err = run_non_interactive(&ctx, &args).unwrap_err();
         assert!(matches!(err, AppError::MissingConfig(_)));
+    }
+
+    #[test]
+    fn errors_on_conflicting_metadata_without_overrides() {
+        let dir = tempdir().unwrap();
+        let ctx = context_with_conflicts(
+            dir.path(),
+            vec![MetadataConflict {
+                field: "name".to_string(),
+                details: "Cargo.toml='brewtool', package.json='other'".to_string(),
+            }],
+        );
+        let args = ready_args(dir.path());
+
+        let err = run_non_interactive(&ctx, &args).unwrap_err();
+        match err {
+            AppError::InvalidInput(message) => {
+                assert!(message.contains("conflicting metadata requires explicit values"));
+                assert!(message.contains("name ("));
+            }
+            other => panic!("expected invalid input error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn allows_conflicts_when_explicit_values_provided() {
+        let dir = tempdir().unwrap();
+        let ctx = context_with_conflicts(
+            dir.path(),
+            vec![MetadataConflict {
+                field: "name".to_string(),
+                details: "Cargo.toml='brewtool', package.json='other'".to_string(),
+            }],
+        );
+        let mut args = ready_args(dir.path());
+        args.formula_name = Some("brewtool".to_string());
+        args.repo_name = Some("brewtool".to_string());
+
+        run_non_interactive(&ctx, &args).unwrap();
     }
 
     #[test]

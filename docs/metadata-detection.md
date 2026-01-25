@@ -20,10 +20,11 @@ flow must prompt or require flags.
 
 Conflict resolution:
 - When multiple manifests exist, the detector attempts to merge fields.
-- If two sources provide different non-empty values for the same field
-  (e.g., different `name` values), detection fails with a conflict error.
-- If two sources provide different bin lists, detection fails with a conflict
-  error listing the sources and their bin lists.
+- If two sources provide different non-empty values for the same field,
+  the detector records a conflict and leaves the field unset.
+- Conflicts are surfaced to callers so interactive flows can prompt.
+- Non-interactive commands treat conflicts as errors (exit code 3) with
+  guidance to set explicit values via flags or config.
 
 ## Shared behavior
 
@@ -137,11 +138,14 @@ absent.
 ## Conflict resolution examples
 
 - `Cargo.toml` has `package.name = "brewtool"` and `package.json` has
-  `name = "other"`: detection fails with a conflict error for `name`.
+  `name = "other"`: `name` is treated as conflicting and left unset.
 - `package.json` defines `bin = { "brewtool": "...", "brewctl": "..." }`
   while `pyproject.toml` defines `project.scripts = { "brewtool": "..." }`:
-  detection fails with a conflict error for bin lists (since the bin lists
-  differ).
+  the bin list is treated as conflicting and left unset.
+
+In `bd init` interactive mode, these conflicts are shown as hints and the
+user is prompted to provide explicit values. In non-interactive mode, the
+command fails fast with a conflict error.
 
 ## License detection (fallback)
 
