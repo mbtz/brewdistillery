@@ -1,7 +1,47 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-25T15:07:08.222323Z",
+  "generated_at": "2026-01-25T15:27:50.711895Z",
   "tasks": [
+    {
+      "id": "sv-dgn",
+      "title": "Pre-check existing git tags before release writes",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-25T15:21:53.089478Z",
+      "updated_at": "2026-01-25T15:27:46.019703Z",
+      "body": "Problem: `bd release` checks for existing tags only when creating the tag, after writes/commits. This can leave partial changes when a tag already exists.\n\nAcceptance criteria:\n- When a tag would be created, detect an existing tag before any filesystem writes/commits.\n- Error message matches the existing tag guidance.\n- Tests cover the early failure path without external network access.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-25T15:21:58.186398Z",
+      "closed_at": "2026-01-25T15:27:46.019703Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-xf8",
+      "title": "EPIC: Release & Artifacts",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:32.540537Z",
+      "updated_at": "2026-01-25T15:21:58.157787Z",
+      "body": "Scope: release discovery, asset selection, checksums, idempotency, git flow.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-a1h",
+      "title": "Allow release asset auto-selection without explicit asset selection in non-dry-run",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-25T15:11:40.061494Z",
+      "updated_at": "2026-01-25T15:16:28.791950Z",
+      "body": "Problem: `bd release` currently requires `artifact.asset_name` or `artifact.asset_template` even for non-dry-run releases, blocking the PRD fallback asset selection rules.\n\nAcceptance criteria:\n- Non-dry-run `release-asset` strategy does not require explicit asset selection fields.\n- `--dry-run` continues to require explicit `asset_name` or `asset_template` (no network).\n- Missing-field errors remain clear and CI-friendly.\n- Tests cover both dry-run and non-dry-run behaviors.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-25T15:11:44.383588Z",
+      "closed_at": "2026-01-25T15:16:28.791950Z",
+      "comments_count": 0
+    },
     {
       "id": "sv-kdy",
       "title": "Document multi-repo preview and commit order in release",
@@ -88,16 +128,6 @@
       "closed_at": "2026-01-25T14:47:51.508670Z",
       "comments_count": 1,
       "last_comment_at": "2026-01-25T14:47:48.927297Z"
-    },
-    {
-      "id": "sv-xf8",
-      "title": "EPIC: Release & Artifacts",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:31:32.540537Z",
-      "updated_at": "2026-01-25T14:41:35.959350Z",
-      "body": "Scope: release discovery, asset selection, checksums, idempotency, git flow.\\nDoD: Epics only; child tasks define acceptance criteria.",
-      "comments_count": 0
     },
     {
       "id": "sv-k5k",

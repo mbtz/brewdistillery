@@ -45,10 +45,7 @@ impl RemoteContext {
                 flag
             );
         }
-        format!(
-            "set {} to the desired GitHub remote URL",
-            self.config_key()
-        )
+        format!("set {} to the desired GitHub remote URL", self.config_key())
     }
 }
 
@@ -98,13 +95,15 @@ pub fn ensure_clean_repo(repo: &Path, label: &str) -> Result<(), AppError> {
     )))
 }
 
-pub fn create_tag(repo: &Path, tag: &str) -> Result<(), AppError> {
-    let exists = run_git(repo, &["tag", "--list", tag])?;
-    if !String::from_utf8_lossy(&exists.stdout).trim().is_empty() {
-        return Err(AppError::GitState(format!(
-            "tag '{tag}' already exists; re-run with --skip-tag or choose a new version"
-        )));
+pub fn ensure_tag_absent(repo: &Path, tag: &str) -> Result<(), AppError> {
+    if tag_exists(repo, tag)? {
+        return Err(tag_already_exists_error(tag));
     }
+    Ok(())
+}
+
+pub fn create_tag(repo: &Path, tag: &str) -> Result<(), AppError> {
+    ensure_tag_absent(repo, tag)?;
     run_git(repo, &["tag", tag])?;
     Ok(())
 }
@@ -294,6 +293,17 @@ pub fn select_git_remote(
     )))
 }
 
+fn tag_exists(repo: &Path, tag: &str) -> Result<bool, AppError> {
+    let exists = run_git(repo, &["tag", "--list", tag])?;
+    Ok(!String::from_utf8_lossy(&exists.stdout).trim().is_empty())
+}
+
+fn tag_already_exists_error(tag: &str) -> AppError {
+    AppError::GitState(format!(
+        "tag '{tag}' already exists; re-run with --skip-tag or choose a new version"
+    ))
+}
+
 fn github_https_from_remote(remote: &str) -> Option<String> {
     let trimmed = remote.trim();
     let path = if let Some(rest) = trimmed.strip_prefix("git@github.com:") {
@@ -470,8 +480,7 @@ mod tests {
         let (_dir, repo) = init_repo();
         add_remote(&repo, "upstream", "https://github.com/acme/upstream.git");
 
-        let remote =
-            select_git_remote(&repo, None, RemoteContext::Cli).expect("select remote");
+        let remote = select_git_remote(&repo, None, RemoteContext::Cli).expect("select remote");
         assert_eq!(remote, "upstream");
     }
 
@@ -481,16 +490,12 @@ mod tests {
         add_remote(&repo, "upstream", "https://github.com/acme/upstream.git");
         add_remote(&repo, "mirror", "https://github.com/acme/mirror.git");
 
-        let err =
-            select_git_remote(&repo, None, RemoteContext::Tap).expect_err("should error");
+        let err = select_git_remote(&repo, None, RemoteContext::Tap).expect_err("should error");
         let expected = concat!(
             "multiple GitHub remotes found in tap repo; ",
             "set tap.remote (or --tap-remote) to the desired GitHub remote URL"
         );
-        assert_eq!(
-            err.to_string(),
-            expected
-        );
+        assert_eq!(err.to_string(), expected);
     }
 
     #[test]
@@ -510,6 +515,19 @@ mod tests {
 
         create_tag(&repo, "v1.2.3").expect("create initial tag");
         let err = create_tag(&repo, "v1.2.3").expect_err("tag should already exist");
+        assert_eq!(
+            err.to_string(),
+            "tag 'v1.2.3' already exists; re-run with --skip-tag or choose a new version"
+        );
+    }
+
+    #[test]
+    fn ensure_tag_absent_detects_existing_tag() {
+        let (_dir, repo) = init_repo();
+        make_initial_commit(&repo);
+
+        create_tag(&repo, "v1.2.3").expect("create initial tag");
+        let err = ensure_tag_absent(&repo, "v1.2.3").expect_err("tag should already exist");
         assert_eq!(
             err.to_string(),
             "tag 'v1.2.3' already exists; re-run with --skip-tag or choose a new version"

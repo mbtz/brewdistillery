@@ -5,7 +5,8 @@ use crate::context::AppContext;
 use crate::errors::AppError;
 use crate::formula::{Arch, AssetMatrix, FormulaAsset, FormulaSpec, Os, TargetAsset};
 use crate::git::{
-    commit_paths, create_tag, ensure_clean_repo, git_clone, push_head, push_tag, RemoteContext,
+    commit_paths, create_tag, ensure_clean_repo, ensure_tag_absent, git_clone, push_head, push_tag,
+    RemoteContext,
 };
 use crate::host::github::GitHubClient;
 use crate::host::{
@@ -77,10 +78,10 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
                 "dry-run requires tap.path or an absolute tap.formula_path; tap.remote cannot be auto-cloned".to_string(),
             ));
         }
-        validate_release_preflight(ctx, args)?;
+        validate_release_preflight(ctx, args, args.dry_run)?;
         tap_root
     } else {
-        validate_release_preflight(ctx, args)?;
+        validate_release_preflight(ctx, args, args.dry_run)?;
         resolve_tap_root_for_release(ctx, args, false)?
     };
     if let (Some(path), Some(remote)) = (tap_root.path.as_ref(), tap_root.cloned_from.as_ref()) {
@@ -97,16 +98,15 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         args,
         tap_root.path.as_ref(),
         tap_root.remote_url.as_deref(),
+        args.dry_run,
     )?;
 
     let version_tag = resolve_version_tag(args.version.as_deref(), args.tag.as_deref())?;
     if args.dry_run {
         return run_dry_run_release(ctx, args, &resolved, &version_tag);
     }
-    let client = GitHubClient::from_env(
-        resolved.host_api_base.as_deref(),
-        resolved.download_policy,
-    )?;
+    let client =
+        GitHubClient::from_env(resolved.host_api_base.as_deref(), resolved.download_policy)?;
 
     let (version, tag_to_create, asset_matrix) = match resolved.artifact_strategy.as_str() {
         "release-asset" => {
@@ -206,6 +206,10 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
 
     let cli_repo_root = ctx.repo.git_root.as_ref().unwrap_or(&ctx.cwd);
 
+    if let Some(tag_name) = tag_to_create.as_deref() {
+        ensure_tag_absent(cli_repo_root, tag_name)?;
+    }
+
     if !args.allow_dirty {
         ensure_clean_repo(&resolved.tap_root, "tap repo")?;
         if needs_cli_repo {
@@ -276,12 +280,9 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         .changed_files
         .iter()
         .any(|path| path == &resolved.formula_path);
-    let cli_changed = version_update_paths.iter().any(|path| {
-        preview
-            .changed_files
-            .iter()
-            .any(|changed| changed == path)
-    });
+    let cli_changed = version_update_paths
+        .iter()
+        .any(|path| preview.changed_files.iter().any(|changed| changed == path));
 
     if !cli_changed && !formula_changed {
         println!("release: no changes to commit");
@@ -302,9 +303,10 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
     }
 
     if let Some(tag_name) = tag_to_create.as_deref() {
-        let cli_root = ctx.repo.git_root.as_ref().ok_or_else(|| {
-            AppError::GitState("cli repo is not a git repository".to_string())
-        })?;
+        let cli_root =
+            ctx.repo.git_root.as_ref().ok_or_else(|| {
+                AppError::GitState("cli repo is not a git repository".to_string())
+            })?;
         create_tag(cli_root, tag_name)?;
     }
 
@@ -320,7 +322,11 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
             let cli_root = ctx.repo.git_root.as_ref().ok_or_else(|| {
                 AppError::GitState("cli repo is not a git repository".to_string())
             })?;
-            push_head(cli_root, resolved.cli_remote_url.as_deref(), RemoteContext::Cli)?;
+            push_head(
+                cli_root,
+                resolved.cli_remote_url.as_deref(),
+                RemoteContext::Cli,
+            )?;
         }
         if let Some(tag_name) = tag_to_create.as_deref() {
             let cli_root = ctx.repo.git_root.as_ref().ok_or_else(|| {
@@ -348,7 +354,11 @@ fn has_absolute_formula_path(config: &Config) -> bool {
         .unwrap_or(false)
 }
 
-fn validate_release_preflight(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
+fn validate_release_preflight(
+    ctx: &AppContext,
+    args: &ReleaseArgs,
+    require_asset_selection: bool,
+) -> Result<(), AppError> {
     let config = &ctx.config;
     let mut missing = Vec::new();
 
@@ -434,22 +444,24 @@ fn validate_release_preflight(ctx: &AppContext, args: &ReleaseArgs) -> Result<()
 
     match artifact_strategy.as_str() {
         "release-asset" => {
-            let global_selection = asset_name.is_some() || asset_template.is_some();
-            if !global_selection {
-                if targets.is_empty() {
-                    missing.push("artifact.asset_name or artifact.asset_template".to_string());
-                } else {
-                    let mut missing_targets = targets
-                        .iter()
-                        .filter_map(|(key, target)| {
-                            (!target_has_selection(target)).then(|| key.clone())
-                        })
-                        .collect::<Vec<_>>();
-                    missing_targets.sort();
-                    for key in missing_targets {
-                        missing.push(format!(
-                            "artifact.targets.{key}.asset_name or asset_template"
-                        ));
+            if require_asset_selection {
+                let global_selection = asset_name.is_some() || asset_template.is_some();
+                if !global_selection {
+                    if targets.is_empty() {
+                        missing.push("artifact.asset_name or artifact.asset_template".to_string());
+                    } else {
+                        let mut missing_targets = targets
+                            .iter()
+                            .filter_map(|(key, target)| {
+                                (!target_has_selection(target)).then(|| key.clone())
+                            })
+                            .collect::<Vec<_>>();
+                        missing_targets.sort();
+                        for key in missing_targets {
+                            missing.push(format!(
+                                "artifact.targets.{key}.asset_name or asset_template"
+                            ));
+                        }
                     }
                 }
             }
@@ -638,6 +650,7 @@ fn resolve_release_context(
     args: &ReleaseArgs,
     tap_path_override: Option<&PathBuf>,
     tap_remote_override: Option<&str>,
+    require_asset_selection: bool,
 ) -> Result<ReleaseContext, AppError> {
     let config = &ctx.config;
     let mut missing = Vec::new();
@@ -733,22 +746,24 @@ fn resolve_release_context(
 
     match artifact_strategy.as_str() {
         "release-asset" => {
-            let global_selection = asset_name.is_some() || asset_template.is_some();
-            if !global_selection {
-                if targets.is_empty() {
-                    missing.push("artifact.asset_name or artifact.asset_template".to_string());
-                } else {
-                    let mut missing_targets = targets
-                        .iter()
-                        .filter_map(|(key, target)| {
-                            (!target_has_selection(target)).then(|| key.clone())
-                        })
-                        .collect::<Vec<_>>();
-                    missing_targets.sort();
-                    for key in missing_targets {
-                        missing.push(format!(
-                            "artifact.targets.{key}.asset_name or asset_template"
-                        ));
+            if require_asset_selection {
+                let global_selection = asset_name.is_some() || asset_template.is_some();
+                if !global_selection {
+                    if targets.is_empty() {
+                        missing.push("artifact.asset_name or artifact.asset_template".to_string());
+                    } else {
+                        let mut missing_targets = targets
+                            .iter()
+                            .filter_map(|(key, target)| {
+                                (!target_has_selection(target)).then(|| key.clone())
+                            })
+                            .collect::<Vec<_>>();
+                        missing_targets.sort();
+                        for key in missing_targets {
+                            missing.push(format!(
+                                "artifact.targets.{key}.asset_name or asset_template"
+                            ));
+                        }
                     }
                 }
             }
@@ -1894,11 +1909,14 @@ mod tests {
     use crate::cli::ReleaseArgs;
     use crate::config::{ArtifactTarget, Config};
     use crate::context::AppContext;
+    use crate::git::run_git;
     use crate::repo_detect::RepoInfo;
     use std::collections::BTreeMap;
+    use std::fs;
     use std::io::{ErrorKind, Read, Write};
     use std::net::TcpListener;
     use std::path::Path;
+    use std::sync::mpsc;
     use std::thread;
     use std::time::Duration;
     use tempfile::tempdir;
@@ -1984,6 +2002,87 @@ mod tests {
         (format!("http://{}", addr), handle)
     }
 
+    fn init_git_repo(path: &Path) {
+        fs::create_dir_all(path).expect("create repo dir");
+        run_git(path, &["init"]).expect("git init");
+        run_git(path, &["config", "commit.gpgsign", "false"]).expect("git commit.gpgsign");
+        run_git(path, &["config", "tag.gpgsign", "false"]).expect("git tag.gpgsign");
+        run_git(path, &["config", "user.email", "test@example.com"]).expect("git email");
+        run_git(path, &["config", "user.name", "Test User"]).expect("git name");
+    }
+
+    fn commit_all(path: &Path, message: &str) {
+        run_git(path, &["add", "."]).expect("git add");
+        run_git(path, &["commit", "-m", message]).expect("git commit");
+    }
+
+    fn spawn_github_release_server(
+        owner: &str,
+        repo: &str,
+        tag: &str,
+        asset_name: &str,
+        asset_body: Vec<u8>,
+    ) -> (String, mpsc::Sender<()>, thread::JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind GitHub test server");
+        let addr = listener.local_addr().expect("local addr");
+        listener
+            .set_nonblocking(true)
+            .expect("set nonblocking listener");
+
+        let base_url = format!("http://{}", addr);
+        let asset_path = format!("/assets/{asset_name}");
+        let release_path = format!("/repos/{owner}/{repo}/releases/latest");
+        let asset_url = format!("{base_url}{asset_path}");
+        let asset_len = asset_body.len();
+        let release_body = format!(
+            "{{\"tag_name\":\"{tag}\",\"draft\":false,\"prerelease\":false,\"assets\":[{{\"name\":\"{asset_name}\",\"browser_download_url\":\"{asset_url}\",\"size\":{asset_len}}}]}}"
+        )
+        .into_bytes();
+
+        let (stop_tx, stop_rx) = mpsc::channel::<()>();
+        let handle = thread::spawn(move || {
+            for _ in 0..400 {
+                if stop_rx.try_recv().is_ok() {
+                    return;
+                }
+                match listener.accept() {
+                    Ok((mut stream, _)) => {
+                        let mut buffer = [0u8; 4096];
+                        let read = stream.read(&mut buffer).unwrap_or(0);
+                        let request = String::from_utf8_lossy(&buffer[..read]);
+                        let path = request
+                            .lines()
+                            .next()
+                            .and_then(|line| line.split_whitespace().nth(1))
+                            .unwrap_or("/");
+
+                        let (status, body, content_type) = if path == release_path {
+                            ("200 OK", release_body.as_slice(), "application/json")
+                        } else if path == asset_path {
+                            ("200 OK", asset_body.as_slice(), "application/octet-stream")
+                        } else {
+                            ("404 Not Found", b"not found".as_slice(), "text/plain")
+                        };
+
+                        let response = format!(
+                            "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\nContent-Type: {content_type}\r\n\r\n",
+                            body.len()
+                        );
+                        let _ = stream.write_all(response.as_bytes());
+                        let _ = stream.write_all(body);
+                        let _ = stream.flush();
+                    }
+                    Err(err) if err.kind() == ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(5));
+                    }
+                    Err(_) => return,
+                }
+            }
+        });
+
+        (base_url, stop_tx, handle)
+    }
+
     #[test]
     fn checksum_policy_defaults_apply_when_not_configured() {
         let dir = tempdir().unwrap();
@@ -1993,7 +2092,8 @@ mod tests {
         let ctx = base_context(config, dir.path());
         let args = base_release_args();
 
-        let resolved = resolve_release_context(&ctx, &args, Some(&tap_path), None).unwrap();
+        let resolved =
+            resolve_release_context(&ctx, &args, Some(&tap_path), None, args.dry_run).unwrap();
         assert_eq!(resolved.checksum_max_bytes, DEFAULT_CHECKSUM_MAX_BYTES);
         assert_eq!(resolved.download_policy, DownloadPolicy::default());
     }
@@ -2013,7 +2113,8 @@ mod tests {
         let ctx = base_context(config, dir.path());
         let args = base_release_args();
 
-        let resolved = resolve_release_context(&ctx, &args, Some(&tap_path), None).unwrap();
+        let resolved =
+            resolve_release_context(&ctx, &args, Some(&tap_path), None, args.dry_run).unwrap();
         assert_eq!(resolved.checksum_max_bytes, 10 * 1024 * 1024);
         assert_eq!(
             resolved.download_policy,
@@ -2097,7 +2198,8 @@ end
         let mut args = base_release_args();
         args.tap_path = Some(tap_path.clone());
 
-        let resolved = resolve_release_context(&ctx, &args, Some(&tap_path), None).unwrap();
+        let resolved =
+            resolve_release_context(&ctx, &args, Some(&tap_path), None, args.dry_run).unwrap();
         let version_tag = resolve_version_tag(None, None).unwrap();
 
         let err = run_dry_run_release(&ctx, &args, &resolved, &version_tag).unwrap_err();
@@ -2116,10 +2218,89 @@ end
         let ctx = base_context(config, dir.path());
         let args = base_release_args();
 
-        let err = resolve_release_context(&ctx, &args, Some(&tap_path), None).unwrap_err();
+        let err =
+            resolve_release_context(&ctx, &args, Some(&tap_path), None, args.dry_run).unwrap_err();
         assert!(matches!(err, AppError::MissingConfig(_)));
         let message = err.to_string();
         assert!(message.contains("artifact.asset_name or artifact.asset_template"));
+    }
+
+    #[test]
+    fn non_dry_run_allows_asset_auto_selection() {
+        let dir = tempdir().unwrap();
+        let tap_path = dir.path().join("homebrew-brewtool");
+        let config = base_config(&tap_path);
+        let ctx = base_context(config, dir.path());
+        let mut args = base_release_args();
+        args.dry_run = false;
+
+        let resolved =
+            resolve_release_context(&ctx, &args, Some(&tap_path), None, args.dry_run).unwrap();
+        assert!(resolved.asset_name.is_none());
+        assert!(resolved.asset_template.is_none());
+    }
+
+    #[test]
+    fn tag_exists_fails_before_formula_writes() {
+        let cli_dir = tempdir().unwrap();
+        let tap_dir = tempdir().unwrap();
+        init_git_repo(cli_dir.path());
+        init_git_repo(tap_dir.path());
+
+        let formula_path = tap_dir.path().join("Formula").join("brewtool.rb");
+        fs::create_dir_all(formula_path.parent().expect("formula dir")).unwrap();
+        let initial_formula = r#"class Brewtool < Formula
+  desc "Brew tool"
+  homepage "https://example.com/brewtool"
+  url "https://example.com/brewtool-1.2.2.tar.gz"
+  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  license "MIT"
+  version "1.2.2"
+
+  def install
+    bin.install "brewtool"
+  end
+end
+"#;
+        fs::write(&formula_path, initial_formula).unwrap();
+        commit_all(tap_dir.path(), "init tap");
+
+        fs::write(cli_dir.path().join("README.md"), "cli\n").unwrap();
+        commit_all(cli_dir.path(), "init cli");
+
+        let asset_name = "brewtool-1.2.3-darwin-arm64.tar.gz";
+        let (api_base, stop_tx, handle) = spawn_github_release_server(
+            "acme",
+            "brewtool",
+            "v1.2.3",
+            asset_name,
+            b"brewtool-asset".to_vec(),
+        );
+
+        let mut config = base_config(tap_dir.path());
+        config.host.api_base = Some(api_base);
+
+        let mut ctx = base_context(config, cli_dir.path());
+        ctx.repo.git_root = Some(cli_dir.path().to_path_buf());
+        run_git(cli_dir.path(), &["tag", "v1.2.3"]).unwrap();
+
+        let before = fs::read_to_string(&formula_path).unwrap();
+
+        let mut args = base_release_args();
+        args.dry_run = false;
+        args.tap_path = Some(tap_dir.path().to_path_buf());
+
+        let err = run(&ctx, &args).unwrap_err();
+        let _ = stop_tx.send(());
+        let _ = handle.join();
+
+        assert!(matches!(err, AppError::GitState(_)));
+        assert_eq!(
+            err.to_string(),
+            "tag 'v1.2.3' already exists; re-run with --skip-tag or choose a new version"
+        );
+        let after = fs::read_to_string(&formula_path).unwrap();
+        assert_eq!(before, after);
     }
 
     #[test]
@@ -2134,7 +2315,7 @@ end
         let ctx = base_context(config, dir.path());
         let args = base_release_args();
 
-        let err = resolve_release_context(&ctx, &args, None, None).unwrap_err();
+        let err = resolve_release_context(&ctx, &args, None, None, args.dry_run).unwrap_err();
         assert!(matches!(err, AppError::MissingConfig(_)));
         assert!(err.to_string().contains("tap.remote"));
     }
@@ -2168,7 +2349,8 @@ end
         let ctx = base_context(config, dir.path());
         let args = base_release_args();
 
-        let err = resolve_release_context(&ctx, &args, Some(&tap_path), None).unwrap_err();
+        let err =
+            resolve_release_context(&ctx, &args, Some(&tap_path), None, args.dry_run).unwrap_err();
         assert!(matches!(err, AppError::InvalidInput(_)));
         assert_eq!(
             err.to_string(),
@@ -2197,7 +2379,8 @@ end
         let ctx = base_context(config, dir.path());
         let args = base_release_args();
 
-        let err = resolve_release_context(&ctx, &args, Some(&tap_path), None).unwrap_err();
+        let err =
+            resolve_release_context(&ctx, &args, Some(&tap_path), None, args.dry_run).unwrap_err();
         assert!(matches!(err, AppError::InvalidInput(_)));
         assert_eq!(
             err.to_string(),
@@ -2234,7 +2417,8 @@ end
         let ctx = base_context(config, dir.path());
         let args = base_release_args();
 
-        let err = resolve_release_context(&ctx, &args, Some(&tap_path), None).unwrap_err();
+        let err =
+            resolve_release_context(&ctx, &args, Some(&tap_path), None, args.dry_run).unwrap_err();
         assert!(matches!(err, AppError::InvalidInput(_)));
         assert_eq!(
             err.to_string(),
