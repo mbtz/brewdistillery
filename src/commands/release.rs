@@ -4,7 +4,9 @@ use crate::config::{ArtifactTarget, Config};
 use crate::context::AppContext;
 use crate::errors::AppError;
 use crate::formula::{Arch, AssetMatrix, FormulaAsset, FormulaSpec, Os, TargetAsset};
-use crate::git::{commit_paths, create_tag, ensure_clean_repo, git_clone, push_head, push_tag};
+use crate::git::{
+    commit_paths, create_tag, ensure_clean_repo, git_clone, push_head, push_tag, RemoteContext,
+};
 use crate::host::github::GitHubClient;
 use crate::host::{HostClient, Release};
 use crate::preview::{preview_and_apply, PlannedWrite, RepoPlan};
@@ -209,7 +211,7 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
                 let message = build_version_update_message(&version);
                 commit_version_update(cli_root, &updated_files, &message)?;
                 if !args.no_push {
-                    push_head(cli_root, resolved.cli_remote_url.as_deref())?;
+                    push_head(cli_root, resolved.cli_remote_url.as_deref(), RemoteContext::Cli)?;
                 }
             }
         }
@@ -259,7 +261,11 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
     if !preview.changed_files.is_empty() {
         commit_formula_update(&resolved.tap_root, &resolved.formula_path, &commit_message)?;
         if !args.no_push {
-            push_head(&resolved.tap_root, resolved.tap_remote_url.as_deref())?;
+            push_head(
+                &resolved.tap_root,
+                resolved.tap_remote_url.as_deref(),
+                RemoteContext::Tap,
+            )?;
         }
     } else {
         println!("release: no formula changes to commit");
@@ -272,7 +278,12 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
             })?;
         create_tag(cli_root, tag_name)?;
         if !args.no_push {
-            push_tag(cli_root, tag_name, resolved.cli_remote_url.as_deref())?;
+            push_tag(
+                cli_root,
+                tag_name,
+                resolved.cli_remote_url.as_deref(),
+                RemoteContext::Cli,
+            )?;
         }
     }
 

@@ -1,6 +1,47 @@
 use crate::errors::AppError;
 use std::collections::{BTreeMap, HashSet};
 
+const DEFAULT_TEMPLATE: &str = concat!(
+    "class {class} < Formula\n",
+    "  desc \"{desc}\"\n",
+    "  homepage \"{homepage}\"\n",
+    "{assets}",
+    "  license \"{license}\"\n",
+    "  version \"{version}\"\n",
+    "\n",
+    "  def install\n",
+    "{install_block}",
+    "  end\n",
+    "end\n",
+);
+
+pub fn default_template() -> &'static str {
+    DEFAULT_TEMPLATE
+}
+
+pub fn validate_template_string(template: &str) -> Result<(), AppError> {
+    let spec = template_validation_spec();
+    spec.render_with_template(template).map(|_| ())
+}
+
+fn template_validation_spec() -> FormulaSpec {
+    let asset = FormulaAsset {
+        url: "https://example.com/example-0.0.0.tar.gz".to_string(),
+        sha256: "0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+    };
+
+    FormulaSpec {
+        name: "example".to_string(),
+        desc: "Example formula".to_string(),
+        homepage: "https://example.com".to_string(),
+        license: "MIT".to_string(),
+        version: "0.0.0".to_string(),
+        bins: vec!["example".to_string()],
+        assets: AssetMatrix::Universal(asset),
+        install_block: None,
+    }
+}
+
 pub fn normalize_formula_name(input: &str) -> Result<String, AppError> {
     let trimmed = input.trim();
     if trimmed.is_empty() {
@@ -803,6 +844,27 @@ mod tests {
         assert!(rendered.contains("class Brewtool < Formula"));
         assert!(rendered.contains("url \"https://example.com/brewtool.tar.gz\""));
         assert!(rendered.contains("bin.install \"brewtool\""));
+    }
+
+    #[test]
+    fn default_template_matches_render_output() {
+        let spec = FormulaSpec {
+            name: "brewtool".to_string(),
+            desc: "Brew tool".to_string(),
+            homepage: "https://example.com".to_string(),
+            license: "MIT".to_string(),
+            version: "1.2.3".to_string(),
+            bins: vec!["brewtool".to_string()],
+            assets: AssetMatrix::Universal(FormulaAsset {
+                url: "https://example.com/brewtool.tar.gz".to_string(),
+                sha256: "deadbeef".to_string(),
+            }),
+            install_block: None,
+        };
+
+        let rendered = spec.render().unwrap();
+        let templated = spec.render_with_template(default_template()).unwrap();
+        assert_eq!(templated, rendered);
     }
 
     #[test]

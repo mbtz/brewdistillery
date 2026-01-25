@@ -24,6 +24,7 @@ pub enum Commands {
     #[command(alias = "ship")]
     Release(ReleaseArgs),
     Doctor(DoctorArgs),
+    Template(TemplateArgs),
 }
 
 #[derive(Args, Debug)]
@@ -153,4 +154,10 @@ pub struct DoctorArgs {
 
     #[arg(long)]
     pub audit: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct TemplateArgs {
+    #[arg(long, value_name = "PATH")]
+    pub validate: Option<PathBuf>,
 }

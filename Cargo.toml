@@ -6,7 +6,11 @@ license = "MIT"
 
 [[bin]]
 name = "bd"
-path = "src/main.rs"
+path = "src/bin/bd.rs"
+
+[[bin]]
+name = "brewdistillery"
+path = "src/bin/brewdistillery.rs"
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }

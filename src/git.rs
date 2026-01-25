@@ -9,6 +9,49 @@ struct RemoteEntry {
     urls: Vec<String>,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum RemoteContext {
+    Tap,
+    Cli,
+}
+
+impl RemoteContext {
+    fn label(self) -> &'static str {
+        match self {
+            RemoteContext::Tap => "tap repo",
+            RemoteContext::Cli => "cli repo",
+        }
+    }
+
+    fn config_key(self) -> &'static str {
+        match self {
+            RemoteContext::Tap => "tap.remote",
+            RemoteContext::Cli => "cli.remote",
+        }
+    }
+
+    fn flag_hint(self) -> Option<&'static str> {
+        match self {
+            RemoteContext::Tap => Some("--tap-remote"),
+            RemoteContext::Cli => None,
+        }
+    }
+
+    fn guidance(self) -> String {
+        if let Some(flag) = self.flag_hint() {
+            return format!(
+                "set {} (or {}) to the desired GitHub remote URL",
+                self.config_key(),
+                flag
+            );
+        }
+        format!(
+            "set {} to the desired GitHub remote URL",
+            self.config_key()
+        )
+    }
+}
+
 pub fn git_clone(remote: &str, dest: &Path) -> Result<(), AppError> {
     let remote = remote.trim();
     if remote.is_empty() {
@@ -95,8 +138,12 @@ pub fn commit_paths(repo: &Path, paths: &[&Path], message: &str) -> Result<(), A
     Ok(())
 }
 
-pub fn push_head(repo: &Path, configured_remote_url: Option<&str>) -> Result<(), AppError> {
-    let remote = select_git_remote(repo, configured_remote_url)?;
+pub fn push_head(
+    repo: &Path,
+    configured_remote_url: Option<&str>,
+    context: RemoteContext,
+) -> Result<(), AppError> {
+    let remote = select_git_remote(repo, configured_remote_url, context)?;
     run_git(repo, &["push", &remote, "HEAD"])?;
     Ok(())
 }
@@ -105,8 +152,9 @@ pub fn push_tag(
     repo: &Path,
     tag: &str,
     configured_remote_url: Option<&str>,
+    context: RemoteContext,
 ) -> Result<(), AppError> {
-    let remote = select_git_remote(repo, configured_remote_url)?;
+    let remote = select_git_remote(repo, configured_remote_url, context)?;
     run_git(repo, &["push", &remote, tag])?;
     Ok(())
 }
@@ -142,12 +190,15 @@ pub fn run_git(repo: &Path, args: &[&str]) -> Result<Output, AppError> {
 pub fn select_git_remote(
     repo: &Path,
     configured_remote_url: Option<&str>,
+    context: RemoteContext,
 ) -> Result<String, AppError> {
     let remotes = list_git_remotes(repo)?;
     if remotes.is_empty() {
-        return Err(AppError::GitState(
-            "no GitHub remote found; specify --host-owner/--host-repo".to_string(),
-        ));
+        return Err(AppError::GitState(format!(
+            "no git remotes found in {}; add a remote and {}",
+            context.label(),
+            context.guidance()
+        )));
     }
 
     let configured = configured_remote_url
@@ -164,9 +215,12 @@ pub fn select_git_remote(
             return Ok(matches[0].name.clone());
         }
         if matches.len() > 1 {
-            return Err(AppError::GitState(
-                "multiple git remotes found; specify --host-owner/--host-repo".to_string(),
-            ));
+            return Err(AppError::GitState(format!(
+                "configured {} matches multiple remotes in {}; {}",
+                context.config_key(),
+                context.label(),
+                context.guidance()
+            )));
         }
     }
 
@@ -218,20 +272,26 @@ pub fn select_git_remote(
     }
 
     if github_remotes.len() > 1 {
-        return Err(AppError::GitState(
-            "multiple git remotes found; specify --host-owner/--host-repo".to_string(),
-        ));
+        return Err(AppError::GitState(format!(
+            "multiple GitHub remotes found in {}; {}",
+            context.label(),
+            context.guidance()
+        )));
     }
 
     if has_unparsable {
-        return Err(AppError::GitState(
-            "unable to parse GitHub remote URL; specify --host-owner/--host-repo".to_string(),
-        ));
+        return Err(AppError::GitState(format!(
+            "unable to parse GitHub remote URL in {}; {}",
+            context.label(),
+            context.guidance()
+        )));
     }
 
-    Err(AppError::GitState(
-        "no GitHub remote found; specify --host-owner/--host-repo".to_string(),
-    ))
+    Err(AppError::GitState(format!(
+        "no GitHub remote found in {}; {}",
+        context.label(),
+        context.guidance()
+    )))
 }
 
 fn github_https_from_remote(remote: &str) -> Option<String> {
@@ -381,8 +441,12 @@ mod tests {
         add_remote(&repo, "origin", "https://github.com/acme/origin.git");
         add_remote(&repo, "upstream", "https://github.com/acme/upstream.git");
 
-        let remote = select_git_remote(&repo, Some("https://github.com/acme/upstream.git"))
-            .expect("select remote");
+        let remote = select_git_remote(
+            &repo,
+            Some("https://github.com/acme/upstream.git"),
+            RemoteContext::Cli,
+        )
+        .expect("select remote");
         assert_eq!(remote, "upstream");
     }
 
@@ -392,8 +456,12 @@ mod tests {
         add_remote(&repo, "origin", "https://github.com/acme/origin.git");
         add_remote(&repo, "upstream", "https://github.com/acme/upstream.git");
 
-        let remote = select_git_remote(&repo, Some("https://github.com/acme/other.git"))
-            .expect("select remote");
+        let remote = select_git_remote(
+            &repo,
+            Some("https://github.com/acme/other.git"),
+            RemoteContext::Cli,
+        )
+        .expect("select remote");
         assert_eq!(remote, "origin");
     }
 
@@ -402,7 +470,8 @@ mod tests {
         let (_dir, repo) = init_repo();
         add_remote(&repo, "upstream", "https://github.com/acme/upstream.git");
 
-        let remote = select_git_remote(&repo, None).expect("select remote");
+        let remote =
+            select_git_remote(&repo, None, RemoteContext::Cli).expect("select remote");
         assert_eq!(remote, "upstream");
     }
 
@@ -412,10 +481,15 @@ mod tests {
         add_remote(&repo, "upstream", "https://github.com/acme/upstream.git");
         add_remote(&repo, "mirror", "https://github.com/acme/mirror.git");
 
-        let err = select_git_remote(&repo, None).expect_err("should error");
+        let err =
+            select_git_remote(&repo, None, RemoteContext::Tap).expect_err("should error");
+        let expected = concat!(
+            "multiple GitHub remotes found in tap repo; ",
+            "set tap.remote (or --tap-remote) to the desired GitHub remote URL"
+        );
         assert_eq!(
             err.to_string(),
-            "multiple git remotes found; specify --host-owner/--host-repo"
+            expected
         );
     }
 
@@ -425,7 +499,7 @@ mod tests {
         add_remote(&repo, "origin", "https://gitlab.com/acme/origin.git");
         add_remote(&repo, "upstream", "https://github.com/acme/upstream.git");
 
-        let remote = select_git_remote(&repo, None).expect("select remote");
+        let remote = select_git_remote(&repo, None, RemoteContext::Cli).expect("select remote");
         assert_eq!(remote, "upstream");
     }
 

@@ -5,7 +5,7 @@ Homebrew formula initialization and release helper for CLI authors.
 ## Status
 
 - Rust CLI, GitHub-only v0.
-- Core commands implemented: `bd init`, `bd release` (alias `bd ship`), `bd doctor`.
+- Core commands implemented: `bd init`, `bd release` (alias `bd ship`), `bd doctor`, `bd template`.
 - Dry-run is network-free and safe for CI input validation.
 
 ## Install (early build)
@@ -16,6 +16,12 @@ Requirements:
 - Homebrew (optional; required only for `bd init --tap-new` or `bd doctor --audit`)
 
 Install from the workspace:
+
+```bash
+cargo install --path . --locked --bin brewdistillery
+```
+
+The shorthand `bd` binary is also available:
 
 ```bash
 cargo install --path . --locked --bin bd

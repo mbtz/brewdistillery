@@ -1,7 +1,82 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-25T14:24:00.558103Z",
+  "generated_at": "2026-01-25T14:37:27.747519Z",
   "tasks": [
+    {
+      "id": "sv-k5k",
+      "title": "Add bd template command for template preview/validation",
+      "status": "closed",
+      "priority": "P2",
+      "created_at": "2026-01-25T14:30:15.789091Z",
+      "updated_at": "2026-01-25T14:37:27.739022Z",
+      "body": "Acceptance:\\n- New 'bd template' subcommand prints the default formula template with placeholders.\\n- When given --validate <path>, it validates required placeholders using existing formula rendering checks.\\n- cargo test passes with coverage for the new command.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-25T14:35:02.173091Z",
+      "closed_at": "2026-01-25T14:37:27.739022Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-qcx",
+      "title": "Improve git remote selection errors with tap/cli context",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-25T14:30:22.923065Z",
+      "updated_at": "2026-01-25T14:34:04.878141Z",
+      "body": "Acceptance:\\n- Remote selection errors reference the relevant config knob (tap.remote or cli.remote) and flags.\\n- Multiple-remote ambiguity messages are actionable and specific.\\n- cargo test passes with updated unit tests in git module.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-25T14:31:52.835746Z",
+      "closed_at": "2026-01-25T14:34:04.878141Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-18r",
+      "title": "Add brewdistillery binary alias alongside bd",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-25T14:30:09.133536Z",
+      "updated_at": "2026-01-25T14:31:49.023290Z",
+      "body": "Acceptance:\\n- Cargo builds both 'bd' and 'brewdistillery' binaries from the same entrypoint.\\n- README and help text remain consistent with bd shorthand.\\n- cargo test passes.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-25T14:30:33.738644Z",
+      "closed_at": "2026-01-25T14:31:49.023290Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-bp2",
+      "title": "EPIC: UX & Safety",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:32.877452Z",
+      "updated_at": "2026-01-25T14:30:25.507488Z",
+      "body": "Scope: prompt flows, preview/confirm UX, error strategy, atomic writes.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-zrb",
+      "title": "EPIC: Formula & Templates",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:32.372907Z",
+      "updated_at": "2026-01-25T14:30:18.860496Z",
+      "body": "Scope: formula naming, template rendering, validation, multi-bin behavior.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-wry",
+      "title": "EPIC: CLI Core",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:41:08.374466Z",
+      "updated_at": "2026-01-25T14:30:12.236991Z",
+      "body": "Foundation implementation tasks for the Rust CLI (arg parsing, shared context, error handling).",
+      "comments_count": 0
+    },
     {
       "id": "sv-ggc",
       "title": "Refine init --import-formula overwrite policy",
@@ -127,16 +202,6 @@
       "branch": "main",
       "started_at": "2026-01-25T13:49:40.286692Z",
       "closed_at": "2026-01-25T13:57:21.341236Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-bp2",
-      "title": "EPIC: UX & Safety",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-22T13:31:32.877452Z",
-      "updated_at": "2026-01-25T13:49:35.899123Z",
-      "body": "Scope: prompt flows, preview/confirm UX, error strategy, atomic writes.\\nDoD: Epics only; child tasks define acceptance criteria.",
       "comments_count": 0
     },
     {
@@ -1024,16 +1089,6 @@
       "comments_count": 0
     },
     {
-      "id": "sv-zrb",
-      "title": "EPIC: Formula & Templates",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:31:32.372907Z",
-      "updated_at": "2026-01-23T14:33:00.331183Z",
-      "body": "Scope: formula naming, template rendering, validation, multi-bin behavior.\\nDoD: Epics only; child tasks define acceptance criteria.",
-      "comments_count": 0
-    },
-    {
       "id": "sv-8s5",
       "title": "Define checksum acquisition strategy",
       "status": "closed",
@@ -1850,16 +1905,6 @@
       "branch": "main",
       "started_at": "2026-01-22T13:55:13.438323Z",
       "closed_at": "2026-01-22T13:58:14.380547Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-wry",
-      "title": "EPIC: CLI Core",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-22T13:41:08.374466Z",
-      "updated_at": "2026-01-22T13:41:33.494941Z",
-      "body": "Foundation implementation tasks for the Rust CLI (arg parsing, shared context, error handling).",
       "comments_count": 0
     },
     {
