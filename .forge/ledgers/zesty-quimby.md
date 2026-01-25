@@ -4846,3 +4846,80 @@ Next steps (pick one):
 2) If you want configurable CLI version update commit messages, I can add a config field and wire it in.
 ```
 
+## 2026-01-23T16:17:33Z
+
+- run_id: 4a9b0b62-a2a1-48cb-b7a8-1cc999cc8bc7
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-23T16:09:44Z
+- finished_at: 2026-01-23T16:17:33Z
+- exit_code: 0
+
+```
++        }],
++    });
++
++    if let (Some(path), Some(content)) = (formula_path.clone(), formula_content.clone()) {
++        let tap_root = path
++            .parent()
++            .and_then(|parent| parent.parent())
++            .map(|path| path.to_path_buf())
++            .unwrap_or_else(|| ctx.cwd.clone());
++        plans.push(RepoPlan {
++            label: "tap".to_string(),
++            repo_root: tap_root,
++            writes: vec![PlannedWrite { path, content }],
++        });
+     }
+ 
+-    if existing.as_deref() != Some(rendered.as_str()) {
+-        next_config.save(&ctx.config_path)?;
++    let preview = crate::preview::preview_and_apply(&plans, true)?;
++    if !preview.summary.trim().is_empty() {
++        println!("{}", preview.summary.trim_end());
++    }
++    if !preview.diff.trim().is_empty() {
++        println!("{}", preview.diff.trim_end());
++    }
++    if preview.changed_files.is_empty() {
++        println!("init: no changes to apply");
+     }
+ 
+-    if let (Some(path), Some(content)) = (formula_path, formula_content) {
+-        if existing_formula.as_deref() != Some(content.as_str()) {
+-            if let Some(parent) = path.parent() {
+-                fs::create_dir_all(parent)?;
+-            }
+-            fs::write(path, content)?;
+-        }
++    if args.dry_run {
++        println!("dry-run: no changes applied");
++        return Ok(());
+     }
+ 
++    let _ = crate::preview::preview_and_apply(&plans, false)?;
+     Ok(())
+ }
+ 
+
+tokens used
+100 179
+Added non-interactive `bd init` preview/diff output by routing through the same plan/preview pipeline as interactive runs, so dry-run now shows planned changes and real runs use atomic writes. Updated task tracking for `sv-3tr` and committed the unrelated ledger change separately as requested.
+
+- Preview/plan flow added to non-interactive init, matching interactive output and dry-run messaging in `src/commands/init.rs`.
+- Task tracking updated in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json` (closed `sv-3tr`).
+- Chore commit for the pre-existing ledger update in `.forge/ledgers/zesty-quimby.md`.
+
+Tests:
+- `cargo test -q`
+
+Next steps (optional):
+1) Run `bd init --non-interactive --dry-run` in a sample repo to confirm the new preview output feels right.
+2) If you want non-interactive runs to skip writing when there are no changes, I can gate the apply step on `preview.changed_files`.
+```
+
