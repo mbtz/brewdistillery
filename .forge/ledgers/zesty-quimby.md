@@ -5385,3 +5385,80 @@ Commits:
 One decision still queued in `USER_TODO.md`: Cargo workspace version update policy.
 ```
 
+## 2026-01-25T14:49:42Z
+
+- run_id: 711cf64e-ffad-4ee2-b128-8a2066f84ef7
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-25T14:39:34Z
+- finished_at: 2026-01-25T14:49:42Z
+- exit_code: 0
+
+```
++        let third = retry_delay(3, &policy);
+         assert!(second > first);
+         assert!(third >= second);
+-        assert!(third <= Duration::from_millis(DOWNLOAD_RETRY_MAX_DELAY_MS));
++        assert!(third <= Duration::from_millis(policy.retry_max_delay_ms));
+     }
+ }
+diff --git a/src/host/mod.rs b/src/host/mod.rs
+index 20e263e91306929b4b11a1286a8a9b683dcced8b..c055d4f125abfa795c4a355c643889d17f4ca7fa
+--- a/src/host/mod.rs
++++ b/src/host/mod.rs
+@@ -2,6 +2,31 @@
+ 
+ pub mod github;
+ 
++pub const DEFAULT_CHECKSUM_MAX_BYTES: u64 = 200 * 1024 * 1024;
++pub const DEFAULT_CHECKSUM_TIMEOUT_SECS: u64 = 60;
++pub const DEFAULT_CHECKSUM_MAX_RETRIES: usize = 3;
++pub const DEFAULT_CHECKSUM_RETRY_BASE_DELAY_MS: u64 = 250;
++pub const DEFAULT_CHECKSUM_RETRY_MAX_DELAY_MS: u64 = 2000;
++
++#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++pub struct DownloadPolicy {
++    pub timeout_secs: u64,
++    pub max_retries: usize,
++    pub retry_base_delay_ms: u64,
++    pub retry_max_delay_ms: u64,
++}
++
++impl Default for DownloadPolicy {
++    fn default() -> Self {
++        Self {
++            timeout_secs: DEFAULT_CHECKSUM_TIMEOUT_SECS,
++            max_retries: DEFAULT_CHECKSUM_MAX_RETRIES,
++            retry_base_delay_ms: DEFAULT_CHECKSUM_RETRY_BASE_DELAY_MS,
++            retry_max_delay_ms: DEFAULT_CHECKSUM_RETRY_MAX_DELAY_MS,
++        }
++    }
++}
++
+ #[derive(Debug, Clone, PartialEq, Eq)]
+ pub struct Release {
+     pub tag_name: String,
+
+tokens used
+755 349
+Done. I used the **sv-issue-tracking** skill, created tasks, and implemented them.
+
+What I completed:
+- Created and closed:
+  - `sv-wkf` (P0) Implement configurable checksum download policy (parent: `sv-xf8`)
+  - `sv-m0c` (P1) Define latest release selection with `--include-prerelease` (parent: `sv-xf8`)
+- Implemented:
+  - Configurable checksum policy in `src/config.rs` and wired into release + GitHub client in `src/commands/release.rs` and `src/host/github.rs`
+  - Defaults and docs in `docs/config.example.toml`
+  - Tests added/updated (now **105 passing** via `cargo test`)
+- Commits:
+  - `3a0847c feat: configure checksum downloads and prerelease selection`
+  - `477e0c7 chore: update forge ledger`
+- Pushed to `main` successfully.
+```
+
