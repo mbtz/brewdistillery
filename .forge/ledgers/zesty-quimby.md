@@ -5154,3 +5154,80 @@ Done: I synced the `sv` tasks and implemented two key gaps.
 If you want, I can next tackle the interactive “back/edit” step or close out the epics.
 ```
 
+## 2026-01-25T13:58:54Z
+
+- run_id: a28fd1a8-03aa-40b0-ba7f-d3e9c460e1a5
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-25T13:46:33Z
+- finished_at: 2026-01-25T13:58:54Z
+- exit_code: 0
+
+```
++        let err = detect_metadata(dir.path(), ConflictPolicy::Error).unwrap_err();
+         assert!(matches!(err, AppError::InvalidInput(_)));
++        assert!(err
++            .to_string()
++            .starts_with("conflicting metadata detected:"));
++    }
++
++    #[test]
++    fn allows_conflicts_when_policy_allows() {
++        let dir = tempdir().unwrap();
++        fs::write(
++            dir.path().join("Cargo.toml"),
++            "[package]\nname = \"brewtool\"\n",
++        )
++        .unwrap();
++        fs::write(
++            dir.path().join("package.json"),
++            r#"{ "name": "other", "bin": { "other": "bin/other" } }"#,
++        )
++        .unwrap();
++
++        let resolved = detect_metadata_allow(dir.path());
++        let meta = resolved.metadata.expect("metadata");
++
++        assert!(meta.name.is_none());
++        assert!(meta.bin.is_empty());
++
++        let fields = resolved
++            .conflicts
++            .iter()
++            .map(|conflict| conflict.field.as_str())
++            .collect::<HashSet<_>>();
++        assert!(fields.contains("name"));
++        assert!(fields.contains("bin"));
+     }
+ 
+     #[test]
+
+tokens used
+874 661
+Done. I used the `sv-issue-tracking`, `workflow-pattern`, and `session-protocol` skills.
+
+I created PRD-aligned tasks and started implementing one:
+- Created tasks: `sv-g9y`, `sv-x00`, `sv-mgt`, `sv-05z`, `sv-bk0`, `sv-ggc`, `sv-ewx`
+- Implemented and closed: `sv-v77` (“Handle metadata conflicts interactively”)
+
+What I implemented:
+- Repo detection now records conflicts instead of failing immediately: `src/repo_detect.rs`
+- Interactive `init` shows conflict hints; non-interactive `init` now fails unless explicit overrides are provided: `src/commands/init.rs`
+- Context now allows conflict capture so commands can decide: `src/context.rs`
+- Docs updated: `docs/metadata-detection.md`
+
+Validation:
+- Ran `cargo test`: 82 passed
+
+Commits pushed:
+- `3d99558` feat: handle metadata conflicts in non-interactive init
+- `b15d40e` chore: update forge ledger
+
+Natural next step: I can start `sv-g9y` (Cargo workspace version_update defaults) next.
+```
+
