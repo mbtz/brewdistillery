@@ -83,7 +83,7 @@ fn update_cargo_version(
 
     let target_package = target_package.ok_or_else(|| {
         AppError::InvalidInput(
-            "version_update.mode=cargo requires version_update.cargo_package for workspaces"
+            "version_update.mode=cargo requires version_update.cargo_package for workspaces without [package] or [workspace.package]"
                 .to_string(),
         )
     })?;
@@ -351,6 +351,55 @@ mod tests {
     }
 
     #[test]
+    fn prefers_root_package_when_workspace_package_present() {
+        let dir = tempdir().unwrap();
+        let manifest = dir.path().join("Cargo.toml");
+        fs::write(
+            &manifest,
+            "[package]\nname = \"demo\"\nversion = \"0.1.0\"\n\n[workspace.package]\nversion = \"9.9.9\"\n",
+        )
+        .unwrap();
+
+        let config = VersionUpdateConfig {
+            mode: Some("cargo".to_string()),
+            cargo_package: None,
+            regex_file: None,
+            regex_pattern: None,
+            regex_replacement: None,
+            extra: Default::default(),
+        };
+
+        let changed = apply_version_update(&config, dir.path(), "1.2.3", false).unwrap();
+        assert_eq!(changed, vec![manifest.clone()]);
+
+        let updated = fs::read_to_string(&manifest).unwrap();
+        assert!(updated.contains("[package]\nname = \"demo\"\nversion = \"1.2.3\""));
+        assert!(updated.contains("[workspace.package]\nversion = \"9.9.9\""));
+    }
+
+    #[test]
+    fn updates_workspace_package_when_root_package_missing() {
+        let dir = tempdir().unwrap();
+        let manifest = dir.path().join("Cargo.toml");
+        fs::write(&manifest, "[workspace.package]\nversion = \"0.5.0\"\n").unwrap();
+
+        let config = VersionUpdateConfig {
+            mode: Some("cargo".to_string()),
+            cargo_package: None,
+            regex_file: None,
+            regex_pattern: None,
+            regex_replacement: None,
+            extra: Default::default(),
+        };
+
+        let changed = apply_version_update(&config, dir.path(), "2.0.0", false).unwrap();
+        assert_eq!(changed, vec![manifest.clone()]);
+
+        let updated = fs::read_to_string(&manifest).unwrap();
+        assert!(updated.contains("version = \"2.0.0\""));
+    }
+
+    #[test]
     fn updates_workspace_member_version() {
         let dir = tempdir().unwrap();
         fs::write(
@@ -381,6 +430,31 @@ mod tests {
         assert_eq!(changed, vec![member_manifest.clone()]);
         let updated = fs::read_to_string(&member_manifest).unwrap();
         assert!(updated.contains("version = \"2.0.0\""));
+    }
+
+    #[test]
+    fn requires_cargo_package_for_workspace_without_root_versions() {
+        let dir = tempdir().unwrap();
+        fs::write(
+            dir.path().join("Cargo.toml"),
+            "[workspace]\nmembers = [\"crates/app\"]\n",
+        )
+        .unwrap();
+
+        let config = VersionUpdateConfig {
+            mode: Some("cargo".to_string()),
+            cargo_package: None,
+            regex_file: None,
+            regex_pattern: None,
+            regex_replacement: None,
+            extra: Default::default(),
+        };
+
+        let err = apply_version_update(&config, dir.path(), "1.0.0", false).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "version_update.mode=cargo requires version_update.cargo_package for workspaces without [package] or [workspace.package]"
+        );
     }
 
     #[test]

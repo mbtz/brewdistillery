@@ -878,11 +878,8 @@ fn ensure_conflicts_resolved(
     if let Some(conflict) = conflict_for_field(&ctx.repo.conflicts, "name") {
         let explicit_name =
             has_explicit_string(args.repo_name.as_ref(), ctx.config.project.name.as_ref())
-                || has_explicit_string(
-                    args.formula_name.as_ref(),
-                    ctx.config.tap.formula.as_ref(),
-                );
-        if !explicit_name {
+                || has_explicit_string(args.formula_name.as_ref(), ctx.config.tap.formula.as_ref());
+        if !explicit_name && !allow_formula_missing {
             required.push(conflict_requirement(conflict));
         }
     }
@@ -891,7 +888,10 @@ fn ensure_conflicts_resolved(
         check_conflict(
             &mut required,
             conflict_for_field(&ctx.repo.conflicts, "description"),
-            has_explicit_string(args.description.as_ref(), ctx.config.project.description.as_ref()),
+            has_explicit_string(
+                args.description.as_ref(),
+                ctx.config.project.description.as_ref(),
+            ),
         );
         check_conflict(
             &mut required,
@@ -2053,6 +2053,36 @@ mod tests {
     }
 
     #[test]
+    fn requires_force_for_formula_overwrite() {
+        let dir = tempdir().unwrap();
+        let ctx = base_context(dir.path());
+        let tap_path = dir.path().join("tap");
+        let formula_dir = tap_path.join("Formula");
+        fs::create_dir_all(&formula_dir).unwrap();
+        let formula_path = formula_dir.join("brewtool.rb");
+        fs::write(&formula_path, "old\n").unwrap();
+
+        let mut args = base_args();
+        args.tap_path = Some(tap_path);
+        args.host_owner = Some("acme".to_string());
+        args.host_repo = Some("brewtool".to_string());
+
+        let err = run_non_interactive(&ctx, &args).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            format!(
+                "formula already exists at {}; re-run with --force or --yes to overwrite",
+                formula_path.display()
+            )
+        );
+
+        args.force = true;
+        run_non_interactive(&ctx, &args).unwrap();
+        let updated = fs::read_to_string(&formula_path).unwrap();
+        assert!(updated.contains("class Brewtool < Formula"));
+    }
+
+    #[test]
     fn import_formula_prefers_formula_fields() {
         let dir = tempdir().unwrap();
         let ctx = base_context(dir.path());
@@ -2099,6 +2129,87 @@ end
 
         let formula_after = fs::read_to_string(&formula_path).unwrap();
         assert_eq!(formula_after, content);
+    }
+
+    #[test]
+    fn import_formula_fills_gaps_from_config() {
+        let dir = tempdir().unwrap();
+        let mut ctx = base_context(dir.path());
+        ctx.config.project.homepage = Some("https://config.example".to_string());
+
+        let tap_path = dir.path().join("tap");
+        let formula_dir = tap_path.join("Formula");
+        fs::create_dir_all(&formula_dir).unwrap();
+        let formula_path = formula_dir.join("brewtool.rb");
+        let content = r#"class Brewtool < Formula
+  desc "From formula"
+  url "https://example.com/brewtool-9.9.9.tar.gz"
+  sha256 "abc"
+  license "Apache-2.0"
+  version "9.9.9"
+
+  def install
+    bin.install "brewtool"
+  end
+end
+"#;
+        fs::write(&formula_path, content).unwrap();
+
+        let mut args = base_args();
+        args.import_formula = true;
+        args.tap_path = Some(tap_path);
+        args.host_owner = Some("acme".to_string());
+        args.host_repo = Some("brewtool".to_string());
+
+        run_non_interactive(&ctx, &args).unwrap();
+
+        let config = Config::load(&ctx.config_path).unwrap();
+        assert_eq!(
+            config.project.homepage.as_deref(),
+            Some("https://config.example")
+        );
+        assert_eq!(config.project.description.as_deref(), Some("From formula"));
+    }
+
+    #[test]
+    fn import_formula_allows_name_conflicts_without_overrides() {
+        let dir = tempdir().unwrap();
+        let ctx = context_with_conflicts(
+            dir.path(),
+            vec![MetadataConflict {
+                field: "name".to_string(),
+                details: "Cargo.toml='brewtool', package.json='other'".to_string(),
+            }],
+        );
+
+        let tap_path = dir.path().join("tap");
+        let formula_dir = tap_path.join("Formula");
+        fs::create_dir_all(&formula_dir).unwrap();
+        let formula_path = formula_dir.join("brewtool.rb");
+        let content = r#"class Brewtool < Formula
+  desc "From formula"
+  homepage "https://formula.example"
+  url "https://example.com/brewtool-1.2.3.tar.gz"
+  sha256 "abc"
+  license "MIT"
+  version "1.2.3"
+
+  def install
+    bin.install "brewtool"
+  end
+end
+"#;
+        fs::write(&formula_path, content).unwrap();
+
+        let mut args = base_args();
+        args.import_formula = true;
+        args.tap_path = Some(tap_path);
+        args.host_owner = Some("acme".to_string());
+        args.host_repo = Some("brewtool".to_string());
+
+        run_non_interactive(&ctx, &args).unwrap();
+        let config = Config::load(&ctx.config_path).unwrap();
+        assert_eq!(config.tap.formula.as_deref(), Some("brewtool"));
     }
 
     #[test]

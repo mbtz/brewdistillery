@@ -145,7 +145,9 @@ pub fn select_git_remote(
 ) -> Result<String, AppError> {
     let remotes = list_git_remotes(repo)?;
     if remotes.is_empty() {
-        return Err(AppError::GitState("git remote not configured".to_string()));
+        return Err(AppError::GitState(
+            "no GitHub remote found; specify --host-owner/--host-repo".to_string(),
+        ));
     }
 
     let configured = configured_remote_url
@@ -161,19 +163,103 @@ pub fn select_git_remote(
         if matches.len() == 1 {
             return Ok(matches[0].name.clone());
         }
+        if matches.len() > 1 {
+            return Err(AppError::GitState(
+                "multiple git remotes found; specify --host-owner/--host-repo".to_string(),
+            ));
+        }
     }
 
-    if remotes.iter().any(|remote| remote.name == "origin") {
-        return Ok("origin".to_string());
+    if let Some(origin) = remotes.iter().find(|remote| remote.name == "origin") {
+        let github_urls = origin
+            .urls
+            .iter()
+            .filter(|url| is_github_url(url))
+            .collect::<Vec<_>>();
+        if !github_urls.is_empty() {
+            if github_urls
+                .iter()
+                .any(|url| github_https_from_remote(url).is_some())
+            {
+                return Ok(origin.name.clone());
+            }
+            return Err(AppError::GitState(
+                "unable to parse GitHub remote URL; specify --host-owner/--host-repo".to_string(),
+            ));
+        }
     }
 
-    if remotes.len() == 1 {
-        return Ok(remotes[0].name.clone());
+    let mut github_remotes = Vec::new();
+    let mut has_unparsable = false;
+    for remote in &remotes {
+        let mut github_urls = remote
+            .urls
+            .iter()
+            .filter(|url| is_github_url(url))
+            .collect::<Vec<_>>();
+        github_urls.sort();
+        github_urls.dedup();
+        if github_urls.is_empty() {
+            continue;
+        }
+
+        let parseable = github_urls
+            .iter()
+            .any(|url| github_https_from_remote(url).is_some());
+        if parseable {
+            github_remotes.push(remote);
+        } else {
+            has_unparsable = true;
+        }
+    }
+
+    if github_remotes.len() == 1 {
+        return Ok(github_remotes[0].name.clone());
+    }
+
+    if github_remotes.len() > 1 {
+        return Err(AppError::GitState(
+            "multiple git remotes found; specify --host-owner/--host-repo".to_string(),
+        ));
+    }
+
+    if has_unparsable {
+        return Err(AppError::GitState(
+            "unable to parse GitHub remote URL; specify --host-owner/--host-repo".to_string(),
+        ));
     }
 
     Err(AppError::GitState(
-        "multiple git remotes found; configure origin or set a matching remote URL".to_string(),
+        "no GitHub remote found; specify --host-owner/--host-repo".to_string(),
     ))
+}
+
+fn github_https_from_remote(remote: &str) -> Option<String> {
+    let trimmed = remote.trim();
+    let path = if let Some(rest) = trimmed.strip_prefix("git@github.com:") {
+        rest
+    } else if let Some(rest) = trimmed.strip_prefix("ssh://git@github.com/") {
+        rest
+    } else if let Some(rest) = trimmed.strip_prefix("https://github.com/") {
+        rest
+    } else if let Some(rest) = trimmed.strip_prefix("http://github.com/") {
+        rest
+    } else if let Some(rest) = trimmed.strip_prefix("git://github.com/") {
+        rest
+    } else {
+        return None;
+    };
+
+    let cleaned = path.trim_end_matches(".git").trim_end_matches('/');
+    if cleaned.is_empty() {
+        return None;
+    }
+
+    Some(format!("https://github.com/{cleaned}"))
+}
+
+fn is_github_url(remote: &str) -> bool {
+    remote.contains("github.com")
 }
 
 fn list_git_remotes(repo: &Path) -> Result<Vec<RemoteEntry>, AppError> {
@@ -238,13 +324,64 @@ mod tests {
         assert!(status.success(), "git remote add should succeed");
     }
 
+    fn make_initial_commit(repo: &Path) {
+        let config_email = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(["config", "user.email", "codex@example.com"])
+            .status()
+            .expect("git config user.email");
+        assert!(
+            config_email.success(),
+            "git config user.email should succeed"
+        );
+
+        let config_name = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(["config", "user.name", "Codex"])
+            .status()
+            .expect("git config user.name");
+        assert!(config_name.success(), "git config user.name should succeed");
+
+        let config_sign = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(["config", "commit.gpgsign", "false"])
+            .status()
+            .expect("git config commit.gpgsign");
+        assert!(
+            config_sign.success(),
+            "git config commit.gpgsign should succeed"
+        );
+
+        let readme = repo.join("README.md");
+        std::fs::write(&readme, "init\n").expect("write README");
+
+        let add_status = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(["add", "README.md"])
+            .status()
+            .expect("git add");
+        assert!(add_status.success(), "git add should succeed");
+
+        let commit_status = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(["-c", "commit.gpgsign=false", "commit", "-m", "init"])
+            .status()
+            .expect("git commit");
+        assert!(commit_status.success(), "git commit should succeed");
+    }
+
     #[test]
     fn selects_configured_remote_when_present() {
         let (_dir, repo) = init_repo();
-        add_remote(&repo, "origin", "https://example.com/origin.git");
-        add_remote(&repo, "upstream", "https://example.com/upstream.git");
+        add_remote(&repo, "origin", "https://github.com/acme/origin.git");
+        add_remote(&repo, "upstream", "https://github.com/acme/upstream.git");
 
-        let remote = select_git_remote(&repo, Some("https://example.com/upstream.git"))
+        let remote = select_git_remote(&repo, Some("https://github.com/acme/upstream.git"))
             .expect("select remote");
         assert_eq!(remote, "upstream");
     }
@@ -252,18 +389,18 @@ mod tests {
     #[test]
     fn falls_back_to_origin_without_configured_match() {
         let (_dir, repo) = init_repo();
-        add_remote(&repo, "origin", "https://example.com/origin.git");
-        add_remote(&repo, "upstream", "https://example.com/upstream.git");
+        add_remote(&repo, "origin", "https://github.com/acme/origin.git");
+        add_remote(&repo, "upstream", "https://github.com/acme/upstream.git");
 
-        let remote =
-            select_git_remote(&repo, Some("https://example.com/other.git")).expect("select remote");
+        let remote = select_git_remote(&repo, Some("https://github.com/acme/other.git"))
+            .expect("select remote");
         assert_eq!(remote, "origin");
     }
 
     #[test]
     fn falls_back_to_single_remote() {
         let (_dir, repo) = init_repo();
-        add_remote(&repo, "upstream", "https://example.com/upstream.git");
+        add_remote(&repo, "upstream", "https://github.com/acme/upstream.git");
 
         let remote = select_git_remote(&repo, None).expect("select remote");
         assert_eq!(remote, "upstream");
@@ -272,16 +409,36 @@ mod tests {
     #[test]
     fn errors_when_multiple_remotes_and_no_origin() {
         let (_dir, repo) = init_repo();
-        add_remote(&repo, "upstream", "https://example.com/upstream.git");
-        add_remote(&repo, "mirror", "https://example.com/mirror.git");
+        add_remote(&repo, "upstream", "https://github.com/acme/upstream.git");
+        add_remote(&repo, "mirror", "https://github.com/acme/mirror.git");
 
         let err = select_git_remote(&repo, None).expect_err("should error");
-        match err {
-            AppError::GitState(message) => assert!(
-                message.contains("multiple git remotes found"),
-                "unexpected message: {message}"
-            ),
-            other => panic!("unexpected error: {other:?}"),
-        }
+        assert_eq!(
+            err.to_string(),
+            "multiple git remotes found; specify --host-owner/--host-repo"
+        );
+    }
+
+    #[test]
+    fn ignores_non_github_origin_when_single_github_remote_exists() {
+        let (_dir, repo) = init_repo();
+        add_remote(&repo, "origin", "https://gitlab.com/acme/origin.git");
+        add_remote(&repo, "upstream", "https://github.com/acme/upstream.git");
+
+        let remote = select_git_remote(&repo, None).expect("select remote");
+        assert_eq!(remote, "upstream");
+    }
+
+    #[test]
+    fn errors_when_tag_already_exists() {
+        let (_dir, repo) = init_repo();
+        make_initial_commit(&repo);
+
+        create_tag(&repo, "v1.2.3").expect("create initial tag");
+        let err = create_tag(&repo, "v1.2.3").expect_err("tag should already exist");
+        assert_eq!(
+            err.to_string(),
+            "tag 'v1.2.3' already exists; re-run with --skip-tag or choose a new version"
+        );
     }
 }

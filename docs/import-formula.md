@@ -11,6 +11,7 @@ This document reflects the current implementation in `src/commands/init.rs`.
 - Formula fields win when present.
 - Config and flags only fill missing values.
 - Non-interactive import fails fast when required fields remain unresolved.
+- Manifest conflicts do not require explicit overrides in import mode; the formula resolves the final values when present.
 
 ## How the formula is located
 

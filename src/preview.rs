@@ -49,30 +49,54 @@ fn build_preview(plans: &[RepoPlan]) -> Result<(String, String, Vec<PathBuf>), A
     let mut changed_files = Vec::new();
 
     for plan in plans {
-        let repo_header = format!(
-            "Repo: {} ({})\n",
-            plan.label,
-            plan.repo_root.display()
-        );
-        summary.push_str(&repo_header);
+        #[derive(Debug)]
+        struct PendingChange {
+            path: PathBuf,
+            relative: String,
+            old_content: String,
+            new_content: String,
+            status: &'static str,
+        }
 
+        let mut changes = Vec::new();
         for write in &plan.writes {
             let relative = relative_path(&plan.repo_root, &write.path);
             let existing = read_optional(&write.path)?;
-            let old_content = existing.as_deref().unwrap_or("");
-
+            let exists = existing.is_some();
+            let old_content = existing.unwrap_or_default();
             if old_content == write.content {
                 continue;
             }
 
-            let status = if existing.is_some() { "modified" } else { "new" };
-            summary.push_str(&format!("  - {} ({})\n", relative, status));
-            changed_files.push(write.path.clone());
+            let status = if exists { "modified" } else { "new" };
+            changes.push(PendingChange {
+                path: write.path.clone(),
+                relative,
+                old_content,
+                new_content: write.content.clone(),
+                status,
+            });
+        }
 
-            let diff = TextDiff::from_lines(old_content, &write.content);
+        if changes.is_empty() {
+            continue;
+        }
+
+        changes.sort_by(|a, b| a.relative.cmp(&b.relative));
+        summary.push_str(&format!(
+            "Repo: {} ({})\n",
+            plan.label,
+            plan.repo_root.display()
+        ));
+
+        for change in changes {
+            summary.push_str(&format!("  - {} ({})\n", change.relative, change.status));
+            changed_files.push(change.path.clone());
+
+            let diff = TextDiff::from_lines(&change.old_content, &change.new_content);
             let file_header = (
-                format!("a/{}", relative),
-                format!("b/{}", relative),
+                format!("a/{}/{}", plan.label, change.relative),
+                format!("b/{}/{}", plan.label, change.relative),
             );
             let unified = diff
                 .unified_diff()
@@ -159,6 +183,48 @@ mod tests {
         assert!(preview.diff.contains("+new"));
         assert!(!preview.changed_files.is_empty());
         assert_eq!(fs::read_to_string(&file_path).unwrap(), "old\n");
+    }
+
+    #[test]
+    fn labels_multi_repo_summaries_and_diffs() {
+        let cli_dir = tempdir().unwrap();
+        let tap_dir = tempdir().unwrap();
+
+        let cli_path = cli_dir.path().join(".distill/config.toml");
+        fs::create_dir_all(cli_path.parent().unwrap()).unwrap();
+        fs::write(&cli_path, "old = true\n").unwrap();
+
+        let tap_path = tap_dir.path().join("Formula/tool.rb");
+        fs::create_dir_all(tap_path.parent().unwrap()).unwrap();
+        fs::write(&tap_path, "old\n").unwrap();
+
+        let plans = vec![
+            RepoPlan {
+                label: "cli".to_string(),
+                repo_root: cli_dir.path().to_path_buf(),
+                writes: vec![PlannedWrite {
+                    path: cli_path.clone(),
+                    content: "old = false\n".to_string(),
+                }],
+            },
+            RepoPlan {
+                label: "tap".to_string(),
+                repo_root: tap_dir.path().to_path_buf(),
+                writes: vec![PlannedWrite {
+                    path: tap_path.clone(),
+                    content: "new\n".to_string(),
+                }],
+            },
+        ];
+
+        let preview = preview_and_apply(&plans, true).unwrap();
+        assert!(preview.summary.contains("Repo: cli ("));
+        assert!(preview.summary.contains(".distill/config.toml (modified)"));
+        assert!(preview.summary.contains("Repo: tap ("));
+        assert!(preview.summary.contains("Formula/tool.rb (modified)"));
+        assert!(preview.diff.contains("a/cli/.distill/config.toml"));
+        assert!(preview.diff.contains("a/tap/Formula/tool.rb"));
+        assert_eq!(preview.changed_files.len(), 2);
     }
 
     #[test]

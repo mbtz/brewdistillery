@@ -56,7 +56,7 @@ Ambiguity error:
 - Exit code: 3
 
 No match error:
-- Message: `no release assets match target '<target>'; available assets: <a>, <b>, ...`
+- Message: `no release assets match target '<target>'; available assets: <a>, <b>, ...; specify --asset-name or --asset-template`
 - Exit code: 3
 
 ## Target matrix configuration
@@ -104,7 +104,7 @@ If any target fails, the command fails and lists the missing or ambiguous
 targets.
 
 Example failure:
-- Message: `no release assets match target 'darwin-arm64'; available assets: ...`
+- Message: `no release assets match target 'darwin-arm64'; available assets: ...; specify --asset-name or --asset-template`
 - Exit code: 3
 
 ## Formula output mapping

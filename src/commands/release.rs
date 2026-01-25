@@ -60,7 +60,22 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         )));
     }
 
-    let tap_root = resolve_tap_root_for_release(ctx, args, args.dry_run)?;
+    let tap_root = if args.dry_run {
+        let tap_root = resolve_tap_root_for_release(ctx, args, true)?;
+        if tap_root.path.is_none()
+            && tap_root.remote_url.is_some()
+            && !has_absolute_formula_path(&ctx.config)
+        {
+            return Err(AppError::MissingConfig(
+                "dry-run requires tap.path or an absolute tap.formula_path; tap.remote cannot be auto-cloned".to_string(),
+            ));
+        }
+        validate_release_preflight(ctx, args)?;
+        tap_root
+    } else {
+        validate_release_preflight(ctx, args)?;
+        resolve_tap_root_for_release(ctx, args, false)?
+    };
     if let (Some(path), Some(remote)) = (tap_root.path.as_ref(), tap_root.cloned_from.as_ref()) {
         println!(
             "release: cloned tap repo from {} to {}",
@@ -69,16 +84,6 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         );
     }
     let _tap_root_guard = tap_root.temp_dir.as_ref();
-
-    if args.dry_run
-        && tap_root.path.is_none()
-        && tap_root.remote_url.is_some()
-        && !has_absolute_formula_path(&ctx.config)
-    {
-        return Err(AppError::MissingConfig(
-            "dry-run requires tap.path or an absolute tap.formula_path; tap.remote cannot be auto-cloned".to_string(),
-        ));
-    }
 
     let resolved = resolve_release_context(
         ctx,
@@ -284,6 +289,164 @@ fn has_absolute_formula_path(config: &Config) -> bool {
         .unwrap_or(false)
 }
 
+fn validate_release_preflight(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
+    let config = &ctx.config;
+    let mut missing = Vec::new();
+
+    let tap_path = args.tap_path.clone().or_else(|| config.tap.path.clone());
+    let tap_remote = args
+        .tap_remote
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string())
+        .or_else(|| {
+            config
+                .tap
+                .remote
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(|value| value.to_string())
+        });
+
+    let has_absolute_formula_path = config
+        .tap
+        .formula_path
+        .as_ref()
+        .map(|path| path.is_absolute())
+        .unwrap_or(false);
+    if tap_path.is_none() && tap_remote.is_none() && !has_absolute_formula_path {
+        missing.push("tap.path, tap.remote, or tap.formula_path".to_string());
+    }
+
+    let formula_name = resolve_string(None, config.tap.formula.as_ref()).unwrap_or_default();
+    if formula_name.is_empty() {
+        missing.push("tap.formula".to_string());
+    }
+
+    let description = resolve_string(None, config.project.description.as_ref()).unwrap_or_default();
+    if description.trim().is_empty() {
+        missing.push("project.description".to_string());
+    }
+
+    let homepage = resolve_string(None, config.project.homepage.as_ref()).unwrap_or_default();
+    if homepage.trim().is_empty() {
+        missing.push("project.homepage".to_string());
+    }
+
+    let license = resolve_string(None, config.project.license.as_ref()).unwrap_or_default();
+    if license.trim().is_empty() {
+        missing.push("project.license".to_string());
+    }
+
+    let bins = normalize_bins(config.project.bin.clone());
+    if bins.is_empty() {
+        missing.push("project.bin".to_string());
+    }
+
+    let artifact_strategy = resolve_string(
+        args.artifact_strategy.as_ref(),
+        config.artifact.strategy.as_ref(),
+    )
+    .unwrap_or_default();
+    if artifact_strategy.trim().is_empty() {
+        missing.push("artifact.strategy".to_string());
+    }
+
+    let asset_template = resolve_string(
+        args.asset_template.as_ref(),
+        config.artifact.asset_template.as_ref(),
+    );
+    let asset_name = resolve_string(
+        args.asset_name.as_ref(),
+        config.artifact.asset_name.as_ref(),
+    );
+
+    let targets = config.artifact.targets.clone();
+    let target_mode = if !targets.is_empty() && !artifact_strategy.trim().is_empty() {
+        Some(validate_target_keys_shape(&targets)?)
+    } else {
+        None
+    };
+    if let Some(mode) = target_mode {
+        validate_target_templates(&targets, mode, asset_name.as_ref(), asset_template.as_ref())?;
+    }
+
+    match artifact_strategy.as_str() {
+        "release-asset" => {
+            let global_selection = asset_name.is_some() || asset_template.is_some();
+            if !global_selection {
+                if targets.is_empty() {
+                    missing.push("artifact.asset_name or artifact.asset_template".to_string());
+                } else {
+                    let mut missing_targets = targets
+                        .iter()
+                        .filter_map(|(key, target)| {
+                            (!target_has_selection(target)).then(|| key.clone())
+                        })
+                        .collect::<Vec<_>>();
+                    missing_targets.sort();
+                    for key in missing_targets {
+                        missing.push(format!(
+                            "artifact.targets.{key}.asset_name or asset_template"
+                        ));
+                    }
+                }
+            }
+        }
+        "source-tarball" => {
+            if asset_name.is_some() || asset_template.is_some() {
+                return Err(AppError::InvalidInput(
+                    "source-tarball strategy does not support asset_name or asset_template"
+                        .to_string(),
+                ));
+            }
+            if !targets.is_empty() {
+                return Err(AppError::InvalidInput(
+                    "source-tarball strategy does not support artifact.targets".to_string(),
+                ));
+            }
+        }
+        _ => {}
+    }
+
+    let host_owner = resolve_string(args.host_owner.as_ref(), config.artifact.owner.as_ref())
+        .or_else(|| resolve_string(None, config.cli.owner.as_ref()))
+        .unwrap_or_default();
+    if host_owner.is_empty() {
+        missing.push("host-owner".to_string());
+    }
+
+    let host_repo = resolve_string(args.host_repo.as_ref(), config.artifact.repo.as_ref())
+        .or_else(|| resolve_string(None, config.cli.repo.as_ref()))
+        .unwrap_or_default();
+    if host_repo.is_empty() {
+        missing.push("host-repo".to_string());
+    }
+
+    if let Some(provider) = config.host.provider.as_deref() {
+        let normalized = provider.trim();
+        if !normalized.is_empty() && normalized != "github" {
+            return Err(AppError::InvalidInput(format!(
+                "host.provider '{}' is not supported yet",
+                provider
+            )));
+        }
+    }
+
+    if !missing.is_empty() {
+        missing.sort();
+        missing.dedup();
+        return Err(AppError::MissingConfig(format!(
+            "missing required fields for --non-interactive: {}",
+            missing.join(", ")
+        )));
+    }
+
+    Ok(())
+}
+
 fn run_dry_run_release(
     ctx: &AppContext,
     args: &ReleaseArgs,
@@ -327,10 +490,12 @@ fn run_dry_run_release(
             };
             (version, tag_to_create, AssetMatrix::Universal(tarball))
         }
-        _ => return Err(AppError::InvalidInput(format!(
+        _ => {
+            return Err(AppError::InvalidInput(format!(
             "artifact.strategy '{}' is not supported yet (use 'release-asset' or 'source-tarball')",
             resolved.artifact_strategy
-        ))),
+        )))
+        }
     };
 
     ensure_formula_target(&resolved.formula_path, &version, args.force)?;
@@ -488,8 +653,13 @@ fn resolve_release_context(
     );
 
     let targets = config.artifact.targets.clone();
-    if !targets.is_empty() && !artifact_strategy.trim().is_empty() {
-        validate_target_keys_shape(&targets)?;
+    let target_mode = if !targets.is_empty() && !artifact_strategy.trim().is_empty() {
+        Some(validate_target_keys_shape(&targets)?)
+    } else {
+        None
+    };
+    if let Some(mode) = target_mode {
+        validate_target_templates(&targets, mode, asset_name.as_ref(), asset_template.as_ref())?;
     }
 
     match artifact_strategy.as_str() {
@@ -1421,7 +1591,9 @@ fn target_has_selection(target: &ArtifactTarget) -> bool {
             .unwrap_or(false)
 }
 
-fn validate_target_keys_shape(targets: &BTreeMap<String, ArtifactTarget>) -> Result<(), AppError> {
+fn validate_target_keys_shape(
+    targets: &BTreeMap<String, ArtifactTarget>,
+) -> Result<TargetMode, AppError> {
     let mut mode: Option<TargetMode> = None;
     for key in targets.keys() {
         match parse_target_key(key)? {
@@ -1443,54 +1615,107 @@ fn validate_target_keys_shape(targets: &BTreeMap<String, ArtifactTarget>) -> Res
             }
         }
     }
+    debug_assert!(!targets.is_empty());
+    Ok(mode.unwrap_or(TargetMode::PerOs))
+}
+
+fn validate_target_templates(
+    targets: &BTreeMap<String, ArtifactTarget>,
+    mode: TargetMode,
+    global_asset_name: Option<&String>,
+    global_asset_template: Option<&String>,
+) -> Result<(), AppError> {
+    if !matches!(mode, TargetMode::PerOs) {
+        return Ok(());
+    }
+
+    let global_asset_name = selection_value(global_asset_name);
+    let global_asset_template = selection_value(global_asset_template);
+
+    for (key, target) in targets {
+        let asset_name =
+            selection_value(target.asset_name.as_ref()).or_else(|| global_asset_name.clone());
+        if asset_name.is_some() {
+            continue;
+        }
+
+        let template = selection_value(target.asset_template.as_ref())
+            .or_else(|| global_asset_template.clone());
+        if let Some(template) = template {
+            if template.contains("{arch}") {
+                return Err(AppError::InvalidInput(format!(
+                    "per-OS target '{key}' cannot use {{arch}} in asset_template; use <os>-<arch> targets instead"
+                )));
+            }
+        }
+    }
+
     Ok(())
 }
 
 fn parse_target_key(key: &str) -> Result<TargetKey, AppError> {
     let lower = key.trim().to_ascii_lowercase();
     if lower.is_empty() {
-        return Err(AppError::InvalidInput(format!(
-            "invalid target key '{key}': expected <os> or <os>-<arch>"
-        )));
+        return Err(invalid_target_key(key));
     }
 
-    let has_darwin = lower.contains("darwin") || lower.contains("macos") || lower.contains("osx");
-    let has_linux = lower.contains("linux");
-
-    let os = match (has_darwin, has_linux) {
-        (true, false) => Some(Os::Darwin),
-        (false, true) => Some(Os::Linux),
-        (false, false) => None,
-        _ => {
-            return Err(AppError::InvalidInput(format!(
-                "invalid target key '{key}': expected <os> or <os>-<arch>"
-            )))
+    let tokens = if lower.contains('-') {
+        let mut parts = lower.splitn(3, '-');
+        let os = parts.next().unwrap_or("");
+        let arch = parts.next();
+        let extra = parts.next();
+        if extra.is_some() {
+            return Err(invalid_target_key(key));
         }
+        match arch {
+            Some(arch_token) if !arch_token.trim().is_empty() => vec![os, arch_token],
+            _ => vec![os],
+        }
+    } else if lower.contains('_') {
+        let mut parts = lower.splitn(2, '_');
+        let os = parts.next().unwrap_or("");
+        let arch = parts.next();
+        match arch {
+            Some(arch_token) if !arch_token.trim().is_empty() => vec![os, arch_token],
+            _ => vec![os],
+        }
+    } else {
+        vec![lower.as_str()]
     };
 
-    let has_arm64 = lower.contains("arm64") || lower.contains("aarch64");
-    let has_amd64 = lower.contains("amd64") || lower.contains("x86_64") || lower.contains("x64");
-
-    let arch = match (has_arm64, has_amd64) {
-        (true, false) => Some(Arch::Arm64),
-        (false, true) => Some(Arch::Amd64),
-        (false, false) => None,
-        _ => {
-            return Err(AppError::InvalidInput(format!(
-                "invalid target key '{key}': expected <os> or <os>-<arch>"
-            )))
+    match tokens.as_slice() {
+        [os_token] => {
+            let os = os_from_token(os_token).ok_or_else(|| invalid_target_key(key))?;
+            Ok(TargetKey::Os(os))
         }
-    };
+        [os_token, arch_token] => {
+            let os = os_from_token(os_token).ok_or_else(|| invalid_target_key(key))?;
+            let arch = arch_from_token(arch_token).ok_or_else(|| invalid_target_key(key))?;
+            Ok(TargetKey::OsArch(os, arch))
+        }
+        _ => Err(invalid_target_key(key)),
+    }
+}
 
-    let os = os.ok_or_else(|| {
-        AppError::InvalidInput(format!(
-            "invalid target key '{key}': expected <os> or <os>-<arch>"
-        ))
-    })?;
+fn invalid_target_key(key: &str) -> AppError {
+    AppError::InvalidInput(format!(
+        "invalid target key '{key}': expected <os> or <os>-<arch>"
+    ))
+}
 
-    match arch {
-        Some(arch) => Ok(TargetKey::OsArch(os, arch)),
-        None => Ok(TargetKey::Os(os)),
+fn os_from_token(token: &str) -> Option<Os> {
+    match token {
+        "darwin" | "macos" | "osx" => Some(Os::Darwin),
+        "linux" => Some(Os::Linux),
+        _ => None,
+    }
+}
+
+fn arch_from_token(token: &str) -> Option<Arch> {
+    match token {
+        "arm64" | "aarch64" => Some(Arch::Arm64),
+        "amd64" | "x86_64" | "x64" => Some(Arch::Amd64),
+        _ => None,
     }
 }
 
@@ -1607,6 +1832,22 @@ end
     }
 
     #[test]
+    fn missing_fields_fail_before_remote_clone() {
+        let dir = tempdir().unwrap();
+        let mut config = Config::default();
+        config.tap.formula = Some("brewtool".to_string());
+        config.tap.remote = Some("ssh://invalid-remote".to_string());
+
+        let ctx = base_context(config, dir.path());
+        let mut args = base_release_args();
+        args.dry_run = false;
+
+        let err = run(&ctx, &args).unwrap_err();
+        assert!(matches!(err, AppError::MissingConfig(_)));
+        assert!(err.to_string().contains("project.description"));
+    }
+
+    #[test]
     fn dry_run_requires_local_tap_path_when_remote_only() {
         let dir = tempdir().unwrap();
         let tap_path = dir.path().join("homebrew-brewtool");
@@ -1710,6 +1951,72 @@ end
         assert_eq!(
             err.to_string(),
             "target keys must be all <os> or all <os>-<arch>"
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_target_keys_before_network() {
+        let dir = tempdir().unwrap();
+        let tap_path = dir.path().join("homebrew-brewtool");
+        let mut config = base_config(&tap_path);
+        config.artifact.asset_template = Some("brewtool-{version}-{os}.tar.gz".to_string());
+
+        let mut targets = BTreeMap::new();
+        targets.insert(
+            "darwin-arm64-extra".to_string(),
+            ArtifactTarget {
+                asset_template: None,
+                asset_name: None,
+                extra: Default::default(),
+            },
+        );
+        config.artifact.targets = targets;
+
+        let ctx = base_context(config, dir.path());
+        let args = base_release_args();
+
+        let err = resolve_release_context(&ctx, &args, Some(&tap_path), None).unwrap_err();
+        assert!(matches!(err, AppError::InvalidInput(_)));
+        assert_eq!(
+            err.to_string(),
+            "invalid target key 'darwin-arm64-extra': expected <os> or <os>-<arch>"
+        );
+    }
+
+    #[test]
+    fn per_os_targets_reject_arch_template_placeholder() {
+        let dir = tempdir().unwrap();
+        let tap_path = dir.path().join("homebrew-brewtool");
+        let mut config = base_config(&tap_path);
+        config.artifact.asset_template = Some("brewtool-{version}-{os}-{arch}.tar.gz".to_string());
+
+        let mut targets = BTreeMap::new();
+        targets.insert(
+            "darwin".to_string(),
+            ArtifactTarget {
+                asset_template: None,
+                asset_name: None,
+                extra: Default::default(),
+            },
+        );
+        targets.insert(
+            "linux".to_string(),
+            ArtifactTarget {
+                asset_template: None,
+                asset_name: None,
+                extra: Default::default(),
+            },
+        );
+        config.artifact.targets = targets;
+
+        let ctx = base_context(config, dir.path());
+        let args = base_release_args();
+
+        let err = resolve_release_context(&ctx, &args, Some(&tap_path), None).unwrap_err();
+        assert!(matches!(err, AppError::InvalidInput(_)));
+        assert_eq!(
+            err.to_string(),
+            "per-OS target 'darwin' cannot use {arch} in asset_template; use <os>-<arch> targets instead"
         );
     }
 

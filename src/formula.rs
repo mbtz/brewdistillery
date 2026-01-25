@@ -156,7 +156,11 @@ impl FormulaSpec {
         let class_name = formula_class_name(&self.name)?;
         let mut output = String::new();
         output.push_str(&format!("class {} < Formula\n", class_name));
-        push_line(&mut output, 2, &format!("desc \"{}\"", escape_ruby(&self.desc)));
+        push_line(
+            &mut output,
+            2,
+            &format!("desc \"{}\"", escape_ruby(&self.desc)),
+        );
         push_line(
             &mut output,
             2,
@@ -634,7 +638,38 @@ mod tests {
         };
 
         let rendered = spec.render().unwrap();
-        assert!(rendered.contains("  def install\n    bin.install \"brewtool\"\n    libexec.install Dir[\"*\"]\n  end"));
+        assert!(rendered.contains(
+            "  def install\n    bin.install \"brewtool\"\n    libexec.install Dir[\"*\"]\n  end"
+        ));
+    }
+
+    #[test]
+    fn renders_per_os_formula() {
+        let spec = FormulaSpec {
+            name: "brewtool".to_string(),
+            desc: "Brew tool".to_string(),
+            homepage: "https://example.com".to_string(),
+            license: "MIT".to_string(),
+            version: "1.2.3".to_string(),
+            bins: vec!["brewtool".to_string()],
+            assets: AssetMatrix::PerOs {
+                macos: Some(FormulaAsset {
+                    url: "https://example.com/brewtool-darwin.tar.gz".to_string(),
+                    sha256: "macsha".to_string(),
+                }),
+                linux: Some(FormulaAsset {
+                    url: "https://example.com/brewtool-linux.tar.gz".to_string(),
+                    sha256: "linuxsha".to_string(),
+                }),
+            },
+            install_block: None,
+        };
+
+        let rendered = spec.render().unwrap();
+        assert!(rendered.contains("on_macos do"));
+        assert!(rendered.contains("https://example.com/brewtool-darwin.tar.gz"));
+        assert!(rendered.contains("on_linux do"));
+        assert!(rendered.contains("https://example.com/brewtool-linux.tar.gz"));
     }
 
     #[test]

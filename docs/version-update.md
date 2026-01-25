@@ -20,6 +20,7 @@ Resolution rules:
 1. If the root `Cargo.toml` has a `[package]` section:
    - Update `package.version` when `cargo_package` is unset.
    - If `cargo_package` matches the root package name, update the root.
+   - When both `[package]` and `[workspace.package]` exist, `[package]` wins by default.
 2. Else if the root has `[workspace.package]` and `cargo_package` is unset:
    - Update `workspace.package.version` in the root manifest.
 3. Otherwise:
@@ -29,7 +30,7 @@ Resolution rules:
 
 Key failure messages (exit code 3):
 - `Cargo.toml not found at <path>`
-- `version_update.mode=cargo requires version_update.cargo_package for workspaces`
+- `version_update.mode=cargo requires version_update.cargo_package for workspaces without [package] or [workspace.package]`
 - `Cargo package '<name>' not found in workspace`
 - `multiple Cargo packages named '<name>' found: <paths>`
 

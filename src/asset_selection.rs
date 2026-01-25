@@ -50,8 +50,8 @@ pub fn select_asset_name(
     let matched = filter_by_target(&filtered, options.os, options.arch);
     if matched.is_empty() {
         return Err(AppError::InvalidInput(format!(
-            "no release assets match target '{target_label}'; available assets: {}",
-            format_available(&filtered)
+            "no release assets match target '{target_label}'; available assets: {}; specify --asset-name or --asset-template",
+            format_available(&filtered),
         )));
     }
 
@@ -381,6 +381,26 @@ mod tests {
 
         let selected = select_asset_name(&assets, &options).unwrap();
         assert_eq!(selected, "brewtool-1.2.3-macos-aarch64.tar.gz");
+    }
+
+    #[test]
+    fn guides_when_no_assets_match_target() {
+        let assets = vec!["brewtool-1.2.3-linux-amd64.tar.gz".to_string()];
+
+        let options = AssetSelectionOptions {
+            version: Some("1.2.3".to_string()),
+            os: Some(Os::Darwin),
+            arch: Some(Arch::Arm64),
+            target_key: Some("darwin-arm64".to_string()),
+            ..AssetSelectionOptions::default()
+        };
+
+        let err = select_asset_name(&assets, &options).unwrap_err();
+        let expected = format!(
+            "no release assets match target 'darwin-arm64'; available assets: {}; specify --asset-name or --asset-template",
+            format_available(&assets)
+        );
+        assert_eq!(err.to_string(), expected);
     }
 
     #[test]

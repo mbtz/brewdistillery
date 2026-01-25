@@ -1,7 +1,119 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-25T13:57:26.396084Z",
+  "generated_at": "2026-01-25T14:24:00.558103Z",
   "tasks": [
+    {
+      "id": "sv-ggc",
+      "title": "Refine init --import-formula overwrite policy",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-25T13:49:35.820884Z",
+      "updated_at": "2026-01-25T14:24:00.546552Z",
+      "body": "Acceptance:\n- Formula fields remain source-of-truth; config fills gaps only.\n- Non-interactive mode requires --force to overwrite config or formula outputs.\n- Add tests around overwrite guards and merge precedence.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-25T14:23:52.227501Z",
+      "closed_at": "2026-01-25T14:24:00.546552Z",
+      "comments_count": 1,
+      "last_comment_at": "2026-01-25T14:23:57.207583Z"
+    },
+    {
+      "id": "sv-ewx",
+      "title": "Improve multi-repo preview/diff summaries",
+      "status": "closed",
+      "priority": "P2",
+      "created_at": "2026-01-25T13:49:35.873155Z",
+      "updated_at": "2026-01-25T14:20:00.604808Z",
+      "body": "Acceptance:\n- Preview output clearly labels repo roots and modified paths.\n- Dry-run output is stable and easy to diff in CI logs.\n- Add snapshot-style tests for preview summaries.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-25T14:18:18.001814Z",
+      "closed_at": "2026-01-25T14:20:00.604808Z",
+      "comments_count": 1,
+      "last_comment_at": "2026-01-25T14:19:57.710647Z"
+    },
+    {
+      "id": "sv-mgt",
+      "title": "Harden release idempotency around tags and assets",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-25T13:49:35.665854Z",
+      "updated_at": "2026-01-25T14:18:04.628760Z",
+      "body": "Acceptance:\n- When a tag already exists, the error is deterministic and suggests --skip-tag.\n- When a release exists but assets are missing, the error calls out asset selection guidance.\n- Add tests for existing-tag and missing-asset scenarios.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-25T14:15:06.493911Z",
+      "closed_at": "2026-01-25T14:18:04.628760Z",
+      "comments_count": 1,
+      "last_comment_at": "2026-01-25T14:18:00.594096Z"
+    },
+    {
+      "id": "sv-g9y",
+      "title": "Clarify Cargo workspace version_update defaults",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-25T13:49:35.563516Z",
+      "updated_at": "2026-01-25T14:15:02.498531Z",
+      "body": "Acceptance:\n- Document and enforce a single default policy when both [package] and [workspace.package] exist.\n- Provide clear error guidance when cargo_package is required.\n- Add tests covering root package, workspace.package-only, and member-package updates.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-25T14:13:19.223277Z",
+      "closed_at": "2026-01-25T14:15:02.498531Z",
+      "comments_count": 1,
+      "last_comment_at": "2026-01-25T14:14:59.118269Z"
+    },
+    {
+      "id": "sv-x00",
+      "title": "Enforce git remote selection rules consistently",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-25T13:49:35.614774Z",
+      "updated_at": "2026-01-25T14:13:16.542316Z",
+      "body": "Acceptance:\n- Remote selection behavior matches docs/git-remotes.md for origin preference and ambiguity errors.\n- Non-interactive errors suggest explicit --host-owner/--host-repo overrides.\n- Add tests for origin, single non-origin remote, and ambiguous remotes.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-25T14:10:49.502295Z",
+      "closed_at": "2026-01-25T14:13:16.542316Z",
+      "comments_count": 1,
+      "last_comment_at": "2026-01-25T14:13:12.622242Z"
+    },
+    {
+      "id": "sv-05z",
+      "title": "Validate per-target asset config and formula mapping",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-25T13:49:35.717928Z",
+      "updated_at": "2026-01-25T14:10:46.697689Z",
+      "body": "Acceptance:\n- Target keys (e.g., darwin/arm64) are validated before any network calls.\n- Per-target config produces correct Homebrew DSL for macOS/Linux and CPU predicates.\n- Add tests for invalid keys and expected formula output.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-25T14:06:59.365744Z",
+      "closed_at": "2026-01-25T14:10:46.697689Z",
+      "comments_count": 1,
+      "last_comment_at": "2026-01-25T14:10:42.674037Z"
+    },
+    {
+      "id": "sv-bk0",
+      "title": "Tighten non-interactive required-field validation",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-25T13:49:35.769948Z",
+      "updated_at": "2026-01-25T14:06:56.630560Z",
+      "body": "Acceptance:\n- Each command reports missing required fields in a single, stable error message.\n- Validation happens before any writes, clones, or network calls.\n- Add tests asserting required-field errors and exit codes.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-25T14:03:48.973885Z",
+      "closed_at": "2026-01-25T14:06:56.630560Z",
+      "comments_count": 1,
+      "last_comment_at": "2026-01-25T14:06:53.978524Z"
+    },
     {
       "id": "sv-v77",
       "title": "Handle metadata conflicts interactively",
@@ -28,16 +140,6 @@
       "comments_count": 0
     },
     {
-      "id": "sv-ewx",
-      "title": "Improve multi-repo preview/diff summaries",
-      "status": "open",
-      "priority": "P2",
-      "created_at": "2026-01-25T13:49:35.873155Z",
-      "updated_at": "2026-01-25T13:49:35.899123Z",
-      "body": "Acceptance:\n- Preview output clearly labels repo roots and modified paths.\n- Dry-run output is stable and easy to diff in CI logs.\n- Add snapshot-style tests for preview summaries.",
-      "comments_count": 0
-    },
-    {
       "id": "sv-33n",
       "title": "EPIC: Init Workflow",
       "status": "open",
@@ -45,36 +147,6 @@
       "created_at": "2026-01-22T13:41:13.061876Z",
       "updated_at": "2026-01-25T13:49:35.847817Z",
       "body": "Implementation tasks for bd init interactive and non-interactive flows, tap setup, and formula bootstrap.",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-ggc",
-      "title": "Refine init --import-formula overwrite policy",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-25T13:49:35.820884Z",
-      "updated_at": "2026-01-25T13:49:35.847817Z",
-      "body": "Acceptance:\n- Formula fields remain source-of-truth; config fills gaps only.\n- Non-interactive mode requires --force to overwrite config or formula outputs.\n- Add tests around overwrite guards and merge precedence.",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-bk0",
-      "title": "Tighten non-interactive required-field validation",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-25T13:49:35.769948Z",
-      "updated_at": "2026-01-25T13:49:35.796328Z",
-      "body": "Acceptance:\n- Each command reports missing required fields in a single, stable error message.\n- Validation happens before any writes, clones, or network calls.\n- Add tests asserting required-field errors and exit codes.",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-05z",
-      "title": "Validate per-target asset config and formula mapping",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-25T13:49:35.717928Z",
-      "updated_at": "2026-01-25T13:49:35.746136Z",
-      "body": "Acceptance:\n- Target keys (e.g., darwin/arm64) are validated before any network calls.\n- Per-target config produces correct Homebrew DSL for macOS/Linux and CPU predicates.\n- Add tests for invalid keys and expected formula output.",
       "comments_count": 0
     },
     {
@@ -88,16 +160,6 @@
       "comments_count": 0
     },
     {
-      "id": "sv-mgt",
-      "title": "Harden release idempotency around tags and assets",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-25T13:49:35.665854Z",
-      "updated_at": "2026-01-25T13:49:35.693018Z",
-      "body": "Acceptance:\n- When a tag already exists, the error is deterministic and suggests --skip-tag.\n- When a release exists but assets are missing, the error calls out asset selection guidance.\n- Add tests for existing-tag and missing-asset scenarios.",
-      "comments_count": 0
-    },
-    {
       "id": "sv-mf7",
       "title": "EPIC: Identity & Config",
       "status": "open",
@@ -105,26 +167,6 @@
       "created_at": "2026-01-22T13:31:32.187194Z",
       "updated_at": "2026-01-25T13:49:35.640066Z",
       "body": "Scope: identity resolution + config schema + metadata detection.\\nDoD: Epics only; child tasks define acceptance criteria.",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-x00",
-      "title": "Enforce git remote selection rules consistently",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-25T13:49:35.614774Z",
-      "updated_at": "2026-01-25T13:49:35.640066Z",
-      "body": "Acceptance:\n- Remote selection behavior matches docs/git-remotes.md for origin preference and ambiguity errors.\n- Non-interactive errors suggest explicit --host-owner/--host-repo overrides.\n- Add tests for origin, single non-origin remote, and ambiguous remotes.",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-g9y",
-      "title": "Clarify Cargo workspace version_update defaults",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-25T13:49:35.563516Z",
-      "updated_at": "2026-01-25T13:49:35.588993Z",
-      "body": "Acceptance:\n- Document and enforce a single default policy when both [package] and [workspace.package] exist.\n- Provide clear error guidance when cargo_package is required.\n- Add tests covering root package, workspace.package-only, and member-package updates.",
       "comments_count": 0
     },
     {
