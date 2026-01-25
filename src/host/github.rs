@@ -199,9 +199,7 @@ impl GitHubClient {
             })?;
 
             if response.status() == StatusCode::NOT_FOUND {
-                return Err(AppError::InvalidInput(format!(
-                    "no GitHub releases found for {owner}/{repo}"
-                )));
+                return Err(no_releases_error(owner, repo));
             }
 
             if !response.status().is_success() {
@@ -215,11 +213,7 @@ impl GitHubClient {
 
         let path = format!("/repos/{owner}/{repo}/releases?per_page=100");
         let releases: Vec<GitHubRelease> = self.get_json(&path)?;
-        select_latest_release(releases).ok_or_else(|| {
-            AppError::InvalidInput(format!(
-                "no GitHub releases found for {owner}/{repo}"
-            ))
-        })
+        select_latest_release(releases).ok_or_else(|| no_releases_error(owner, repo))
     }
 }
 
@@ -447,6 +441,10 @@ fn rate_limit_message(headers: &HeaderMap) -> String {
     }
 }
 
+fn no_releases_error(owner: &str, repo: &str) -> AppError {
+    AppError::InvalidInput(format!("no GitHub releases found for {owner}/{repo}"))
+}
+
 fn ensure_release_allowed(
     release: &GitHubRelease,
     include_prerelease: bool,
@@ -595,6 +593,12 @@ mod tests {
         let selected = select_latest_release(releases).unwrap();
         assert_eq!(selected.tag_name, "v2.0.0-rc.1");
         assert!(selected.prerelease);
+    }
+
+    #[test]
+    fn formats_no_releases_error_message() {
+        let err = no_releases_error("acme", "brewtool");
+        assert_eq!(err.to_string(), "no GitHub releases found for acme/brewtool");
     }
 
     #[test]

@@ -36,14 +36,29 @@ Remote selection is deterministic and safe by default.
 
 Selection order:
 1. If a configured remote URL is available (for example `tap.remote`,
-   `--tap-remote`, or `cli.remote`), prefer the remote whose URL exactly matches
-   that value.
-2. Otherwise, prefer `origin` when it exists.
-3. Otherwise, if there is exactly one remote, use it.
-4. Otherwise, fail with an actionable error.
+   `--tap-remote`, or `cli.remote`), select the remote whose URL exactly matches
+   that value. If multiple remotes match, fail.
+2. Otherwise, if `origin` exists and has a parseable GitHub URL, select
+   `origin`. If `origin` points at GitHub but cannot be parsed, fail with a
+   host override hint.
+3. Otherwise, consider all remotes that point at GitHub. If exactly one has a
+   parseable GitHub URL, select it. If multiple parseable GitHub remotes exist,
+   fail and require an explicit configured remote. If only unparsable GitHub
+   remotes exist, fail and require an explicit configured remote.
+4. Otherwise, fail because no GitHub remotes were found.
 
-Canonical ambiguity error message:
-- `multiple git remotes found; configure origin or set a matching remote URL`
+Canonical error messages (exact):
+- `no git remotes found in tap repo; add a remote and set tap.remote (or --tap-remote) to the desired GitHub remote URL`
+- `no git remotes found in cli repo; add a remote and set cli.remote to the desired GitHub remote URL`
+- `configured tap.remote matches multiple remotes in tap repo; set tap.remote (or --tap-remote) to the desired GitHub remote URL`
+- `configured cli.remote matches multiple remotes in cli repo; set cli.remote to the desired GitHub remote URL`
+- `unable to parse GitHub remote URL; specify --host-owner/--host-repo`
+- `unable to parse GitHub remote URL in tap repo; set tap.remote (or --tap-remote) to the desired GitHub remote URL`
+- `unable to parse GitHub remote URL in cli repo; set cli.remote to the desired GitHub remote URL`
+- `multiple GitHub remotes found in tap repo; set tap.remote (or --tap-remote) to the desired GitHub remote URL`
+- `multiple GitHub remotes found in cli repo; set cli.remote to the desired GitHub remote URL`
+- `no GitHub remote found in tap repo; set tap.remote (or --tap-remote) to the desired GitHub remote URL`
+- `no GitHub remote found in cli repo; set cli.remote to the desired GitHub remote URL`
 
 Notes:
 - Remote URL matching is exact-string matching in v0.

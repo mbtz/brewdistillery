@@ -7,5 +7,7 @@
 - Committed the latest `.forge/ledgers/zesty-quimby.md` update as `chore: update forge ledger` (7cba0c9) on 2026-01-25.
 
 ## Decisions needed
-- Confirm Cargo workspace version update policy: current implementation updates root `[package]` by default, uses `[workspace.package]` if present and no `version_update.cargo_package`, otherwise requires `version_update.cargo_package` to target a member package.
-- Confirm `--include-prerelease` latest-release behavior: current implementation selects the newest non-draft release even if it is a prerelease (i.e., latest overall, not "prefer stable").
+- [sv-b7j] Confirm Cargo workspace version update policy (as of 2026-01-25):
+  current implementation updates root `[package]` by default, uses `[workspace.package]` if root is missing and no `version_update.cargo_package` is set, and otherwise requires `version_update.cargo_package` to target a member package.
+- [sv-25d] Confirm `--include-prerelease` selection policy (as of 2026-01-25):
+  choose one default: (A) latest overall non-draft release (current behavior), or (B) prefer the latest stable release when one exists, even when `--include-prerelease` is set.

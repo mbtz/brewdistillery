@@ -1,7 +1,87 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-25T15:36:51.927269Z",
+  "generated_at": "2026-01-25T15:44:34.196691Z",
   "tasks": [
+    {
+      "id": "sv-jj8",
+      "title": "Align git remote selection docs with implementation",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-25T15:43:27.781385Z",
+      "updated_at": "2026-01-25T15:44:28.557792Z",
+      "body": "Acceptance:\\n- docs/git-integration.md reflects the actual remote selection order and error messages used in src/git.rs.\\n- Include the tap/cli context-specific guidance strings.\\nNotes: PRD requires exact user-facing errors.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-25T15:43:34.550057Z",
+      "closed_at": "2026-01-25T15:44:28.557792Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-mf7",
+      "title": "EPIC: Identity & Config",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:32.187194Z",
+      "updated_at": "2026-01-25T15:43:31.431870Z",
+      "body": "Scope: identity resolution + config schema + metadata detection.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-vdr",
+      "title": "Fix duplicate latest-release error message",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-25T15:41:20.733740Z",
+      "updated_at": "2026-01-25T15:43:00.455664Z",
+      "body": "Acceptance:\\n- When no releases exist, error text is exactly: 'no GitHub releases found for <owner>/<repo>'.\\n- Add/adjust unit test in src/host/github.rs to cover empty release list.\\nNotes: PRD release-discovery exact errors.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-25T15:41:45.409995Z",
+      "closed_at": "2026-01-25T15:43:00.455664Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-b7j",
+      "title": "Finalize Cargo workspace version_update policy",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-25T15:41:37.190158Z",
+      "updated_at": "2026-01-25T15:41:42.984473Z",
+      "body": "Scope: PRD version update strategy open question.\\nDoD:\\n- Document workspace behavior (root package vs [workspace.package] vs member package).\\n- Ensure behavior is deterministic and covered by tests in src/version_update.rs.\\n- Record any required user decision in USER_TODO.md.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-xf8",
+      "title": "EPIC: Release & Artifacts",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:32.540537Z",
+      "updated_at": "2026-01-25T15:41:42.984473Z",
+      "body": "Scope: release discovery, asset selection, checksums, idempotency, git flow.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-25d",
+      "title": "Decide prerelease selection policy with --include-prerelease",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-25T15:41:28.152972Z",
+      "updated_at": "2026-01-25T15:41:32.068466Z",
+      "body": "Scope: PRD release discovery open question.\\nDoD:\\n- Decide whether --include-prerelease chooses latest overall or prefers stable when available.\\n- Update docs/release-discovery.md and relevant tests in src/host/github.rs.\\n- Capture decision in USER_TODO.md if user input required.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-gxy",
+      "title": "EPIC: Host & API",
+      "status": "open",
+      "priority": "P1",
+      "created_at": "2026-01-22T13:31:32.706063Z",
+      "updated_at": "2026-01-25T15:41:23.612047Z",
+      "body": "Scope: GitHub API tap creation + host abstraction trait.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
     {
       "id": "sv-nwb",
       "title": "Validate SPDX license identifiers in config and init",
@@ -80,16 +160,6 @@
       "branch": "main",
       "started_at": "2026-01-25T15:21:58.186398Z",
       "closed_at": "2026-01-25T15:27:46.019703Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-xf8",
-      "title": "EPIC: Release & Artifacts",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:31:32.540537Z",
-      "updated_at": "2026-01-25T15:21:58.157787Z",
-      "body": "Scope: release discovery, asset selection, checksums, idempotency, git flow.\\nDoD: Epics only; child tasks define acceptance criteria.",
       "comments_count": 0
     },
     {
@@ -377,16 +447,6 @@
       "comments_count": 0
     },
     {
-      "id": "sv-mf7",
-      "title": "EPIC: Identity & Config",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:31:32.187194Z",
-      "updated_at": "2026-01-25T13:49:35.640066Z",
-      "body": "Scope: identity resolution + config schema + metadata detection.\\nDoD: Epics only; child tasks define acceptance criteria.",
-      "comments_count": 0
-    },
-    {
       "id": "sv-c4z",
       "title": "Make bd release dry-run network-free",
       "status": "closed",
@@ -474,16 +534,6 @@
       "branch": "main",
       "started_at": "2026-01-25T13:40:20.903406Z",
       "closed_at": "2026-01-25T13:40:26.835705Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-gxy",
-      "title": "EPIC: Host & API",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-22T13:31:32.706063Z",
-      "updated_at": "2026-01-25T13:15:10.364367Z",
-      "body": "Scope: GitHub API tap creation + host abstraction trait.\\nDoD: Epics only; child tasks define acceptance criteria.",
       "comments_count": 0
     },
     {
