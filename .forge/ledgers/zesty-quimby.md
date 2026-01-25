@@ -5539,3 +5539,80 @@ Next step for you:
 - Please review the decisions in `USER_TODO.md` and reply in `USER_FEEDBACK.md`.
 ```
 
+## 2026-01-25T15:30:18Z
+
+- run_id: 772f2e4d-2ceb-43e9-b720-6aa2732ba86c
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-25T15:08:27Z
+- finished_at: 2026-01-25T15:30:18Z
+- exit_code: 0
+
+```
+add_remote(&repo, "mirror", "https://github.com/acme/mirror.git");
+ 
+-        let err =
+-            select_git_remote(&repo, None, RemoteContext::Tap).expect_err("should error");
++        let err = select_git_remote(&repo, None, RemoteContext::Tap).expect_err("should error");
+         let expected = concat!(
+             "multiple GitHub remotes found in tap repo; ",
+             "set tap.remote (or --tap-remote) to the desired GitHub remote URL"
+         );
+-        assert_eq!(
+-            err.to_string(),
+-            expected
+-        );
++        assert_eq!(err.to_string(), expected);
+     }
+ 
+     #[test]
+@@ -515,4 +520,17 @@
+             "tag 'v1.2.3' already exists; re-run with --skip-tag or choose a new version"
+         );
+     }
++
++    #[test]
++    fn ensure_tag_absent_detects_existing_tag() {
++        let (_dir, repo) = init_repo();
++        make_initial_commit(&repo);
++
++        create_tag(&repo, "v1.2.3").expect("create initial tag");
++        let err = ensure_tag_absent(&repo, "v1.2.3").expect_err("tag should already exist");
++        assert_eq!(
++            err.to_string(),
++            "tag 'v1.2.3' already exists; re-run with --skip-tag or choose a new version"
++        );
++    }
+ }
+
+tokens used
+1 026 610
+Done — I created `sv` tasks, implemented them, validated, and pushed.
+
+What I changed:
+- `src/commands/release.rs`:  
+  - Non-dry-run no longer requires `asset_name`/`asset_template` (auto-selection now works).  
+  - Added an early tag-exists check before any writes/commits.
+- `src/git.rs`: added `ensure_tag_absent` and used it in `create_tag`.
+- Tests added:
+  - Asset auto-selection in non-dry-run.
+  - Tag-exists failure before formula writes (with a local mock server).
+
+Task tracking (`sv`):
+- Closed `sv-a1h` and `sv-dgn` under `sv-xf8`.
+
+Validation:
+- Ran `cargo test` — all tests pass (110).
+
+Commits pushed:
+- `4a1e641 feat: auto-select assets and pre-check tags in release`
+- `71c7623 chore: update forge ledger`
+
+Natural next step: I can pick the next highest-impact PRD gap (e.g., prerelease selection policy or workspace version policy from `USER_TODO.md`).
+```
+
