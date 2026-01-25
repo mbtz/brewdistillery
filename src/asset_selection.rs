@@ -10,6 +10,7 @@ pub struct AssetSelectionOptions {
     pub version: Option<String>,
     pub os: Option<Os>,
     pub arch: Option<Arch>,
+    pub target_key: Option<String>,
 }
 
 pub fn select_asset_name(
@@ -17,17 +18,26 @@ pub fn select_asset_name(
     options: &AssetSelectionOptions,
 ) -> Result<String, AppError> {
     let assets = unique_assets(available);
+    let target_label = format_target_label(options);
+
     if let Some(name) = options.asset_name.as_deref() {
-        return select_exact(&assets, name, "release asset");
+        if assets.iter().any(|asset| asset == name) {
+            return Ok(name.to_string());
+        }
+        return Err(AppError::InvalidInput(format!(
+            "asset not found: {name}; available assets: {}",
+            format_available(&assets)
+        )));
     }
 
     if let Some(template) = options.asset_template.as_deref() {
         let rendered = render_template(template, options)?;
-        return select_exact(
-            &assets,
-            &rendered,
-            "release asset (rendered from template)",
-        );
+        if assets.iter().any(|asset| asset == &rendered) {
+            return Ok(rendered);
+        }
+        return Err(AppError::InvalidInput(format!(
+            "no release asset matches template '{template}' for target '{target_label}'"
+        )));
     }
 
     let filtered = filter_non_checksum(&assets);
@@ -40,23 +50,12 @@ pub fn select_asset_name(
     let matched = filter_by_target(&filtered, options.os, options.arch);
     if matched.is_empty() {
         return Err(AppError::InvalidInput(format!(
-            "no release assets match target {}; available assets: {}",
-            format_target(options.os, options.arch),
+            "no release assets match target '{target_label}'; available assets: {}",
             format_available(&filtered)
         )));
     }
 
-    pick_best_match(&matched, options.version.as_deref())
-}
-
-fn select_exact(assets: &[String], name: &str, label: &str) -> Result<String, AppError> {
-    if assets.iter().any(|asset| asset == name) {
-        return Ok(name.to_string());
-    }
-    Err(AppError::InvalidInput(format!(
-        "{label} '{name}' not found; available assets: {}",
-        format_available(assets)
-    )))
+    pick_best_match(&matched, options.version.as_deref(), &target_label)
 }
 
 fn render_template(template: &str, options: &AssetSelectionOptions) -> Result<String, AppError> {
@@ -71,10 +70,9 @@ fn render_template(template: &str, options: &AssetSelectionOptions) -> Result<St
     }
 
     if output.contains("{version}") {
-        let version = options
-            .version
-            .as_deref()
-            .ok_or_else(|| AppError::InvalidInput("asset_template requires {version}".to_string()))?;
+        let version = options.version.as_deref().ok_or_else(|| {
+            AppError::InvalidInput("asset_template requires {version}".to_string())
+        })?;
         output = output.replace("{version}", version);
     }
 
@@ -131,7 +129,11 @@ fn filter_by_target(assets: &[String], os: Option<Os>, arch: Option<Arch>) -> Ve
         .collect()
 }
 
-fn pick_best_match(assets: &[String], version: Option<&str>) -> Result<String, AppError> {
+fn pick_best_match(
+    assets: &[String],
+    version: Option<&str>,
+    target_label: &str,
+) -> Result<String, AppError> {
     if assets.is_empty() {
         return Err(AppError::InvalidInput(
             "no release assets available for selection".to_string(),
@@ -152,13 +154,8 @@ fn pick_best_match(assets: &[String], version: Option<&str>) -> Result<String, A
         .collect();
 
     if ties.len() > 1 {
-        let names = ties
-            .iter()
-            .map(|candidate| candidate.name.as_str())
-            .collect::<Vec<_>>()
-            .join(", ");
         return Err(AppError::InvalidInput(format!(
-            "multiple release assets match selection: {names}"
+            "multiple release assets match target '{target_label}'; specify --asset-name or --asset-template"
         )));
     }
 
@@ -175,7 +172,9 @@ struct Candidate {
 
 impl Candidate {
     fn new(name: &str, version: Option<&str>) -> Self {
-        let version_match = version.map(|version| name.contains(version)).unwrap_or(false);
+        let version_match = version
+            .map(|version| name.contains(version))
+            .unwrap_or(false);
         let extension_rank = extension_rank(name);
         let name_len = name.len();
         Self {
@@ -249,10 +248,20 @@ fn format_available(assets: &[String]) -> String {
     assets.join(", ")
 }
 
-fn format_target(os: Option<Os>, arch: Option<Arch>) -> String {
-    let os_label = os.map(normalized_os).unwrap_or("any");
-    let arch_label = arch.map(normalized_arch).unwrap_or("any");
-    format!("os={os_label} arch={arch_label}")
+fn format_target_label(options: &AssetSelectionOptions) -> String {
+    if let Some(key) = options.target_key.as_deref() {
+        let trimmed = key.trim();
+        if !trimmed.is_empty() {
+            return trimmed.to_string();
+        }
+    }
+
+    match (options.os, options.arch) {
+        (Some(os), Some(arch)) => format!("{}-{}", normalized_os(os), normalized_arch(arch)),
+        (Some(os), None) => normalized_os(os).to_string(),
+        (None, Some(arch)) => normalized_arch(arch).to_string(),
+        (None, None) => "universal".to_string(),
+    }
 }
 
 #[cfg(test)]
@@ -303,6 +312,41 @@ mod tests {
 
         let selected = select_asset_name(&base_assets(), &options).unwrap();
         assert_eq!(selected, "brewtool-1.2.3-darwin-arm64.tar.gz");
+    }
+
+    #[test]
+    fn errors_when_asset_name_is_missing() {
+        let assets = base_assets();
+        let options = AssetSelectionOptions {
+            asset_name: Some("missing.tar.gz".to_string()),
+            ..AssetSelectionOptions::default()
+        };
+
+        let err = select_asset_name(&assets, &options).unwrap_err();
+        let expected = format!(
+            "asset not found: missing.tar.gz; available assets: {}",
+            format_available(&assets)
+        );
+        assert_eq!(err.to_string(), expected);
+    }
+
+    #[test]
+    fn errors_when_template_does_not_match_target() {
+        let options = AssetSelectionOptions {
+            asset_template: Some("{name}-{version}-{os}-{arch}.tar.gz".to_string()),
+            project_name: Some("brewtool".to_string()),
+            version: Some("9.9.9".to_string()),
+            os: Some(Os::Darwin),
+            arch: Some(Arch::Arm64),
+            target_key: Some("darwin-arm64".to_string()),
+            ..AssetSelectionOptions::default()
+        };
+
+        let err = select_asset_name(&base_assets(), &options).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "no release asset matches template '{name}-{version}-{os}-{arch}.tar.gz' for target 'darwin-arm64'"
+        );
     }
 
     #[test]
@@ -369,10 +413,14 @@ mod tests {
             version: Some("1.2.3".to_string()),
             os: Some(Os::Darwin),
             arch: Some(Arch::Arm64),
+            target_key: Some("darwin-arm64".to_string()),
             ..AssetSelectionOptions::default()
         };
 
         let err = select_asset_name(&assets, &options).unwrap_err();
-        assert!(matches!(err, AppError::InvalidInput(_)));
+        assert_eq!(
+            err.to_string(),
+            "multiple release assets match target 'darwin-arm64'; specify --asset-name or --asset-template"
+        );
     }
 }

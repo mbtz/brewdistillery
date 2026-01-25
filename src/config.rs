@@ -4,6 +4,8 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+const SCHEMA_VERSION_V1: u32 = 1;
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default)]
@@ -46,6 +48,9 @@ pub struct ProjectConfig {
 
     #[serde(default)]
     pub bin: Vec<String>,
+
+    #[serde(default, flatten)]
+    pub extra: BTreeMap<String, toml::Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -54,6 +59,9 @@ pub struct RepoConfig {
     pub repo: Option<String>,
     pub remote: Option<String>,
     pub path: Option<PathBuf>,
+
+    #[serde(default, flatten)]
+    pub extra: BTreeMap<String, toml::Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -64,6 +72,9 @@ pub struct TapConfig {
     pub path: Option<PathBuf>,
     pub formula: Option<String>,
     pub formula_path: Option<PathBuf>,
+
+    #[serde(default, flatten)]
+    pub extra: BTreeMap<String, toml::Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -76,12 +87,18 @@ pub struct ArtifactConfig {
 
     #[serde(default)]
     pub targets: BTreeMap<String, ArtifactTarget>,
+
+    #[serde(default, flatten)]
+    pub extra: BTreeMap<String, toml::Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ArtifactTarget {
     pub asset_template: Option<String>,
     pub asset_name: Option<String>,
+
+    #[serde(default, flatten)]
+    pub extra: BTreeMap<String, toml::Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -89,6 +106,9 @@ pub struct ReleaseConfig {
     pub tag_format: Option<String>,
     pub tarball_url_template: Option<String>,
     pub commit_message_template: Option<String>,
+
+    #[serde(default, flatten)]
+    pub extra: BTreeMap<String, toml::Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -98,18 +118,27 @@ pub struct VersionUpdateConfig {
     pub regex_file: Option<PathBuf>,
     pub regex_pattern: Option<String>,
     pub regex_replacement: Option<String>,
+
+    #[serde(default, flatten)]
+    pub extra: BTreeMap<String, toml::Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct HostConfig {
     pub provider: Option<String>,
     pub api_base: Option<String>,
+
+    #[serde(default, flatten)]
+    pub extra: BTreeMap<String, toml::Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TemplateConfig {
     pub path: Option<PathBuf>,
     pub install_block: Option<String>,
+
+    #[serde(default, flatten)]
+    pub extra: BTreeMap<String, toml::Value>,
 }
 
 impl Config {
@@ -129,9 +158,17 @@ impl Config {
             fs::create_dir_all(parent)?;
         }
 
-        self.validate(path)?;
-        let content = toml::to_string_pretty(self).map_err(|err| {
-            AppError::InvalidInput(format!("failed to serialize config {}: {err}", path.display()))
+        let mut to_save = self.clone();
+        if to_save.schema_version.is_none() {
+            to_save.schema_version = Some(SCHEMA_VERSION_V1);
+        }
+
+        to_save.validate(path)?;
+        let content = toml::to_string_pretty(&to_save).map_err(|err| {
+            AppError::InvalidInput(format!(
+                "failed to serialize config {}: {err}",
+                path.display()
+            ))
         })?;
 
         let tmp_path = path.with_extension("toml.tmp");
@@ -200,6 +237,9 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use tempfile::tempdir;
+    use toml::Value as TomlValue;
 
     #[test]
     fn parses_minimal_config() {
@@ -229,5 +269,84 @@ strategy = "mystery"
             .unwrap_err();
 
         assert!(matches!(err, AppError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn saves_with_schema_version_when_missing() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        let raw = r#"[project]
+name = "brew"
+bin = ["brew"]
+"#;
+
+        let config = Config::from_str(raw, &path).unwrap();
+        assert_eq!(config.schema_version, None);
+
+        config.save(&path).unwrap();
+
+        let saved = fs::read_to_string(&path).unwrap();
+        let value: TomlValue = toml::from_str(&saved).unwrap();
+        assert_eq!(
+            value
+                .get("schema_version")
+                .and_then(|entry| entry.as_integer()),
+            Some(SCHEMA_VERSION_V1 as i64)
+        );
+    }
+
+    #[test]
+    fn preserves_unknown_fields_across_sections() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        let raw = r#"mystery = "keep"
+
+[project]
+name = "brew"
+bin = ["brew"]
+custom_project = "value"
+
+[artifact]
+strategy = "release-asset"
+custom_artifact = true
+
+[artifact.targets."darwin-arm64"]
+asset_template = "brew-{version}-darwin-arm64.tar.gz"
+custom_target = "target-extra"
+"#;
+
+        let config = Config::from_str(raw, &path).unwrap();
+        config.save(&path).unwrap();
+
+        let saved = fs::read_to_string(&path).unwrap();
+        let value: TomlValue = toml::from_str(&saved).unwrap();
+
+        assert_eq!(
+            value.get("mystery").and_then(|entry| entry.as_str()),
+            Some("keep")
+        );
+        assert_eq!(
+            value
+                .get("project")
+                .and_then(|entry| entry.get("custom_project"))
+                .and_then(|entry| entry.as_str()),
+            Some("value")
+        );
+        assert_eq!(
+            value
+                .get("artifact")
+                .and_then(|entry| entry.get("custom_artifact"))
+                .and_then(|entry| entry.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            value
+                .get("artifact")
+                .and_then(|entry| entry.get("targets"))
+                .and_then(|entry| entry.get("darwin-arm64"))
+                .and_then(|entry| entry.get("custom_target"))
+                .and_then(|entry| entry.as_str()),
+            Some("target-extra")
+        );
     }
 }

@@ -3,7 +3,7 @@ use crate::cli::ReleaseArgs;
 use crate::config::{ArtifactTarget, Config};
 use crate::context::AppContext;
 use crate::errors::AppError;
-use crate::formula::{AssetMatrix, FormulaAsset, FormulaSpec, Os, Arch, TargetAsset};
+use crate::formula::{Arch, AssetMatrix, FormulaAsset, FormulaSpec, Os, TargetAsset};
 use crate::host::github::GitHubClient;
 use crate::host::{HostClient, Release};
 use crate::preview::{preview_and_apply, PlannedWrite, RepoPlan};
@@ -99,10 +99,7 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
                 }
             }
 
-            let version = version_tag
-                .version
-                .clone()
-                .unwrap_or(release_version);
+            let version = version_tag.version.clone().unwrap_or(release_version);
             let tag_to_create = if args.skip_tag {
                 None
             } else {
@@ -125,13 +122,8 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
                 &version_tag,
                 args.include_prerelease,
             )?;
-            let tarball = build_tarball_asset(
-                &client,
-                &resolved,
-                &version,
-                &source_tag,
-                args.dry_run,
-            )?;
+            let tarball =
+                build_tarball_asset(&client, &resolved, &version, &source_tag, args.dry_run)?;
             let tag_to_create = if args.skip_tag {
                 None
             } else {
@@ -146,9 +138,9 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         }
         _ => {
             return Err(AppError::InvalidInput(format!(
-                "artifact.strategy '{}' is not supported yet (use 'release-asset' or 'source-tarball')",
-                resolved.artifact_strategy
-            )))
+            "artifact.strategy '{}' is not supported yet (use 'release-asset' or 'source-tarball')",
+            resolved.artifact_strategy
+        )))
         }
     };
 
@@ -175,15 +167,12 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
     }
 
     if version_update_mode != "none" {
-        let cli_root = ctx.repo.git_root.as_ref().ok_or_else(|| {
-            AppError::GitState("cli repo is not a git repository".to_string())
-        })?;
-        let updated_files = apply_version_update(
-            &ctx.config.version_update,
-            cli_root,
-            &version,
-            args.dry_run,
-        )?;
+        let cli_root =
+            ctx.repo.git_root.as_ref().ok_or_else(|| {
+                AppError::GitState("cli repo is not a git repository".to_string())
+            })?;
+        let updated_files =
+            apply_version_update(&ctx.config.version_update, cli_root, &version, args.dry_run)?;
         if !updated_files.is_empty() {
             if args.dry_run {
                 println!(
@@ -242,11 +231,7 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
     );
 
     if !preview.changed_files.is_empty() {
-        commit_formula_update(
-            &resolved.tap_root,
-            &resolved.formula_path,
-            &commit_message,
-        )?;
+        commit_formula_update(&resolved.tap_root, &resolved.formula_path, &commit_message)?;
         if !args.no_push {
             push_repo(&resolved.tap_root)?;
         }
@@ -255,9 +240,10 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
     }
 
     if let Some(tag_name) = tag_to_create.as_deref() {
-        let cli_root = ctx.repo.git_root.as_ref().ok_or_else(|| {
-            AppError::GitState("cli repo is not a git repository".to_string())
-        })?;
+        let cli_root =
+            ctx.repo.git_root.as_ref().ok_or_else(|| {
+                AppError::GitState("cli repo is not a git repository".to_string())
+            })?;
         create_tag(cli_root, tag_name)?;
         if !args.no_push {
             push_tag(cli_root, tag_name)?;
@@ -320,31 +306,77 @@ fn resolve_release_context(
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| formula_name.clone());
 
-    let artifact_strategy = resolve_string(args.artifact_strategy.as_ref(), config.artifact.strategy.as_ref())
-        .unwrap_or_default();
+    let artifact_strategy = resolve_string(
+        args.artifact_strategy.as_ref(),
+        config.artifact.strategy.as_ref(),
+    )
+    .unwrap_or_default();
     if artifact_strategy.trim().is_empty() {
         missing.push("artifact.strategy".to_string());
     }
 
-    let asset_template = resolve_string(args.asset_template.as_ref(), config.artifact.asset_template.as_ref());
-    let asset_name = resolve_string(args.asset_name.as_ref(), config.artifact.asset_name.as_ref());
+    let asset_template = resolve_string(
+        args.asset_template.as_ref(),
+        config.artifact.asset_template.as_ref(),
+    );
+    let asset_name = resolve_string(
+        args.asset_name.as_ref(),
+        config.artifact.asset_name.as_ref(),
+    );
 
-    let host_owner = resolve_string(
-        args.host_owner.as_ref(),
-        config.artifact.owner.as_ref(),
-    )
-    .or_else(|| resolve_string(None, config.cli.owner.as_ref()))
-    .unwrap_or_default();
+    let targets = config.artifact.targets.clone();
+    if !targets.is_empty() && !artifact_strategy.trim().is_empty() {
+        validate_target_keys_shape(&targets)?;
+    }
+
+    match artifact_strategy.as_str() {
+        "release-asset" => {
+            let global_selection = asset_name.is_some() || asset_template.is_some();
+            if !global_selection {
+                if targets.is_empty() {
+                    missing.push("artifact.asset_name or artifact.asset_template".to_string());
+                } else {
+                    let mut missing_targets = targets
+                        .iter()
+                        .filter_map(|(key, target)| {
+                            (!target_has_selection(target)).then(|| key.clone())
+                        })
+                        .collect::<Vec<_>>();
+                    missing_targets.sort();
+                    for key in missing_targets {
+                        missing.push(format!(
+                            "artifact.targets.{key}.asset_name or asset_template"
+                        ));
+                    }
+                }
+            }
+        }
+        "source-tarball" => {
+            if asset_name.is_some() || asset_template.is_some() {
+                return Err(AppError::InvalidInput(
+                    "source-tarball strategy does not support asset_name or asset_template"
+                        .to_string(),
+                ));
+            }
+            if !targets.is_empty() {
+                return Err(AppError::InvalidInput(
+                    "source-tarball strategy does not support artifact.targets".to_string(),
+                ));
+            }
+        }
+        _ => {}
+    }
+
+    let host_owner = resolve_string(args.host_owner.as_ref(), config.artifact.owner.as_ref())
+        .or_else(|| resolve_string(None, config.cli.owner.as_ref()))
+        .unwrap_or_default();
     if host_owner.is_empty() {
         missing.push("host-owner".to_string());
     }
 
-    let host_repo = resolve_string(
-        args.host_repo.as_ref(),
-        config.artifact.repo.as_ref(),
-    )
-    .or_else(|| resolve_string(None, config.cli.repo.as_ref()))
-    .unwrap_or_default();
+    let host_repo = resolve_string(args.host_repo.as_ref(), config.artifact.repo.as_ref())
+        .or_else(|| resolve_string(None, config.cli.repo.as_ref()))
+        .unwrap_or_default();
     if host_repo.is_empty() {
         missing.push("host-repo".to_string());
     }
@@ -380,7 +412,7 @@ fn resolve_release_context(
         artifact_strategy,
         asset_name,
         asset_template,
-        targets: config.artifact.targets.clone(),
+        targets,
         host_owner,
         host_repo,
         host_api_base: config.host.api_base.clone(),
@@ -393,7 +425,10 @@ fn resolve_release_context(
 }
 
 fn resolve_tap_root_for_release(ctx: &AppContext, args: &ReleaseArgs) -> Result<TapRoot, AppError> {
-    let tap_path = args.tap_path.clone().or_else(|| ctx.config.tap.path.clone());
+    let tap_path = args
+        .tap_path
+        .clone()
+        .or_else(|| ctx.config.tap.path.clone());
     if tap_path.is_some() {
         return Ok(TapRoot {
             path: tap_path,
@@ -421,9 +456,7 @@ fn resolve_tap_root_for_release(ctx: &AppContext, args: &ReleaseArgs) -> Result<
         .filter(|value| !value.is_empty());
 
     if let Some(remote) = remote {
-        let temp_dir = TempBuilder::new()
-            .prefix("brewdistillery-tap-")
-            .tempdir()?;
+        let temp_dir = TempBuilder::new().prefix("brewdistillery-tap-").tempdir()?;
         let dest = temp_dir.path().join("tap");
         run_git_clone(remote, &dest)?;
         return Ok(TapRoot {
@@ -476,10 +509,7 @@ fn normalize_bins(mut bins: Vec<String>) -> Vec<String> {
 fn normalized_version_from_tag(tag: &str) -> Result<String, AppError> {
     let resolved = resolve_version_tag(None, Some(tag))?;
     resolved.version.ok_or_else(|| {
-        AppError::InvalidInput(format!(
-            "GitHub release tag '{}' is not valid semver",
-            tag
-        ))
+        AppError::InvalidInput(format!("GitHub release tag '{}' is not valid semver", tag))
     })
 }
 
@@ -536,9 +566,7 @@ fn resolve_tag_name(
 }
 
 fn build_commit_message(template: Option<&str>, formula: &str, version: &str) -> String {
-    let default = format!(
-        "feature: Updated formula for version '{version}'"
-    );
+    let default = format!("feature: Updated formula for version '{version}'");
     let template = template.map(str::trim).filter(|value| !value.is_empty());
     let Some(template) = template else {
         return default;
@@ -578,11 +606,7 @@ fn ensure_clean_repo(repo: &Path, label: &str) -> Result<(), AppError> {
     )))
 }
 
-fn commit_formula_update(
-    repo: &Path,
-    formula_path: &Path,
-    message: &str,
-) -> Result<(), AppError> {
+fn commit_formula_update(repo: &Path, formula_path: &Path, message: &str) -> Result<(), AppError> {
     let relative = formula_path
         .strip_prefix(repo)
         .map(|path| path.to_path_buf())
@@ -594,9 +618,15 @@ fn commit_formula_update(
             ))
         })?;
 
-    run_git(repo, &["add", relative.to_str().ok_or_else(|| {
-        AppError::GitState("formula path contains invalid UTF-8".to_string())
-    })?])?;
+    run_git(
+        repo,
+        &[
+            "add",
+            relative.to_str().ok_or_else(|| {
+                AppError::GitState("formula path contains invalid UTF-8".to_string())
+            })?,
+        ],
+    )?;
 
     let diff = run_git(repo, &["diff", "--cached", "--name-only"])?;
     if String::from_utf8_lossy(&diff.stdout).trim().is_empty() {
@@ -607,11 +637,7 @@ fn commit_formula_update(
     Ok(())
 }
 
-fn commit_version_update(
-    repo: &Path,
-    files: &[PathBuf],
-    message: &str,
-) -> Result<(), AppError> {
+fn commit_version_update(repo: &Path, files: &[PathBuf], message: &str) -> Result<(), AppError> {
     for path in files {
         let relative = path
             .strip_prefix(repo)
@@ -760,6 +786,7 @@ fn build_assets(
             version: Some(version.to_string()),
             os: None,
             arch: None,
+            target_key: Some("universal".to_string()),
         };
         let asset = select_asset_for_release(client, release, selection, dry_run)?;
         return Ok(AssetMatrix::Universal(asset));
@@ -791,6 +818,7 @@ fn build_assets(
                     version: Some(version.to_string()),
                     os: Some(os),
                     arch: None,
+                    target_key: Some(key.clone()),
                 };
                 let asset = select_asset_for_release(client, release, selection, dry_run)?;
                 match os {
@@ -832,6 +860,7 @@ fn build_assets(
                     version: Some(version.to_string()),
                     os: Some(os),
                     arch: Some(arch),
+                    target_key: Some(key.clone()),
                 };
                 let asset = select_asset_for_release(client, release, selection, dry_run)?;
                 targets.push(TargetAsset { os, arch, asset });
@@ -852,6 +881,7 @@ fn build_assets(
                 version: Some(version.to_string()),
                 os: None,
                 arch: None,
+                target_key: Some("universal".to_string()),
             },
             dry_run,
         )?)),
@@ -1029,10 +1059,7 @@ fn select_asset_for_release(
         .iter()
         .find(|asset| asset.name == name)
         .ok_or_else(|| {
-            AppError::InvalidInput(format!(
-                "release asset '{}' missing download URL",
-                name
-            ))
+            AppError::InvalidInput(format!("release asset '{}' missing download URL", name))
         })?;
 
     let sha256 = if dry_run {
@@ -1073,6 +1100,44 @@ enum TargetKey {
 enum TargetMode {
     PerOs,
     PerTarget,
+}
+
+fn target_has_selection(target: &ArtifactTarget) -> bool {
+    target
+        .asset_name
+        .as_deref()
+        .map(|value| !value.trim().is_empty())
+        .unwrap_or(false)
+        || target
+            .asset_template
+            .as_deref()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false)
+}
+
+fn validate_target_keys_shape(targets: &BTreeMap<String, ArtifactTarget>) -> Result<(), AppError> {
+    let mut mode: Option<TargetMode> = None;
+    for key in targets.keys() {
+        match parse_target_key(key)? {
+            TargetKey::Os(_) => {
+                if matches!(mode, Some(TargetMode::PerTarget)) {
+                    return Err(AppError::InvalidInput(
+                        "target keys must be all <os> or all <os>-<arch>".to_string(),
+                    ));
+                }
+                mode = Some(TargetMode::PerOs);
+            }
+            TargetKey::OsArch(_, _) => {
+                if matches!(mode, Some(TargetMode::PerOs)) {
+                    return Err(AppError::InvalidInput(
+                        "target keys must be all <os> or all <os>-<arch>".to_string(),
+                    ));
+                }
+                mode = Some(TargetMode::PerTarget);
+            }
+        }
+    }
+    Ok(())
 }
 
 fn parse_target_key(key: &str) -> Result<TargetKey, AppError> {
@@ -1181,6 +1246,58 @@ fn print_preview(preview: &crate::preview::PreviewOutput) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cli::ReleaseArgs;
+    use crate::config::{ArtifactTarget, Config};
+    use crate::context::AppContext;
+    use crate::repo_detect::RepoInfo;
+    use std::collections::BTreeMap;
+    use std::path::Path;
+    use tempfile::tempdir;
+
+    fn base_release_args() -> ReleaseArgs {
+        ReleaseArgs {
+            version: None,
+            tag: None,
+            skip_tag: false,
+            no_push: true,
+            tap_path: None,
+            tap_remote: None,
+            artifact_strategy: None,
+            asset_template: None,
+            asset_name: None,
+            include_prerelease: false,
+            force: false,
+            host_owner: None,
+            host_repo: None,
+            dry_run: true,
+            allow_dirty: true,
+        }
+    }
+
+    fn base_config(tap_path: &Path) -> Config {
+        let mut config = Config::default();
+        config.tap.formula = Some("brewtool".to_string());
+        config.tap.path = Some(tap_path.to_path_buf());
+        config.project.name = Some("brewtool".to_string());
+        config.project.description = Some("Brew tool".to_string());
+        config.project.homepage = Some("https://example.com/brewtool".to_string());
+        config.project.license = Some("MIT".to_string());
+        config.project.bin = vec!["brewtool".to_string()];
+        config.cli.owner = Some("acme".to_string());
+        config.cli.repo = Some("brewtool".to_string());
+        config.artifact.strategy = Some("release-asset".to_string());
+        config
+    }
+
+    fn base_context(config: Config, cwd: &Path) -> AppContext {
+        AppContext {
+            cwd: cwd.to_path_buf(),
+            config_path: cwd.join(".distill/config.toml"),
+            config,
+            repo: RepoInfo::default(),
+            verbose: 0,
+        }
+    }
 
     #[test]
     fn extracts_version_from_formula() {
@@ -1194,6 +1311,57 @@ mod tests {
 end
 "#;
         assert_eq!(extract_formula_version(content), Some("1.2.3".to_string()));
+    }
+
+    #[test]
+    fn release_requires_asset_selection_in_non_interactive_mode() {
+        let dir = tempdir().unwrap();
+        let tap_path = dir.path().join("homebrew-brewtool");
+        let config = base_config(&tap_path);
+        let ctx = base_context(config, dir.path());
+        let args = base_release_args();
+
+        let err = resolve_release_context(&ctx, &args, Some(&tap_path)).unwrap_err();
+        assert!(matches!(err, AppError::MissingConfig(_)));
+        let message = err.to_string();
+        assert!(message.contains("artifact.asset_name or artifact.asset_template"));
+    }
+
+    #[test]
+    fn release_rejects_mixed_target_key_shapes_before_network() {
+        let dir = tempdir().unwrap();
+        let tap_path = dir.path().join("homebrew-brewtool");
+        let mut config = base_config(&tap_path);
+        config.artifact.asset_template = Some("brewtool-{version}-{os}-{arch}.tar.gz".to_string());
+
+        let mut targets = BTreeMap::new();
+        targets.insert(
+            "darwin".to_string(),
+            ArtifactTarget {
+                asset_template: Some("brewtool-{version}-darwin.tar.gz".to_string()),
+                asset_name: None,
+                extra: Default::default(),
+            },
+        );
+        targets.insert(
+            "darwin-arm64".to_string(),
+            ArtifactTarget {
+                asset_template: Some("brewtool-{version}-darwin-arm64.tar.gz".to_string()),
+                asset_name: None,
+                extra: Default::default(),
+            },
+        );
+        config.artifact.targets = targets;
+
+        let ctx = base_context(config, dir.path());
+        let args = base_release_args();
+
+        let err = resolve_release_context(&ctx, &args, Some(&tap_path)).unwrap_err();
+        assert!(matches!(err, AppError::InvalidInput(_)));
+        assert_eq!(
+            err.to_string(),
+            "target keys must be all <os> or all <os>-<arch>"
+        );
     }
 
     #[test]
@@ -1229,14 +1397,7 @@ end
 
     #[test]
     fn renders_default_tarball_url() {
-        let url = render_tarball_url(
-            None,
-            "acme",
-            "brewtool",
-            "v1.2.3",
-            "1.2.3",
-        )
-        .unwrap();
+        let url = render_tarball_url(None, "acme", "brewtool", "v1.2.3", "1.2.3").unwrap();
         assert_eq!(
             url,
             "https://github.com/acme/brewtool/archive/refs/tags/v1.2.3.tar.gz"

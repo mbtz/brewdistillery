@@ -65,7 +65,11 @@ fn update_cargo_version(
         .map(|value| value.to_string());
 
     if let Some(name) = root_package_name.as_deref() {
-        if target_package.as_deref().map(|value| value == name).unwrap_or(true) {
+        if target_package
+            .as_deref()
+            .map(|value| value == name)
+            .unwrap_or(true)
+        {
             let changed = update_toml_version_in_section(&manifest, "package", version, dry_run)?;
             return Ok(changed.then(|| manifest.clone()).into_iter().collect());
         }
@@ -98,9 +102,7 @@ fn update_regex_version(
     let file = config
         .regex_file
         .as_ref()
-        .ok_or_else(|| {
-            AppError::InvalidInput("version_update.regex_file is required".to_string())
-        })?
+        .ok_or_else(|| AppError::InvalidInput("version_update.regex_file is required".to_string()))?
         .to_path_buf();
     let path = if file.is_absolute() {
         file
@@ -147,7 +149,9 @@ fn update_regex_version(
         )));
     }
 
-    let updated = regex.replace_all(&content, replacement.as_str()).to_string();
+    let updated = regex
+        .replace_all(&content, replacement.as_str())
+        .to_string();
     if updated == content {
         return Ok(Vec::new());
     }
@@ -243,10 +247,7 @@ fn is_table_header(trimmed: &str) -> bool {
 }
 
 fn header_name(trimmed: &str) -> &str {
-    trimmed
-        .trim_start_matches('[')
-        .trim_end_matches(']')
-        .trim()
+    trimmed.trim_start_matches('[').trim_end_matches(']').trim()
 }
 
 fn table_get_string(table: &toml::value::Table, key: &str) -> Option<String> {
@@ -303,10 +304,7 @@ fn find_workspace_manifest(root: &Path, package_name: &str) -> Result<PathBuf, A
 fn package_name_from_manifest(path: &Path) -> Result<Option<String>, AppError> {
     let raw = fs::read_to_string(path)?;
     let value: toml::Value = toml::from_str(&raw).map_err(|err| {
-        AppError::InvalidInput(format!(
-            "invalid Cargo.toml at {}: {err}",
-            path.display()
-        ))
+        AppError::InvalidInput(format!("invalid Cargo.toml at {}: {err}", path.display()))
     })?;
     Ok(value
         .get("package")
@@ -315,7 +313,10 @@ fn package_name_from_manifest(path: &Path) -> Result<Option<String>, AppError> {
 }
 
 fn should_skip_dir(path: &Path) -> bool {
-    let name = path.file_name().and_then(|name| name.to_str()).unwrap_or("");
+    let name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("");
     matches!(name, ".git" | "target" | "node_modules" | ".distill")
 }
 
@@ -340,6 +341,7 @@ mod tests {
             regex_file: None,
             regex_pattern: None,
             regex_replacement: None,
+            extra: Default::default(),
         };
 
         let changed = apply_version_update(&config, dir.path(), "1.2.3", false).unwrap();
@@ -372,6 +374,7 @@ mod tests {
             regex_file: None,
             regex_pattern: None,
             regex_replacement: None,
+            extra: Default::default(),
         };
 
         let changed = apply_version_update(&config, dir.path(), "2.0.0", false).unwrap();
@@ -392,6 +395,7 @@ mod tests {
             regex_file: Some(PathBuf::from("version.txt")),
             regex_pattern: Some("VERSION=\\d+\\.\\d+\\.\\d+".to_string()),
             regex_replacement: Some("VERSION={version}".to_string()),
+            extra: Default::default(),
         };
 
         let changed = apply_version_update(&config, dir.path(), "3.1.4", false).unwrap();
