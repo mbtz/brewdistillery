@@ -5000,3 +5000,80 @@ Commits:
 Everything is clean and pushed.
 ```
 
+## 2026-01-25T13:04:57Z
+
+- run_id: 3b64b244-86a7-47a5-83e0-a801c7ebbf5c
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-25T12:48:26Z
+- finished_at: 2026-01-25T13:04:57Z
+- exit_code: 0
+
+```
++            other => panic!("unexpected error: {other:?}"),
++        }
++    }
++}
+diff --git a/src/lib.rs b/src/lib.rs
+index d10d2fee86f531ec6fbcbf933dc93ebf34b61167..0ce6f4a19b45e89b7ebb793598b10917f2cbd5c8
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -1,12 +1,13 @@
++pub mod asset_selection;
+ pub mod cli;
+ pub mod commands;
+ pub mod config;
+ pub mod context;
+ pub mod errors;
+-pub mod asset_selection;
+ pub mod formula;
++pub mod git;
+ pub mod host;
+ pub mod preview;
+ pub mod repo_detect;
++pub mod version;
+ pub mod version_update;
+-pub mod version;
+
+tokens used
+827 657
+Done. I used `sv` to reconcile tasks, then implemented a P0 slice and pushed it.
+
+What I changed:
+- Added a shared git module: `src/git.rs`
+- Refactored commands to use it:
+  - `src/commands/release.rs`
+  - `src/commands/init.rs`
+  - `src/lib.rs`
+- Added docs to close the design tasks:
+  - `docs/git-integration.md`
+  - `docs/release-orchestration.md`
+- Aligned the missing-field message to mention `tap.remote`
+- Added tests for remote selection + the new missing-field message
+
+`sv` updates:
+- Closed duplicate/temporary tasks: `sv-8jh`, `sv-sf1`
+- Created and completed:
+  - `sv-5x9` (git module + remote selection)
+  - `sv-zsw` (release orchestration doc + error alignment)
+- Closed parent tasks:
+  - `sv-r3k`
+  - `sv-61v`
+
+Validation:
+- Ran `cargo test` (74 passed)
+
+Commits (separate chore for unrelated change):
+- `d08de6a chore: update forge ledger`
+- `b35f553 feat: centralize git operations and document release flow`
+
+Pushed to `main`.
+
+Natural next step: I can start the next P0s: `sv-d7t` (init prompt flow) or `sv-mjn` (`--import-formula` merge policy).
+```
+
