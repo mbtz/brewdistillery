@@ -5077,3 +5077,80 @@ Pushed to `main`.
 Natural next step: I can start the next P0s: `sv-d7t` (init prompt flow) or `sv-mjn` (`--import-formula` merge policy).
 ```
 
+## 2026-01-25T13:46:03Z
+
+- run_id: ab119243-dc76-4c2c-9553-66fe6e821cb1
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-25T13:05:27Z
+- finished_at: 2026-01-25T13:46:03Z
+- exit_code: 0
+
+```
++        assert_eq!(tap_root.remote_url.as_deref(), Some("ssh://invalid-remote"));
++    }
++
++    #[test]
++    fn dry_run_requires_local_tap_path_when_remote_only() {
++        let dir = tempdir().unwrap();
++        let tap_path = dir.path().join("homebrew-brewtool");
++        let mut config = base_config(&tap_path);
++        config.tap.path = None;
++        config.tap.remote = Some("ssh://invalid-remote".to_string());
++        let ctx = base_context(config, dir.path());
++        let args = base_release_args();
++
++        let err = run(&ctx, &args).unwrap_err();
++        assert!(matches!(err, AppError::MissingConfig(_)));
++        assert_eq!(
++            err.to_string(),
++            "dry-run requires tap.path or an absolute tap.formula_path; tap.remote cannot be auto-cloned"
++        );
++    }
++
++    #[test]
++    fn dry_run_requires_version_or_tag() {
++        let dir = tempdir().unwrap();
++        let tap_path = dir.path().join("homebrew-brewtool");
++        let mut config = base_config(&tap_path);
++        config.artifact.asset_template = Some("brewtool-{version}.tar.gz".to_string());
++        let ctx = base_context(config, dir.path());
++        let mut args = base_release_args();
++        args.tap_path = Some(tap_path.clone());
++
++        let resolved = resolve_release_context(&ctx, &args, Some(&tap_path), None).unwrap();
++        let version_tag = resolve_version_tag(None, None).unwrap();
++
++        let err = run_dry_run_release(&ctx, &args, &resolved, &version_tag).unwrap_err();
++        assert!(matches!(err, AppError::MissingConfig(_)));
++        assert_eq!(
++            err.to_string(),
++            "missing required fields for --dry-run: version or tag"
++        );
++    }
++
++    #[test]
+     fn release_requires_asset_selection_in_non_interactive_mode() {
+         let dir = tempdir().unwrap();
+         let tap_path = dir.path().join("homebrew-brewtool");
+
+tokens used
+1 947 568
+Done: I synced the `sv` tasks and implemented two key gaps.
+
+- Added `--create-tap` to `bd init` in `src/cli.rs` and `src/commands/init.rs`.
+- Made `bd release --dry-run` network-free in `src/commands/release.rs`.
+- Dry-run now requires `--version` or `--tag`, and a local tap path (or absolute `tap.formula_path`) when `tap.remote` is set.
+- Wrote the missing specs and updated docs/README in `docs/init-prompt-flow.md`, `docs/import-formula.md`, `docs/github-tap-creation.md`, `docs/release-orchestration.md`, `docs/errors.md`, and `README.md`.
+- Added/updated tests; `cargo test` passes (79 tests).
+- `sv` updates: created and closed `sv-r32` and `sv-c4z`, and closed the remaining open tasks; only epics are open now.
+- Commits pushed to `main`: `ac11e89 feat: add create-tap init flow and network-free dry-run release` and `5bab7d9 chore: update forge ledger`.
+
+If you want, I can next tackle the interactive “back/edit” step or close out the epics.
+```
+
