@@ -15,6 +15,7 @@ use crate::host::{
     DEFAULT_CHECKSUM_TIMEOUT_SECS,
 };
 use crate::preview::{preview_and_apply, PlannedWrite, RepoPlan};
+use crate::repo_detect::ProjectMetadata;
 use crate::version::{resolve_version_tag, ResolvedVersionTag};
 use crate::version_update::{plan_version_update, VersionUpdateChange};
 use std::collections::BTreeMap;
@@ -58,6 +59,38 @@ struct TapRoot {
     temp_dir: Option<TempDir>,
     cloned_from: Option<String>,
     remote_url: Option<String>,
+}
+
+#[derive(Debug)]
+enum ReleaseDiscovery {
+    ReleaseAsset {
+        release: Release,
+        version: String,
+        tag_to_create: Option<String>,
+    },
+    SourceTarball {
+        version: String,
+        source_tag: String,
+        tag_to_create: Option<String>,
+    },
+}
+
+impl ReleaseDiscovery {
+    fn version(&self) -> &str {
+        match self {
+            ReleaseDiscovery::ReleaseAsset { version, .. }
+            | ReleaseDiscovery::SourceTarball { version, .. } => version,
+        }
+    }
+
+    fn tag_to_create(&self) -> Option<&str> {
+        match self {
+            ReleaseDiscovery::ReleaseAsset { tag_to_create, .. }
+            | ReleaseDiscovery::SourceTarball { tag_to_create, .. } => {
+                tag_to_create.as_deref()
+            }
+        }
+    }
 }
 
 pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
@@ -108,7 +141,7 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
     let client =
         GitHubClient::from_env(resolved.host_api_base.as_deref(), resolved.download_policy)?;
 
-    let (version, tag_to_create, asset_matrix) = match resolved.artifact_strategy.as_str() {
+    let discovery = match resolved.artifact_strategy.as_str() {
         "release-asset" => {
             let release = if let Some(tag) = version_tag.tag.as_deref() {
                 client.release_by_tag(
@@ -147,8 +180,11 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
                 )?)
             };
 
-            let asset_matrix = build_assets(&client, &release, &resolved, &version, args.dry_run)?;
-            (version, tag_to_create, asset_matrix)
+            ReleaseDiscovery::ReleaseAsset {
+                release,
+                version,
+                tag_to_create,
+            }
         }
         "source-tarball" => {
             validate_source_tarball_inputs(&resolved)?;
@@ -157,14 +193,6 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
                 &resolved,
                 &version_tag,
                 args.include_prerelease,
-            )?;
-            let tarball = build_tarball_asset(
-                &client,
-                &resolved,
-                &version,
-                &source_tag,
-                resolved.checksum_max_bytes,
-                args.dry_run,
             )?;
             let tag_to_create = if args.skip_tag {
                 None
@@ -176,7 +204,11 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
                     &source_tag,
                 )?)
             };
-            (version, tag_to_create, AssetMatrix::Universal(tarball))
+            ReleaseDiscovery::SourceTarball {
+                version,
+                source_tag,
+                tag_to_create,
+            }
         }
         _ => {
             return Err(AppError::InvalidInput(format!(
@@ -185,6 +217,9 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         )))
         }
     };
+
+    let version = discovery.version().to_string();
+    let tag_to_create = discovery.tag_to_create().map(|tag| tag.to_string());
 
     ensure_formula_target(&resolved.formula_path, &version, args.force)?;
 
@@ -219,6 +254,23 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
             ensure_clean_repo(cli_root, "cli repo")?;
         }
     }
+
+    let asset_matrix = match &discovery {
+        ReleaseDiscovery::ReleaseAsset { release, .. } => {
+            build_assets(&client, release, &resolved, &version, args.dry_run)?
+        }
+        ReleaseDiscovery::SourceTarball { source_tag, .. } => {
+            let tarball = build_tarball_asset(
+                &client,
+                &resolved,
+                &version,
+                source_tag,
+                resolved.checksum_max_bytes,
+                args.dry_run,
+            )?;
+            AssetMatrix::Universal(tarball)
+        }
+    };
 
     let version_update_plan = if version_update_mode != "none" {
         plan_version_update(&ctx.config.version_update, cli_repo_root, &version)?
@@ -360,6 +412,8 @@ fn validate_release_preflight(
     require_asset_selection: bool,
 ) -> Result<(), AppError> {
     let config = &ctx.config;
+    let metadata = ctx.repo.metadata.as_ref();
+    let inferred_owner_repo = infer_owner_repo_from_metadata(metadata);
     let mut missing = Vec::new();
 
     let tap_path = args.tap_path.clone().or_else(|| config.tap.path.clone());
@@ -394,22 +448,37 @@ fn validate_release_preflight(
         missing.push("tap.formula".to_string());
     }
 
-    let description = resolve_string(None, config.project.description.as_ref()).unwrap_or_default();
+    let description = resolve_string(None, config.project.description.as_ref())
+        .or_else(|| resolve_string(None, metadata.and_then(|meta| meta.description.as_ref())))
+        .unwrap_or_default();
     if description.trim().is_empty() {
         missing.push("project.description".to_string());
     }
 
-    let homepage = resolve_string(None, config.project.homepage.as_ref()).unwrap_or_default();
+    let homepage = resolve_string(None, config.project.homepage.as_ref())
+        .or_else(|| resolve_string(None, metadata.and_then(|meta| meta.homepage.as_ref())))
+        .unwrap_or_default();
     if homepage.trim().is_empty() {
         missing.push("project.homepage".to_string());
     }
 
-    let license = resolve_string(None, config.project.license.as_ref()).unwrap_or_default();
+    let license = resolve_string(None, config.project.license.as_ref())
+        .or_else(|| resolve_string(None, metadata.and_then(|meta| meta.license.as_ref())))
+        .unwrap_or_default();
     if license.trim().is_empty() {
         missing.push("project.license".to_string());
     }
 
-    let bins = normalize_bins(config.project.bin.clone());
+    let bins = {
+        let bins = normalize_bins(config.project.bin.clone());
+        if bins.is_empty() {
+            metadata
+                .map(|meta| normalize_bins(meta.bin.clone()))
+                .unwrap_or_default()
+        } else {
+            bins
+        }
+    };
     if bins.is_empty() {
         missing.push("project.bin".to_string());
     }
@@ -484,6 +553,7 @@ fn validate_release_preflight(
 
     let host_owner = resolve_string(args.host_owner.as_ref(), config.artifact.owner.as_ref())
         .or_else(|| resolve_string(None, config.cli.owner.as_ref()))
+        .or_else(|| inferred_owner_repo.as_ref().map(|(owner, _)| owner.clone()))
         .unwrap_or_default();
     if host_owner.is_empty() {
         missing.push("host-owner".to_string());
@@ -491,6 +561,7 @@ fn validate_release_preflight(
 
     let host_repo = resolve_string(args.host_repo.as_ref(), config.artifact.repo.as_ref())
         .or_else(|| resolve_string(None, config.cli.repo.as_ref()))
+        .or_else(|| inferred_owner_repo.as_ref().map(|(_, repo)| repo.clone()))
         .unwrap_or_default();
     if host_repo.is_empty() {
         missing.push("host-repo".to_string());
@@ -653,6 +724,8 @@ fn resolve_release_context(
     require_asset_selection: bool,
 ) -> Result<ReleaseContext, AppError> {
     let config = &ctx.config;
+    let metadata = ctx.repo.metadata.as_ref();
+    let inferred_owner_repo = infer_owner_repo_from_metadata(metadata);
     let mut missing = Vec::new();
 
     let tap_path = tap_path_override.cloned();
@@ -689,27 +762,43 @@ fn resolve_release_context(
                 .map(|value| value.to_string())
         });
 
-    let description = resolve_string(None, config.project.description.as_ref()).unwrap_or_default();
+    let description = resolve_string(None, config.project.description.as_ref())
+        .or_else(|| resolve_string(None, metadata.and_then(|meta| meta.description.as_ref())))
+        .unwrap_or_default();
     if description.trim().is_empty() {
         missing.push("project.description".to_string());
     }
 
-    let homepage = resolve_string(None, config.project.homepage.as_ref()).unwrap_or_default();
+    let homepage = resolve_string(None, config.project.homepage.as_ref())
+        .or_else(|| resolve_string(None, metadata.and_then(|meta| meta.homepage.as_ref())))
+        .unwrap_or_default();
     if homepage.trim().is_empty() {
         missing.push("project.homepage".to_string());
     }
 
-    let license = resolve_string(None, config.project.license.as_ref()).unwrap_or_default();
+    let license = resolve_string(None, config.project.license.as_ref())
+        .or_else(|| resolve_string(None, metadata.and_then(|meta| meta.license.as_ref())))
+        .unwrap_or_default();
     if license.trim().is_empty() {
         missing.push("project.license".to_string());
     }
 
-    let bins = normalize_bins(config.project.bin.clone());
+    let bins = {
+        let bins = normalize_bins(config.project.bin.clone());
+        if bins.is_empty() {
+            metadata
+                .map(|meta| normalize_bins(meta.bin.clone()))
+                .unwrap_or_default()
+        } else {
+            bins
+        }
+    };
     if bins.is_empty() {
         missing.push("project.bin".to_string());
     }
 
     let project_name = resolve_string(None, config.project.name.as_ref())
+        .or_else(|| resolve_string(None, metadata.and_then(|meta| meta.name.as_ref())))
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| formula_name.clone());
 
@@ -786,6 +875,7 @@ fn resolve_release_context(
 
     let host_owner = resolve_string(args.host_owner.as_ref(), config.artifact.owner.as_ref())
         .or_else(|| resolve_string(None, config.cli.owner.as_ref()))
+        .or_else(|| inferred_owner_repo.as_ref().map(|(owner, _)| owner.clone()))
         .unwrap_or_default();
     if host_owner.is_empty() {
         missing.push("host-owner".to_string());
@@ -793,6 +883,7 @@ fn resolve_release_context(
 
     let host_repo = resolve_string(args.host_repo.as_ref(), config.artifact.repo.as_ref())
         .or_else(|| resolve_string(None, config.cli.repo.as_ref()))
+        .or_else(|| inferred_owner_repo.as_ref().map(|(_, repo)| repo.clone()))
         .unwrap_or_default();
     if host_repo.is_empty() {
         missing.push("host-repo".to_string());
@@ -947,6 +1038,41 @@ fn resolve_string(flag: Option<&String>, config: Option<&String>) -> Option<Stri
         .map(|value| value.trim())
         .filter(|value| !value.is_empty())
         .map(|value| value.to_string())
+}
+
+fn infer_owner_repo_from_metadata(
+    metadata: Option<&ProjectMetadata>,
+) -> Option<(String, String)> {
+    metadata
+        .and_then(|meta| meta.homepage.as_deref())
+        .and_then(parse_owner_repo_from_github)
+}
+
+fn parse_owner_repo_from_github(input: &str) -> Option<(String, String)> {
+    let trimmed = input.trim();
+    let path = if let Some(rest) = trimmed.strip_prefix("git@github.com:") {
+        rest
+    } else if let Some(rest) = trimmed.strip_prefix("ssh://git@github.com/") {
+        rest
+    } else if let Some(rest) = trimmed.strip_prefix("https://github.com/") {
+        rest
+    } else if let Some(rest) = trimmed.strip_prefix("http://github.com/") {
+        rest
+    } else if let Some(rest) = trimmed.strip_prefix("git://github.com/") {
+        rest
+    } else {
+        return None;
+    };
+
+    let cleaned = path.trim_end_matches(".git").trim_end_matches('/');
+    let mut parts = cleaned.split('/').filter(|part| !part.is_empty());
+    let owner = parts.next()?.to_string();
+    let repo = parts.next()?.to_string();
+    if owner.is_empty() || repo.is_empty() {
+        None
+    } else {
+        Some((owner, repo))
+    }
 }
 
 fn resolve_checksum_max_bytes(config: &ArtifactConfig) -> u64 {
@@ -1910,13 +2036,17 @@ mod tests {
     use crate::config::{ArtifactTarget, Config};
     use crate::context::AppContext;
     use crate::git::run_git;
-    use crate::repo_detect::RepoInfo;
+    use crate::repo_detect::{ProjectMetadata, RepoInfo};
     use std::collections::BTreeMap;
     use std::fs;
     use std::io::{ErrorKind, Read, Write};
     use std::net::TcpListener;
     use std::path::Path;
-    use std::sync::mpsc;
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        mpsc,
+        Arc,
+    };
     use std::thread;
     use std::time::Duration;
     use tempfile::tempdir;
@@ -1964,6 +2094,25 @@ mod tests {
             config_path,
             config,
             repo: RepoInfo::default(),
+            verbose: 0,
+        }
+    }
+
+    fn base_context_with_metadata(
+        config: Config,
+        cwd: &Path,
+        metadata: ProjectMetadata,
+    ) -> AppContext {
+        let config_path = cwd.join(".distill/config.toml");
+        config.save(&config_path).unwrap();
+        AppContext {
+            cwd: cwd.to_path_buf(),
+            config_path,
+            config,
+            repo: RepoInfo {
+                metadata: Some(metadata),
+                ..RepoInfo::default()
+            },
             verbose: 0,
         }
     }
@@ -2022,7 +2171,7 @@ mod tests {
         tag: &str,
         asset_name: &str,
         asset_body: Vec<u8>,
-    ) -> (String, mpsc::Sender<()>, thread::JoinHandle<()>) {
+    ) -> (String, mpsc::Sender<()>, thread::JoinHandle<()>, Arc<AtomicUsize>) {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind GitHub test server");
         let addr = listener.local_addr().expect("local addr");
         listener
@@ -2039,6 +2188,8 @@ mod tests {
         )
         .into_bytes();
 
+        let asset_hits = Arc::new(AtomicUsize::new(0));
+        let asset_hits_thread = Arc::clone(&asset_hits);
         let (stop_tx, stop_rx) = mpsc::channel::<()>();
         let handle = thread::spawn(move || {
             for _ in 0..400 {
@@ -2059,6 +2210,7 @@ mod tests {
                         let (status, body, content_type) = if path == release_path {
                             ("200 OK", release_body.as_slice(), "application/json")
                         } else if path == asset_path {
+                            asset_hits_thread.fetch_add(1, Ordering::SeqCst);
                             ("200 OK", asset_body.as_slice(), "application/octet-stream")
                         } else {
                             ("404 Not Found", b"not found".as_slice(), "text/plain")
@@ -2080,7 +2232,7 @@ mod tests {
             }
         });
 
-        (base_url, stop_tx, handle)
+        (base_url, stop_tx, handle, asset_hits)
     }
 
     #[test]
@@ -2168,6 +2320,60 @@ end
         let err = run(&ctx, &args).unwrap_err();
         assert!(matches!(err, AppError::MissingConfig(_)));
         assert!(err.to_string().contains("project.description"));
+    }
+
+    #[test]
+    fn preflight_uses_repo_metadata_fallbacks() {
+        let dir = tempdir().unwrap();
+        let tap_path = dir.path().join("homebrew-brewtool");
+        let mut config = Config::default();
+        config.tap.formula = Some("brewtool".to_string());
+        config.tap.path = Some(tap_path);
+        config.artifact.strategy = Some("release-asset".to_string());
+
+        let mut metadata = ProjectMetadata::default();
+        metadata.name = Some("brewtool".to_string());
+        metadata.description = Some("Brew tool".to_string());
+        metadata.homepage = Some("https://github.com/acme/brewtool".to_string());
+        metadata.license = Some("MIT".to_string());
+        metadata.bin = vec!["brewtool".to_string()];
+
+        let ctx = base_context_with_metadata(config, dir.path(), metadata);
+        let mut args = base_release_args();
+        args.dry_run = false;
+
+        validate_release_preflight(&ctx, &args, false).unwrap();
+    }
+
+    #[test]
+    fn resolve_release_context_uses_repo_metadata_fallbacks() {
+        let dir = tempdir().unwrap();
+        let tap_path = dir.path().join("homebrew-brewtool");
+        let mut config = Config::default();
+        config.tap.formula = Some("brewtool".to_string());
+        config.tap.path = Some(tap_path.clone());
+        config.artifact.strategy = Some("release-asset".to_string());
+
+        let mut metadata = ProjectMetadata::default();
+        metadata.name = Some("brewtool".to_string());
+        metadata.description = Some("Brew tool".to_string());
+        metadata.homepage = Some("https://github.com/acme/brewtool".to_string());
+        metadata.license = Some("MIT".to_string());
+        metadata.bin = vec!["brewtool".to_string()];
+
+        let ctx = base_context_with_metadata(config, dir.path(), metadata);
+        let mut args = base_release_args();
+        args.dry_run = false;
+
+        let resolved =
+            resolve_release_context(&ctx, &args, Some(&tap_path), None, args.dry_run).unwrap();
+        assert_eq!(resolved.description, "Brew tool");
+        assert_eq!(resolved.homepage, "https://github.com/acme/brewtool");
+        assert_eq!(resolved.license, "MIT");
+        assert_eq!(resolved.bins, vec!["brewtool".to_string()]);
+        assert_eq!(resolved.project_name, "brewtool");
+        assert_eq!(resolved.host_owner, "acme");
+        assert_eq!(resolved.host_repo, "brewtool");
     }
 
     #[test]
@@ -2269,7 +2475,7 @@ end
         commit_all(cli_dir.path(), "init cli");
 
         let asset_name = "brewtool-1.2.3-darwin-arm64.tar.gz";
-        let (api_base, stop_tx, handle) = spawn_github_release_server(
+        let (api_base, stop_tx, handle, asset_hits) = spawn_github_release_server(
             "acme",
             "brewtool",
             "v1.2.3",
@@ -2298,6 +2504,11 @@ end
         assert_eq!(
             err.to_string(),
             "tag 'v1.2.3' already exists; re-run with --skip-tag or choose a new version"
+        );
+        assert_eq!(
+            asset_hits.load(Ordering::SeqCst),
+            0,
+            "asset download should not run when tag preflight fails"
         );
         let after = fs::read_to_string(&formula_path).unwrap();
         assert_eq!(before, after);

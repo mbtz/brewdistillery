@@ -1,7 +1,59 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-25T15:44:34.196691Z",
+  "generated_at": "2026-01-26T00:53:54.604030Z",
   "tasks": [
+    {
+      "id": "sv-cz8",
+      "title": "Use repo autodetect metadata as fallback in release preflight",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-25T21:20:19.284129Z",
+      "updated_at": "2026-01-26T00:53:54.577281Z",
+      "body": "Acceptance criteria:\\n- validate_release_preflight and resolve_release_context fall back to ctx.repo.metadata for project fields (description/homepage/license/bin/name) and host owner/repo when config values are missing.\\n- tap.formula remains required and is not auto-derived from metadata to avoid ambiguous formula updates.\\n- Add unit tests covering metadata fallback for host owner/repo and project fields.\\n- cargo test passes.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-25T21:20:23.261085Z",
+      "closed_at": "2026-01-26T00:53:50.913849Z",
+      "comments_count": 1,
+      "last_comment_at": "2026-01-26T00:53:54.577281Z"
+    },
+    {
+      "id": "sv-mf7",
+      "title": "EPIC: Identity & Config",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:32.187194Z",
+      "updated_at": "2026-01-25T21:20:23.226620Z",
+      "body": "Scope: identity resolution + config schema + metadata detection.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-xhz",
+      "title": "Preflight git state and existing tags before asset downloads",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-25T16:34:45.741965Z",
+      "updated_at": "2026-01-25T20:55:09.527956Z",
+      "body": "Acceptance criteria:\\n- After release discovery but before any asset download/checksum work, validate git prerequisites.\\n- If --skip-tag is false, ensure the tag is absent before downloads.\\n- When --allow-dirty is false, fail on dirty tap/CLI repos before downloads.\\n- Add a test that proves the asset download endpoint is not hit when the tag already exists.\\n- cargo test passes.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-25T16:34:48.049685Z",
+      "closed_at": "2026-01-25T18:58:44.934424Z",
+      "comments_count": 1,
+      "last_comment_at": "2026-01-25T20:55:09.527956Z"
+    },
+    {
+      "id": "sv-xf8",
+      "title": "EPIC: Release & Artifacts",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-22T13:31:32.540537Z",
+      "updated_at": "2026-01-25T16:34:48.020141Z",
+      "body": "Scope: release discovery, asset selection, checksums, idempotency, git flow.\\nDoD: Epics only; child tasks define acceptance criteria.",
+      "comments_count": 0
+    },
     {
       "id": "sv-jj8",
       "title": "Align git remote selection docs with implementation",
@@ -15,16 +67,6 @@
       "branch": "main",
       "started_at": "2026-01-25T15:43:34.550057Z",
       "closed_at": "2026-01-25T15:44:28.557792Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-mf7",
-      "title": "EPIC: Identity & Config",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:31:32.187194Z",
-      "updated_at": "2026-01-25T15:43:31.431870Z",
-      "body": "Scope: identity resolution + config schema + metadata detection.\\nDoD: Epics only; child tasks define acceptance criteria.",
       "comments_count": 0
     },
     {
@@ -50,16 +92,6 @@
       "created_at": "2026-01-25T15:41:37.190158Z",
       "updated_at": "2026-01-25T15:41:42.984473Z",
       "body": "Scope: PRD version update strategy open question.\\nDoD:\\n- Document workspace behavior (root package vs [workspace.package] vs member package).\\n- Ensure behavior is deterministic and covered by tests in src/version_update.rs.\\n- Record any required user decision in USER_TODO.md.",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-xf8",
-      "title": "EPIC: Release & Artifacts",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-22T13:31:32.540537Z",
-      "updated_at": "2026-01-25T15:41:42.984473Z",
-      "body": "Scope: release discovery, asset selection, checksums, idempotency, git flow.\\nDoD: Epics only; child tasks define acceptance criteria.",
       "comments_count": 0
     },
     {

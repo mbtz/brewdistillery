@@ -12,17 +12,16 @@ canonical error behavior for common failure paths.
 3. Resolve required config fields for non-interactive release.
 4. Resolve version and tag inputs.
 5. Discover the GitHub Release when using `release-asset` strategy (skipped in `--dry-run`).
-6. Select the release asset(s) and compute SHA256 values (dry-run derives asset URLs locally and uses `SHA256=DRY-RUN`).
-7. Enforce idempotency checks against the existing formula.
-8. Require a git root for the CLI repo when tagging or version updates are enabled (non-dry-run only).
-9. Enforce clean git working trees unless `--allow-dirty` is set.
-10. Plan optional version update automation in the CLI repo (no writes yet).
-11. Render the formula.
-12. Preview all repo changes together and apply them atomically.
-13. Commit CLI repo version updates when present.
-14. Commit the tap repo update when the formula changed.
-15. Create the tag in the CLI repo (unless `--skip-tag`).
-16. Push commits and tags (unless `--no-push`).
+6. Determine the normalized version and planned tag name.
+7. Enforce idempotency and git preflight checks (formula version, tag absence, git repo availability, and clean working trees unless `--allow-dirty` is set).
+8. Select the release asset(s) and compute SHA256 values (dry-run derives asset URLs locally and uses `SHA256=DRY-RUN`).
+9. Plan optional version update automation in the CLI repo (no writes yet).
+10. Render the formula.
+11. Preview all repo changes together and apply them atomically.
+12. Commit CLI repo version updates when present.
+13. Commit the tap repo update when the formula changed.
+14. Create the tag in the CLI repo (unless `--skip-tag`).
+15. Push commits and tags (unless `--no-push`).
 
 Notes:
 - In `--dry-run` mode, the command performs no network calls (no tap clone,
