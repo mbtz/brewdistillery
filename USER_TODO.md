@@ -11,3 +11,6 @@
   current implementation updates root `[package]` by default, uses `[workspace.package]` if root is missing and no `version_update.cargo_package` is set, and otherwise requires `version_update.cargo_package` to target a member package.
 - [sv-25d] Confirm `--include-prerelease` selection policy (as of 2026-01-25):
   choose one default: (A) latest overall non-draft release (current behavior), or (B) prefer the latest stable release when one exists, even when `--include-prerelease` is set.
+
+## Actions needed
+- Fix git remote access for this repo so `git push` succeeds (latest push failed with: `Could not read from remote repository`).
