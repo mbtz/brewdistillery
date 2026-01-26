@@ -5693,3 +5693,80 @@ Commits:
 If you want, I can pick the next PRD gap and open/implement the next `sv` task.
 ```
 
+## 2026-01-25T15:45:32Z
+
+- run_id: ddaed3c8-46c7-4384-a02f-04c48290f73d
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-25T15:38:42Z
+- finished_at: 2026-01-25T15:45:32Z
+- exit_code: 0
+
+```
+let releases: Vec<GitHubRelease> = self.get_json(&path)?;
+-        select_latest_release(releases).ok_or_else(|| {
+-            AppError::InvalidInput(format!(
+-                "no GitHub releases found for {owner}/{repo}"
+-            ))
+-        })
++        select_latest_release(releases).ok_or_else(|| no_releases_error(owner, repo))
+     }
+ }
+ 
+@@ -447,6 +441,10 @@
+     }
+ }
+ 
++fn no_releases_error(owner: &str, repo: &str) -> AppError {
++    AppError::InvalidInput(format!("no GitHub releases found for {owner}/{repo}"))
++}
++
+ fn ensure_release_allowed(
+     release: &GitHubRelease,
+     include_prerelease: bool,
+@@ -598,6 +596,12 @@
+     }
+ 
+     #[test]
++    fn formats_no_releases_error_message() {
++        let err = no_releases_error("acme", "brewtool");
++        assert_eq!(err.to_string(), "no GitHub releases found for acme/brewtool");
++    }
++
++    #[test]
+     fn rejects_prerelease_when_flag_is_not_set() {
+         let release = GitHubRelease {
+             tag_name: "v1.2.0-beta.1".to_string(),
+
+tokens used
+425 768
+Done — I used the `sv-issue-tracking`, `workflow-pattern`, and `session-protocol` skills, created tasks, implemented two, and pushed to `main`.
+
+What I did:
+- Created tasks:
+  - `sv-25d` Decide prerelease selection policy with `--include-prerelease` (open)
+  - `sv-b7j` Finalize Cargo workspace `version_update` policy (open)
+  - `sv-vdr` Fix duplicate latest-release error message (closed)
+  - `sv-jj8` Align git remote selection docs with implementation (closed)
+- Implemented:
+  - Unified the “no releases” error helper + test in `src/host/github.rs`
+  - Aligned git remote selection docs with actual behavior in `docs/git-integration.md`
+  - Wrote explicit decision requests in `USER_TODO.md`
+  - Synced task state in `.tasks/tasks.jsonl`
+
+Validation:
+- Ran `cargo test` (116 passed)
+
+Commits pushed:
+- `d6109fe` chore: update forge ledger
+- `bcd7201` fix: unify no-release error and align git remote docs
+
+Action needed:
+- Please respond to the two decisions in `USER_TODO.md` (I’ll continue with `sv-25d` and `sv-b7j` right after).
+```
+
