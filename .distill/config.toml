@@ -1,0 +1,37 @@
+schema_version = 1
+
+[project]
+name = "brewdistillery"
+description = "Helper CLI tool for setup of homebrew installations."
+homepage = "https://github.com/mbtz/brewdistillery"
+license = "MIT"
+bin = [
+    "bd",
+    "brewd",
+    "brewdistillery",
+]
+
+[cli]
+owner = "mbtz"
+repo = "brewdistillery"
+
+[tap]
+owner = "mbtz"
+repo = "homebrew-brewdistillery"
+path = "/Users/marius/Code/mbtz--brewdistillery/repos/homebrew-brewdistillery"
+formula = "brewdistillery"
+formula_path = "/Users/marius/Code/mbtz--brewdistillery/repos/homebrew-brewdistillery/Formula/brewdistillery.rb"
+
+[artifact]
+strategy = "release-asset"
+
+[artifact.targets]
+
+[release]
+
+[version_update]
+
+[host]
+
+[template]
+

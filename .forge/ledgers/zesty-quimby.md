@@ -5770,3 +5770,80 @@ Action needed:
 - Please respond to the two decisions in `USER_TODO.md` (I’ll continue with `sv-25d` and `sv-b7j` right after).
 ```
 
+## 2026-01-26T02:59:56Z
+
+- run_id: cf1a702d-4a97-4027-90cf-58d6300dc0bb
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-25T15:46:02Z
+- finished_at: 2026-01-26T02:59:56Z
+- exit_code: 0
+
+```
++        assert_eq!(resolved.license, "MIT");
++        assert_eq!(resolved.bins, vec!["brewtool".to_string()]);
++        assert_eq!(resolved.project_name, "brewtool");
++        assert_eq!(resolved.host_owner, "acme");
++        assert_eq!(resolved.host_repo, "brewtool");
++    }
++
++    #[test]
+     fn dry_run_requires_local_tap_path_when_remote_only() {
+         let dir = tempdir().unwrap();
+         let tap_path = dir.path().join("homebrew-brewtool");
+@@ -2269,7 +2475,7 @@
+         commit_all(cli_dir.path(), "init cli");
+ 
+         let asset_name = "brewtool-1.2.3-darwin-arm64.tar.gz";
+-        let (api_base, stop_tx, handle) = spawn_github_release_server(
++        let (api_base, stop_tx, handle, asset_hits) = spawn_github_release_server(
+             "acme",
+             "brewtool",
+             "v1.2.3",
+@@ -2299,6 +2505,11 @@
+             err.to_string(),
+             "tag 'v1.2.3' already exists; re-run with --skip-tag or choose a new version"
+         );
++        assert_eq!(
++            asset_hits.load(Ordering::SeqCst),
++            0,
++            "asset download should not run when tag preflight fails"
++        );
+         let after = fs::read_to_string(&formula_path).unwrap();
+         assert_eq!(before, after);
+     }
+
+tokens used
+724 630
+Implemented fail‑fast release preflight (tag/clean checks before downloads) and repo‑metadata fallbacks for release inputs, with new tests and updated release orchestration docs.
+
+**What Changed**
+- Reordered `bd release` to fail on existing tags/dirty repos before downloading assets, and added an asset-download guard test.  
+- Added repo metadata fallbacks for release project fields and host owner/repo resolution.  
+- Updated release orchestration steps to match the new preflight order.  
+- SV tasks created/closed: `sv-xhz`, `sv-cz8`.  
+
+**Files Updated**
+- `src/commands/release.rs`
+- `docs/release-orchestration.md`
+- `.tasks/tasks.jsonl`
+- `.tasks/tasks.snapshot.json`
+
+**Tests**
+- `cargo test`
+
+**Decisions Still Needed**
+- `sv-b7j` Cargo workspace version update policy
+- `sv-25d` `--include-prerelease` selection policy  
+Both are listed in `USER_TODO.md`.
+
+**Next Steps (Optional)**
+1. Provide the two decisions in `USER_TODO.md` so I can finalize `sv-b7j` and `sv-25d`.
+2. I can then proceed with the next open PRD task you want prioritized.
+```
+

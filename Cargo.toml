@@ -9,6 +9,10 @@ name = "bd"
 path = "src/bin/bd.rs"
 
 [[bin]]
+name = "brewd"
+path = "src/bin/brewd.rs"
+
+[[bin]]
 name = "brewdistillery"
 path = "src/bin/brewdistillery.rs"
 
