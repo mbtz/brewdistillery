@@ -129,6 +129,12 @@ pub struct ReleaseArgs {
     pub include_prerelease: bool,
 
     #[arg(long)]
+    pub create_release: bool,
+
+    #[arg(long, conflicts_with = "create_release")]
+    pub no_create_release: bool,
+
+    #[arg(long)]
     pub force: bool,
 
     #[arg(long)]

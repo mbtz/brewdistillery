@@ -1,7 +1,45 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-27T14:35:31.100904Z",
+  "generated_at": "2026-01-27T15:00:06.302110Z",
   "tasks": [
+    {
+      "id": "sv-e2x",
+      "title": "Add tests/docs for create-release behavior",
+      "status": "closed",
+      "priority": "P2",
+      "created_at": "2026-01-27T14:45:35.156748Z",
+      "updated_at": "2026-01-27T15:00:06.293449Z",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-27T14:59:52.201424Z",
+      "closed_at": "2026-01-27T15:00:06.293449Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-4g4",
+      "title": "Add --create-release/--no-create-release flags and wire release flow",
+      "status": "closed",
+      "priority": "P2",
+      "created_at": "2026-01-27T14:45:26.149342Z",
+      "updated_at": "2026-01-27T15:00:00.946943Z",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-27T14:45:42.834342Z",
+      "closed_at": "2026-01-27T15:00:00.946943Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-mrc",
+      "title": "Add optional GitHub Release creation for release-asset",
+      "status": "open",
+      "priority": "P2",
+      "created_at": "2026-01-27T13:23:27.814473Z",
+      "updated_at": "2026-01-27T14:45:39.879220Z",
+      "body": "Feedback: new flags --create-release/--no-create-release; when enabled and release missing create tag then GitHub Release; check .gitconfig for commit/push capability; fail with clear message when GITHUB_TOKEN/GH_TOKEN missing; support in interactive mode.",
+      "comments_count": 0
+    },
     {
       "id": "sv-p5b",
       "title": "Define preview/diff output for multi-repo changes",
@@ -45,16 +83,6 @@
       "branch": "main",
       "started_at": "2026-01-27T14:27:39.332179Z",
       "closed_at": "2026-01-27T14:29:24.205970Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-mrc",
-      "title": "Add optional GitHub Release creation for release-asset",
-      "status": "open",
-      "priority": "P2",
-      "created_at": "2026-01-27T13:23:27.814473Z",
-      "updated_at": "2026-01-27T14:27:36.679022Z",
-      "body": "Feedback: new flags --create-release/--no-create-release; when enabled and release missing create tag then GitHub Release; check .gitconfig for commit/push capability; fail with clear message when GITHUB_TOKEN/GH_TOKEN missing; support in interactive mode.",
       "comments_count": 0
     },
     {

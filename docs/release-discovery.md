@@ -23,6 +23,9 @@ Notes:
   version after normalization, or the command fails.
 - In `--dry-run` mode, release discovery is skipped and `--version` or `--tag`
   is required.
+- When `--create-release` is set and no release exists, `bd` will create the
+  tag and GitHub Release before continuing (requires a GitHub token and a
+  pushable tag).
 
 ## Draft and prerelease rules
 

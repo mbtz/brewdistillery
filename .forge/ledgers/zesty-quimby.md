@@ -6309,3 +6309,80 @@ Next steps (pick one):
 2) Continue with `sv-mrc` release-creation wiring in `src/commands/release.rs` once the bin issue is resolved.
 ```
 
+## 2026-01-27T14:36:30Z
+
+- run_id: d6e45a67-7c24-45bc-9491-07af60a0c192
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-27T14:30:56Z
+- finished_at: 2026-01-27T14:36:30Z
+- exit_code: 0
+
+```
+exec
+/bin/zsh -lc 'git commit -m "docs: specify preview and atomic write contract"' in /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery succeeded in 52ms:
+[main 8301cb6] docs: specify preview and atomic write contract
+ 4 files changed, 226 insertions(+), 21 deletions(-)
+ create mode 100644 docs/preview.md
+
+thinking
+**Pushing session protocol changes**
+exec
+/bin/zsh -lc 'git push' in /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery succeeded in 1.99s:
+To github.com:mbtz/brewdistillery.git
+   d2c0c84..8301cb6  main -> main
+
+thinking
+**Verifying clean git status**
+exec
+/bin/zsh -lc 'git status --short' in /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery succeeded in 52ms:
+
+
+
+thinking
+**Summarizing completion and next steps**
+
+The preview and confirm tasks are complete, with diff output generated and documentation created at `docs/preview.md`. No additional user action is needed now. I used sv-issue-tracking, workflow-pattern, and session-protocol skills to manage tasks and workflow effectively. Suggested next steps include aligning release confirmation or tackling subsequent tasks as desired.
+thinking
+**Providing final summary with skills and next steps**
+
+Using skills: sv-issue-tracking to update tasks, workflow-pattern to manage status, and session-protocol to commit and push changes. (Skipped user-feedback because no request to process USER_FEEDBACK.md.)
+
+- Added preview/diff UX contract and atomic write behavior documentation covering init/release previews, diff ordering, dry-run messaging, and rollback guarantees; see `docs/preview.md`.  
+- Closed tasks sv-ht5 and sv-p5b; no new tasks created as existing tasks cover current scope.  
+- Tests not run since this is a documentation-only change.
+
+Next steps:  
+1) Close additional open design tasks already documented.  
+2) Start implementing release confirmation (e.g., sv-a09).  
+No user action required now.
+codex
+Using sv-issue-tracking to manage tasks and workflow-pattern/session-protocol to keep status/commits aligned. (Skipped user-feedback because you didn’t ask to process `USER_FEEDBACK.md`.)
+
+Added a concrete preview/diff + atomic write contract covering init/release previews, dry-run messaging, ordering rules, and per-file atomicity/rollback expectations in `docs/preview.md`.
+
+- Tasks closed: `sv-ht5`, `sv-p5b`
+- Tests: not run (docs-only change)
+
+If you want me to keep going, pick one:
+1) Start the next UX & safety task (e.g., `sv-7a2` error catalog)  
+2) Implement a release confirmation prompt to match the “explicit confirmations” principle
+tokens used
+86 040
+Using sv-issue-tracking to manage tasks and workflow-pattern/session-protocol to keep status/commits aligned. (Skipped user-feedback because you didn’t ask to process `USER_FEEDBACK.md`.)
+
+Added a concrete preview/diff + atomic write contract covering init/release previews, dry-run messaging, ordering rules, and per-file atomicity/rollback expectations in `docs/preview.md`.
+
+- Tasks closed: `sv-ht5`, `sv-p5b`
+- Tests: not run (docs-only change)
+
+If you want me to keep going, pick one:
+1) Start the next UX & safety task (e.g., `sv-7a2` error catalog)  
+2) Implement a release confirmation prompt to match the “explicit confirmations” principle
+```
+

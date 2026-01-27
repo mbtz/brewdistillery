@@ -12,22 +12,26 @@ canonical error behavior for common failure paths.
 3. Resolve required config fields for non-interactive release.
 4. Resolve version and tag inputs.
 5. Discover the GitHub Release when using `release-asset` strategy (skipped in `--dry-run`).
-6. Determine the normalized version and planned tag name.
-7. Enforce idempotency and git preflight checks (formula version, tag absence, git repo availability, and clean working trees unless `--allow-dirty` is set).
-8. Select the release asset(s) and compute SHA256 values (dry-run derives asset URLs locally and uses `SHA256=DRY-RUN`).
-9. Plan optional version update automation in the CLI repo (no writes yet).
-10. Render the formula.
-11. Preview all repo changes together and apply them atomically.
-12. Commit CLI repo version updates when present.
-13. Commit the tap repo update when the formula changed.
-14. Create the tag in the CLI repo (unless `--skip-tag`).
-15. Push commits and tags (unless `--no-push`).
+6. If `--create-release` is set and no release exists, create the tag and GitHub Release before continuing.
+7. Determine the normalized version and planned tag name.
+8. Enforce idempotency and git preflight checks (formula version, tag absence, git repo availability, and clean working trees unless `--allow-dirty` is set).
+9. Select the release asset(s) and compute SHA256 values (dry-run derives asset URLs locally and uses `SHA256=DRY-RUN`).
+10. Plan optional version update automation in the CLI repo (no writes yet).
+11. Render the formula.
+12. Preview all repo changes together and apply them atomically.
+13. Commit CLI repo version updates when present.
+14. Commit the tap repo update when the formula changed.
+15. Create the tag in the CLI repo (unless `--skip-tag`).
+16. Push commits and tags (unless `--no-push`).
 
 Notes:
 - In `--dry-run` mode, the command performs no network calls (no tap clone,
   no GitHub API requests, and no downloads).
 - Dry-run requires an explicit `--version` or `--tag`.
 - `source-tarball` strategy requires `--version` or `--tag`.
+- `--create-release` requires a GitHub token and a pushable tag; it is ignored
+  unless `artifact.strategy = "release-asset"`.
+- `--create-release` requires `--version` or `--tag` when no release exists.
 - Dry-run also requires `tap.path` or an absolute `tap.formula_path` when
   `tap.remote` is configured, because remotes are not auto-cloned.
 - In non-dry-run mode, tagging or version updates require the CLI repo to be a
@@ -81,15 +85,18 @@ Missing required config or inputs (exit code 2):
 - `missing required fields for --non-interactive: <fields>`
 - `missing required fields for --dry-run: version or tag`
 - `source-tarball requires --version (or --tag)`
+- `create-release requires --version or --tag when no GitHub release exists`
 - `dry-run requires tap.path or an absolute tap.formula_path; tap.remote cannot be auto-cloned`
 - Tap path guidance must mention the remote option:
   `tap.path, tap.remote, or tap.formula_path`
 
 Invalid user input (exit code 3):
 - `formula already targets version <version>; re-run with --force to re-apply`
+- `--create-release cannot be used with --skip-tag`
 - Asset selection ambiguity and missing-asset errors (see `docs/asset-selection.md`).
 
 Git state failures (exit code 4):
 - `<label> has uncommitted changes; re-run with --allow-dirty to continue`
 - `tag '<tag>' already exists; re-run with --skip-tag or choose a new version`
 - `multiple GitHub remotes found in <repo>; set a matching tap.remote/cli.remote URL`
+- `--create-release requires pushing the tag; re-run without --no-push`

@@ -6,7 +6,7 @@ use crate::errors::AppError;
 use crate::formula::{Arch, AssetMatrix, FormulaAsset, FormulaSpec, Os, TargetAsset};
 use crate::git::{
     commit_paths, create_tag, ensure_clean_repo, ensure_tag_absent, git_clone, push_head, push_tag,
-    RemoteContext,
+    tag_exists, RemoteContext,
 };
 use crate::host::github::GitHubClient;
 use crate::host::{
@@ -18,6 +18,7 @@ use crate::preview::{preview_and_apply, PlannedWrite, RepoPlan};
 use crate::repo_detect::ProjectMetadata;
 use crate::version::{resolve_version_tag, ResolvedVersionTag};
 use crate::version_update::{plan_version_update, VersionUpdateChange};
+use semver::Version;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use tempfile::{Builder as TempBuilder, TempDir};
@@ -73,6 +74,13 @@ enum ReleaseDiscovery {
         source_tag: String,
         tag_to_create: Option<String>,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ReleaseAction {
+    None,
+    CreatePlanned,
+    Created,
 }
 
 impl ReleaseDiscovery {
@@ -135,27 +143,92 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
     )?;
 
     let version_tag = resolve_version_tag(args.version.as_deref(), args.tag.as_deref())?;
+    let create_release = resolve_create_release(args);
+    if create_release && resolved.artifact_strategy != "release-asset" {
+        return Err(AppError::InvalidInput(
+            "--create-release is only supported with artifact.strategy=release-asset".to_string(),
+        ));
+    }
     if args.dry_run {
         return run_dry_run_release(ctx, args, &resolved, &version_tag);
     }
     let client =
         GitHubClient::from_env(resolved.host_api_base.as_deref(), resolved.download_policy)?;
 
+    let mut release_action = ReleaseAction::None;
     let discovery = match resolved.artifact_strategy.as_str() {
         "release-asset" => {
-            let release = if let Some(tag) = version_tag.tag.as_deref() {
+            let release_result = if let Some(tag) = version_tag.tag.as_deref() {
                 client.release_by_tag(
                     &resolved.host_owner,
                     &resolved.host_repo,
                     tag,
                     args.include_prerelease,
-                )?
+                )
             } else {
                 client.latest_release(
                     &resolved.host_owner,
                     &resolved.host_repo,
                     args.include_prerelease,
-                )?
+                )
+            };
+
+            let mut release_tag_created = false;
+            let release = match release_result {
+                Ok(release) => release,
+                Err(err) => {
+                    if create_release && release_missing_error(&err) {
+                        if args.skip_tag {
+                            return Err(AppError::InvalidInput(
+                                "--create-release cannot be used with --skip-tag".to_string(),
+                            ));
+                        }
+                        if args.no_push {
+                            return Err(AppError::GitState(
+                                "--create-release requires pushing the tag; re-run without --no-push"
+                                    .to_string(),
+                            ));
+                        }
+
+                        let version = version_tag.version.clone().ok_or_else(|| {
+                            AppError::MissingConfig(
+                                "create-release requires --version or --tag when no GitHub release exists".to_string(),
+                            )
+                        })?;
+                        let tag_name = resolve_tag_name(
+                            &version,
+                            &version_tag,
+                            resolved.tag_format.as_deref(),
+                            "",
+                        )?;
+                        let cli_root = ctx.repo.git_root.as_ref().ok_or_else(|| {
+                            AppError::GitState("cli repo is not a git repository".to_string())
+                        })?;
+                        if !args.allow_dirty {
+                            ensure_clean_repo(cli_root, "cli repo")?;
+                        }
+                        ensure_tag_present(cli_root, &tag_name)?;
+                        push_tag(
+                            cli_root,
+                            &tag_name,
+                            resolved.cli_remote_url.as_deref(),
+                            RemoteContext::Cli,
+                        )?;
+                        let prerelease = version_is_prerelease(&version)?;
+                        let created_release = client.create_release(
+                            &resolved.host_owner,
+                            &resolved.host_repo,
+                            &tag_name,
+                            None,
+                            prerelease,
+                        )?;
+                        release_action = ReleaseAction::Created;
+                        release_tag_created = true;
+                        created_release
+                    } else {
+                        return Err(err);
+                    }
+                }
             };
 
             let release_version = normalized_version_from_tag(&release.tag_name)?;
@@ -169,7 +242,7 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
             }
 
             let version = version_tag.version.clone().unwrap_or(release_version);
-            let tag_to_create = if args.skip_tag {
+            let mut tag_to_create = if args.skip_tag {
                 None
             } else {
                 Some(resolve_tag_name(
@@ -179,6 +252,9 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
                     &release.tag_name,
                 )?)
             };
+            if release_tag_created {
+                tag_to_create = None;
+            }
 
             ReleaseDiscovery::ReleaseAsset {
                 release,
@@ -324,7 +400,7 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         args.skip_tag,
         formula_changed,
         cli_changed,
-        false,
+        release_action,
     );
 
     if args.dry_run {
@@ -722,13 +798,21 @@ fn run_dry_run_release(
         .iter()
         .any(|path| preview.changed_files.iter().any(|changed| changed == path));
 
+    let release_action = if resolve_create_release(args)
+        && resolved.artifact_strategy == "release-asset"
+    {
+        ReleaseAction::CreatePlanned
+    } else {
+        ReleaseAction::None
+    };
+
     print_preview(&preview);
     print_planned_actions(
         tag_to_create.as_deref(),
         args.skip_tag,
         formula_changed,
         cli_changed,
-        false,
+        release_action,
     );
     Ok(())
 }
@@ -1143,6 +1227,40 @@ fn normalized_version_from_tag(tag: &str) -> Result<String, AppError> {
     resolved.version.ok_or_else(|| {
         AppError::InvalidInput(format!("GitHub release tag '{}' is not valid semver", tag))
     })
+}
+
+fn resolve_create_release(args: &ReleaseArgs) -> bool {
+    if args.no_create_release {
+        return false;
+    }
+    args.create_release
+}
+
+fn release_missing_error(err: &AppError) -> bool {
+    match err {
+        AppError::InvalidInput(message) => {
+            message.starts_with("no GitHub releases found")
+                || message.starts_with("GitHub release tag '")
+        }
+        _ => false,
+    }
+}
+
+fn version_is_prerelease(version: &str) -> Result<bool, AppError> {
+    let parsed = Version::parse(version).map_err(|_| {
+        AppError::InvalidInput(format!(
+            "invalid version '{version}': expected semver (e.g. 1.2.3)"
+        ))
+    })?;
+    Ok(!parsed.pre.is_empty())
+}
+
+fn ensure_tag_present(repo: &Path, tag: &str) -> Result<bool, AppError> {
+    if tag_exists(repo, tag)? {
+        return Ok(false);
+    }
+    create_tag(repo, tag)?;
+    Ok(true)
 }
 
 fn ensure_formula_target(
@@ -2036,14 +2154,14 @@ fn print_planned_actions(
     skip_tag: bool,
     formula_changed: bool,
     cli_changed: bool,
-    create_release: bool,
+    release_action: ReleaseAction,
 ) {
     let summary = planned_actions_summary(
         tag_to_create,
         skip_tag,
         formula_changed,
         cli_changed,
-        create_release,
+        release_action,
     );
     if !summary.trim().is_empty() {
         println!("{}", summary.trim_end());
@@ -2055,7 +2173,7 @@ fn planned_actions_summary(
     skip_tag: bool,
     formula_changed: bool,
     cli_changed: bool,
-    create_release: bool,
+    release_action: ReleaseAction,
 ) -> String {
     let mut lines = Vec::new();
     lines.push("Planned actions:".to_string());
@@ -2078,8 +2196,14 @@ fn planned_actions_summary(
         lines.push("  - will update CLI version files".to_string());
     }
 
-    if create_release {
-        lines.push("  - will create GitHub release".to_string());
+    match release_action {
+        ReleaseAction::CreatePlanned => {
+            lines.push("  - will create GitHub release".to_string());
+        }
+        ReleaseAction::Created => {
+            lines.push("  - created GitHub release".to_string());
+        }
+        ReleaseAction::None => {}
     }
 
     lines.join("\n")
@@ -2119,6 +2243,8 @@ mod tests {
             asset_template: None,
             asset_name: None,
             include_prerelease: false,
+            create_release: false,
+            no_create_release: false,
             force: false,
             host_owner: None,
             host_repo: None,
@@ -2289,6 +2415,93 @@ mod tests {
         });
 
         (base_url, stop_tx, handle, asset_hits)
+    }
+
+    fn spawn_github_release_create_server(
+        owner: &str,
+        repo: &str,
+        tag: &str,
+        asset_name: &str,
+        asset_body: Vec<u8>,
+    ) -> (
+        String,
+        mpsc::Sender<()>,
+        thread::JoinHandle<()>,
+        Arc<AtomicUsize>,
+    ) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind GitHub create server");
+        let addr = listener.local_addr().expect("local addr");
+        listener
+            .set_nonblocking(true)
+            .expect("set nonblocking listener");
+
+        let base_url = format!("http://{}", addr);
+        let asset_path = format!("/assets/{asset_name}");
+        let release_latest_path = format!("/repos/{owner}/{repo}/releases/latest");
+        let release_create_path = format!("/repos/{owner}/{repo}/releases");
+        let asset_url = format!("{base_url}{asset_path}");
+        let asset_len = asset_body.len();
+        let release_body = format!(
+            "{{\"tag_name\":\"{tag}\",\"draft\":false,\"prerelease\":false,\"assets\":[{{\"name\":\"{asset_name}\",\"browser_download_url\":\"{asset_url}\",\"size\":{asset_len}}}]}}"
+        )
+        .into_bytes();
+
+        let create_hits = Arc::new(AtomicUsize::new(0));
+        let create_hits_thread = Arc::clone(&create_hits);
+        let (stop_tx, stop_rx) = mpsc::channel::<()>();
+        let handle = thread::spawn(move || {
+            for _ in 0..400 {
+                if stop_rx.try_recv().is_ok() {
+                    return;
+                }
+                match listener.accept() {
+                    Ok((mut stream, _)) => {
+                        let mut buffer = [0u8; 4096];
+                        let read = stream.read(&mut buffer).unwrap_or(0);
+                        let request = String::from_utf8_lossy(&buffer[..read]);
+                        let mut parts = request
+                            .lines()
+                            .next()
+                            .unwrap_or("")
+                            .split_whitespace();
+                        let method = parts.next().unwrap_or("");
+                        let path = parts.next().unwrap_or("/");
+
+                        let (status, body, content_type) = if method == "GET"
+                            && path == release_latest_path
+                        {
+                            ("404 Not Found", b"not found".as_slice(), "text/plain")
+                        } else if method == "POST" && path == release_create_path {
+                            create_hits_thread.fetch_add(1, Ordering::SeqCst);
+                            ("201 Created", release_body.as_slice(), "application/json")
+                        } else if method == "GET" && path == asset_path {
+                            ("200 OK", asset_body.as_slice(), "application/octet-stream")
+                        } else {
+                            ("404 Not Found", b"not found".as_slice(), "text/plain")
+                        };
+
+                        let response = format!(
+                            "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\nContent-Type: {content_type}\r\n\r\n",
+                            body.len()
+                        );
+                        let _ = stream.write_all(response.as_bytes());
+                        let _ = stream.write_all(body);
+                        let _ = stream.flush();
+                    }
+                    Err(err) if err.kind() == ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(5));
+                    }
+                    Err(_) => return,
+                }
+            }
+        });
+
+        (base_url, stop_tx, handle, create_hits)
+    }
+
+    fn init_bare_repo(path: &Path) {
+        fs::create_dir_all(path).expect("create bare repo dir");
+        run_git(path, &["init", "--bare"]).expect("git init --bare");
     }
 
     #[test]
@@ -2595,6 +2808,101 @@ end
     }
 
     #[test]
+    fn create_release_when_missing_and_flagged() {
+        let dir = tempdir().unwrap();
+        let cli_dir = dir.path().join("cli");
+        let tap_dir = dir.path().join("tap");
+        let cli_remote = dir.path().join("cli-remote.git");
+        let tap_remote = dir.path().join("tap-remote.git");
+
+        init_git_repo(&cli_dir);
+        init_git_repo(&tap_dir);
+        init_bare_repo(&cli_remote);
+        init_bare_repo(&tap_remote);
+
+        run_git(
+            &cli_dir,
+            &["remote", "add", "origin", cli_remote.to_str().unwrap()],
+        )
+        .unwrap();
+        run_git(
+            &tap_dir,
+            &["remote", "add", "origin", tap_remote.to_str().unwrap()],
+        )
+        .unwrap();
+
+        fs::write(cli_dir.join("README.md"), "cli\n").unwrap();
+        commit_all(&cli_dir, "init cli");
+        run_git(&cli_dir, &["push", "-u", "origin", "HEAD"]).unwrap();
+
+        let formula_path = tap_dir.join("Formula").join("brewtool.rb");
+        fs::create_dir_all(formula_path.parent().expect("formula dir")).unwrap();
+        let initial_formula = r#"class Brewtool < Formula
+  desc "Brew tool"
+  homepage "https://example.com/brewtool"
+  url "https://example.com/brewtool-0.1.0.tar.gz"
+  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  license "MIT"
+  version "0.1.0"
+
+  def install
+    bin.install "brewtool"
+  end
+end
+"#;
+        fs::write(&formula_path, initial_formula).unwrap();
+        commit_all(&tap_dir, "init tap");
+        run_git(&tap_dir, &["push", "-u", "origin", "HEAD"]).unwrap();
+
+        let asset_name = "brewtool-1.2.3.tar.gz";
+        let (api_base, stop_tx, handle, create_hits) = spawn_github_release_create_server(
+            "acme",
+            "brewtool",
+            "1.2.3",
+            asset_name,
+            b"brewtool-asset".to_vec(),
+        );
+
+        let mut config = base_config(&tap_dir);
+        config.host.api_base = Some(api_base);
+        config.artifact.asset_template = Some("brewtool-{version}.tar.gz".to_string());
+        config.cli.remote = Some(cli_remote.to_string_lossy().to_string());
+        config.tap.remote = Some(tap_remote.to_string_lossy().to_string());
+
+        let config_path = cli_dir.join(".distill/config.toml");
+        config.save(&config_path).unwrap();
+        let ctx = AppContext {
+            cwd: cli_dir.clone(),
+            config_path,
+            config,
+            repo: RepoInfo {
+                git_root: Some(cli_dir.clone()),
+                ..RepoInfo::default()
+            },
+            verbose: 0,
+        };
+
+        std::env::set_var("GITHUB_TOKEN", "test-token");
+        let mut args = base_release_args();
+        args.dry_run = false;
+        args.no_push = false;
+        args.version = Some("1.2.3".to_string());
+        args.create_release = true;
+        args.tap_path = Some(tap_dir.clone());
+
+        run(&ctx, &args).expect("release should succeed");
+
+        let _ = stop_tx.send(());
+        let _ = handle.join();
+        std::env::remove_var("GITHUB_TOKEN");
+
+        assert!(create_hits.load(Ordering::SeqCst) > 0);
+
+        let updated = fs::read_to_string(&formula_path).unwrap();
+        assert!(updated.contains("version \"1.2.3\""));
+    }
+
+    #[test]
     fn release_missing_tap_path_message_mentions_remote() {
         let dir = tempdir().unwrap();
         let tap_path = dir.path().join("homebrew-brewtool");
@@ -2681,14 +2989,21 @@ end
 
     #[test]
     fn planned_actions_include_tag_and_formula() {
-        let summary = planned_actions_summary(Some("v1.2.3"), false, true, false, false);
+        let summary = planned_actions_summary(
+            Some("v1.2.3"),
+            false,
+            true,
+            false,
+            ReleaseAction::None,
+        );
         assert!(summary.contains("will create tag 'v1.2.3'"));
         assert!(summary.contains("will update tap formula"));
     }
 
     #[test]
     fn planned_actions_respects_skip_tag_and_unchanged_formula() {
-        let summary = planned_actions_summary(None, true, false, false, false);
+        let summary =
+            planned_actions_summary(None, true, false, false, ReleaseAction::None);
         assert!(summary.contains("will not create tag (--skip-tag)"));
         assert!(summary.contains("tap formula unchanged"));
     }

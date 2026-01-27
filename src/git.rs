@@ -293,7 +293,7 @@ pub fn select_git_remote(
     )))
 }
 
-fn tag_exists(repo: &Path, tag: &str) -> Result<bool, AppError> {
+pub fn tag_exists(repo: &Path, tag: &str) -> Result<bool, AppError> {
     let exists = run_git(repo, &["tag", "--list", tag])?;
     Ok(!String::from_utf8_lossy(&exists.stdout).trim().is_empty())
 }

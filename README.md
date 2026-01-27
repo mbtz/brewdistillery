@@ -74,6 +74,7 @@ Notes:
 - Dry-run requires `--version` or `--tag`.
 - Dry-run requires a local tap path (or an absolute `tap.formula_path`) when `tap.remote` is configured.
 - If your release tags use a `v` prefix, set `[release] tag_format = "v{version}"`.
+- Use `--create-release` to create a GitHub Release when one is missing (requires a GitHub token and tag push).
 
 ### 3) Validate setup
 

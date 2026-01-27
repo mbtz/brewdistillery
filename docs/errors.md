@@ -35,6 +35,8 @@ The following messages are intended to be stable and testable.
   - `missing required fields for --dry-run: version or tag`
 - Missing required fields (source-tarball):
   - `source-tarball requires --version (or --tag)`
+- Missing required fields (create-release):
+  - `create-release requires --version or --tag when no GitHub release exists`
 - Dry-run tap requirements:
   - `dry-run requires tap.path or an absolute tap.formula_path; tap.remote cannot be auto-cloned`
 - Tap requirements guidance (release):
@@ -57,6 +59,8 @@ The following messages are intended to be stable and testable.
 - Tap creation conflicts:
   - `--create-tap cannot be used with --tap-new`
   - `--create-tap cannot be used with --tap-remote`
+- Create-release conflicts:
+  - `--create-release cannot be used with --skip-tag`
 - Asset selection errors:
   - `no usable release assets found (checksum/signature assets are ignored)`
   - `no release asset matches template '<template>' for target '<target>'`
@@ -76,6 +80,8 @@ The following messages are intended to be stable and testable.
   - `multiple git remotes found; specify --host-owner/--host-repo`
   - `no GitHub remote found; specify --host-owner/--host-repo`
   - `unable to parse GitHub remote URL; specify --host-owner/--host-repo`
+- Create-release push requirement:
+  - `--create-release requires pushing the tag; re-run without --no-push`
 
 ### Exit code 5: network and API failures
 
