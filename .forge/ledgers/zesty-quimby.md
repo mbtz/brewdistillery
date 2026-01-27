@@ -6155,3 +6155,80 @@ Next steps (optional):
 2) Run `cargo test` once the bin target issue is resolved.
 ```
 
+## 2026-01-27T14:18:32Z
+
+- run_id: e9527fb8-5188-48f9-9586-00f43769e847
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-27T14:06:10Z
+- finished_at: 2026-01-27T14:18:32Z
+- exit_code: 0
+
+```
++        config.artifact.strategy = Some("source-tarball".to_string());
++        config.artifact.asset_template = None;
++        config.artifact.asset_name = None;
++
++        let ctx = base_context(config, dir.path());
++        let mut args = base_release_args();
++        args.dry_run = false;
++        args.allow_dirty = true;
++        args.skip_tag = true;
++        args.tap_path = Some(tap_path);
++
++        let err = run(&ctx, &args).unwrap_err();
++        assert!(matches!(err, AppError::MissingConfig(_)));
++        assert_eq!(
++            err.to_string(),
++            "source-tarball requires --version (or --tag)"
++        );
++    }
++
++    #[test]
+     fn release_requires_asset_selection_in_non_interactive_mode() {
+         let dir = tempdir().unwrap();
+         let tap_path = dir.path().join("homebrew-brewtool");
+diff --git a/src/host/github.rs b/src/host/github.rs
+index 0c25684403db4f2771dd73ab96df1b4d768c59c0..7265c8d813bc95f52b0dbda4a1ae4d0e8831f3cc
+--- a/src/host/github.rs
++++ b/src/host/github.rs
+@@ -442,7 +442,9 @@
+ }
+ 
+ fn no_releases_error(owner: &str, repo: &str) -> AppError {
+-    AppError::InvalidInput(format!("no GitHub releases found for {owner}/{repo}"))
++    AppError::InvalidInput(format!(
++        "no GitHub releases found for {owner}/{repo}; create a GitHub Release or set artifact.strategy=source-tarball"
++    ))
+ }
+ 
+ fn ensure_release_allowed(
+@@ -598,7 +600,10 @@
+     #[test]
+     fn formats_no_releases_error_message() {
+         let err = no_releases_error("acme", "brewtool");
+-        assert_eq!(err.to_string(), "no GitHub releases found for acme/brewtool");
++        assert_eq!(
++            err.to_string(),
++            "no GitHub releases found for acme/brewtool; create a GitHub Release or set artifact.strategy=source-tarball"
++        );
+     }
+ 
+     #[test]
+
+tokens used
+170 835
+Improved release error messaging and tightened source-tarball input requirements. `src/host/github.rs` now guides users to create a release or switch strategies when none exist, and `src/commands/release.rs` now requires `--version`/`--tag` for `source-tarball` (plus a new test). Docs were synced to the new behavior in `docs/errors.md`, `docs/non-interactive.md`, `docs/release-discovery.md`, and `docs/release-orchestration.md`. Task `sv-nag` closed with updates recorded in `.tasks/tasks.jsonl`, `.tasks/tasks.snapshot.json`, and `.forge/ledgers/zesty-quimby.md`.
+
+Tests
+- `cargo test` failed: missing `src/bin/brewd.rs` (compile error).
+
+Next steps
+1. Add or remove the `brewd` bin entry (e.g., create `src/bin/brewd.rs` or update `Cargo.toml`) and rerun `cargo test`.
+```
+
