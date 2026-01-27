@@ -5847,3 +5847,80 @@ Both are listed in `USER_TODO.md`.
 2. I can then proceed with the next open PRD task you want prioritized.
 ```
 
+## 2026-01-27T13:44:24Z
+
+- run_id: 380a7296-1c70-421d-ad1b-9bc5210020f8
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-27T13:34:03Z
+- finished_at: 2026-01-27T13:44:24Z
+- exit_code: 0
+
+```
+- `cargo test init::` failed: missing `src/bin/brewd.rs` referenced by `Cargo.toml`.
+
+Next steps:
+1) Add `src/bin/brewd.rs` or remove the `brewd` bin entry from `Cargo.toml`.
+2) Re-run `cargo test init::` (or full suite).
+file update:
+diff --git a/src/commands/init.rs b/src/commands/init.rs
+index 620a7ddec1326bac4e3af7195878acf6216f4056..9f64e61e21a05bf21c1c49d44ceff50186d9257f
+--- a/src/commands/init.rs
++++ b/src/commands/init.rs
+@@ -1730,7 +1730,7 @@
+     }
+ 
+     if config.artifact.strategy.is_none() {
+-        config.artifact.strategy = Some("release-asset".to_string());
++        config.artifact.strategy = Some("source-tarball".to_string());
+     }
+ 
+     if let Some(template) = resolved.asset_template.as_ref() {
+@@ -1914,8 +1914,7 @@
+         args.tap_path = Some(dir.join("homebrew-brewtool"));
+         args.host_owner = Some("acme".to_string());
+         args.host_repo = Some("brewtool".to_string());
+-        args.artifact_strategy = Some("release-asset".to_string());
+-        args.asset_template = Some("{name}-{version}.tar.gz".to_string());
++        args.artifact_strategy = Some("source-tarball".to_string());
+         args
+     }
+ 
+@@ -2028,7 +2027,7 @@
+         assert_eq!(config.project.name.as_deref(), Some("brewtool"));
+         assert_eq!(config.tap.formula.as_deref(), Some("brewtool"));
+         assert_eq!(config.cli.owner.as_deref(), Some("acme"));
+-        assert_eq!(config.artifact.strategy.as_deref(), Some("release-asset"));
++        assert_eq!(config.artifact.strategy.as_deref(), Some("source-tarball"));
+ 
+         let formula_path = tap_path.join("Formula").join("brewtool.rb");
+         let formula = fs::read_to_string(formula_path).unwrap();
+
+tokens used
+116 325
+Defaulted `bd init` to `source-tarball` and updated the init tests to match, plus synced task tracking with the PRD breakdown and closed sv-snx. Changes are in `src/commands/init.rs` and task updates in `.tasks/tasks.jsonl` + `.tasks/tasks.snapshot.json`.
+
+Created PRD breakdown tasks and linked to epics:
+- Identity & Config: sv-1xy, sv-n2h, sv-x9g, sv-a49, sv-fny, sv-9yc, sv-jz6, sv-a0m
+- Formula & Templates: sv-7pb, sv-6wk, sv-exc, sv-k0h
+- Release & Artifacts: sv-tg1, sv-4y4, sv-7re, sv-j6t, sv-hc3, sv-cdq, sv-9qj, sv-rvd
+- Host & API: sv-526, sv-xtx
+- UX & Safety: sv-47f, sv-185, sv-7a2, sv-ht5, sv-p5b
+- Testing & Docs: sv-tgv, sv-sq2
+- Blockers set: sv-25d → sv-4y4, sv-b7j → sv-7re
+
+Also committed existing non-owned changes separately per instruction (`PROMPT.md`, `USER_FEEDBACK.md`, `USER_TODO.md`, `scripts/`).
+
+Tests:
+- `cargo test init::` failed: missing `src/bin/brewd.rs` referenced by `Cargo.toml`.
+
+Next steps:
+1) Add `src/bin/brewd.rs` or remove the `brewd` bin entry from `Cargo.toml`.
+2) Re-run `cargo test init::` (or full suite).
+```
+
