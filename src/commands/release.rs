@@ -310,6 +310,8 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
 
     let version = discovery.version().to_string();
     let tag_to_create = discovery.tag_to_create().map(|tag| tag.to_string());
+    let mut tag_created = false;
+    let mut cli_updated = false;
 
     ensure_formula_target(&resolved.formula_path, &version, args.force)?;
 
@@ -345,6 +347,52 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         }
     }
 
+    let mut version_update_plan = if version_update_mode != "none" {
+        plan_version_update(&ctx.config.version_update, cli_repo_root, &version)?
+    } else {
+        Vec::new()
+    };
+    let mut version_update_paths = planned_paths(&version_update_plan);
+    let mut cli_changed = !version_update_paths.is_empty();
+
+    if matches!(discovery, ReleaseDiscovery::SourceTarball { .. }) {
+        if let Some(tag_name) = tag_to_create.as_deref() {
+            if args.no_push {
+                return Err(AppError::GitState(
+                    "source-tarball requires pushing the tag; re-run without --no-push or use --skip-tag"
+                        .to_string(),
+                ));
+            }
+
+            if !version_update_plan.is_empty() {
+                let preview = preview_and_apply(
+                    &[RepoPlan {
+                        label: "cli".to_string(),
+                        repo_root: cli_repo_root.to_path_buf(),
+                        writes: planned_writes(&version_update_plan),
+                    }],
+                    false,
+                )?;
+                print_preview(&preview);
+
+                let message = build_version_update_message(&version);
+                commit_version_update(cli_repo_root, &version_update_paths, &message)?;
+                cli_updated = !preview.changed_files.is_empty();
+                version_update_plan.clear();
+                version_update_paths.clear();
+            }
+
+            create_tag(cli_repo_root, tag_name)?;
+            push_tag(
+                cli_repo_root,
+                tag_name,
+                resolved.cli_remote_url.as_deref(),
+                RemoteContext::Cli,
+            )?;
+            tag_created = true;
+        }
+    }
+
     let asset_matrix = match &discovery {
         ReleaseDiscovery::ReleaseAsset { release, .. } => {
             build_assets(&client, release, &resolved, &version, args.dry_run)?
@@ -361,13 +409,6 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
             AssetMatrix::Universal(tarball)
         }
     };
-
-    let version_update_plan = if version_update_mode != "none" {
-        plan_version_update(&ctx.config.version_update, cli_repo_root, &version)?
-    } else {
-        Vec::new()
-    };
-    let version_update_paths = planned_paths(&version_update_plan);
 
     let spec = FormulaSpec {
         name: resolved.formula_name.clone(),
@@ -409,15 +450,18 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         .changed_files
         .iter()
         .any(|path| path == &resolved.formula_path);
-    let cli_changed = version_update_paths
+    let cli_preview_changed = version_update_paths
         .iter()
         .any(|path| preview.changed_files.iter().any(|changed| changed == path));
+    cli_changed = cli_changed || cli_preview_changed;
     print_preview(&preview);
     print_planned_actions(
         tag_to_create.as_deref(),
         args.skip_tag,
         formula_changed,
         cli_changed,
+        false,
+        false,
         release_action,
     );
 
@@ -435,7 +479,7 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
     if !cli_changed && !formula_changed {
         println!("release: no changes to commit");
     } else {
-        if cli_changed {
+        if cli_changed && !cli_updated {
             let cli_root = ctx.repo.git_root.as_ref().ok_or_else(|| {
                 AppError::GitState("cli repo is not a git repository".to_string())
             })?;
@@ -451,11 +495,13 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
     }
 
     if let Some(tag_name) = tag_to_create.as_deref() {
-        let cli_root =
-            ctx.repo.git_root.as_ref().ok_or_else(|| {
-                AppError::GitState("cli repo is not a git repository".to_string())
-            })?;
-        create_tag(cli_root, tag_name)?;
+        if !tag_created {
+            let cli_root =
+                ctx.repo.git_root.as_ref().ok_or_else(|| {
+                    AppError::GitState("cli repo is not a git repository".to_string())
+                })?;
+            create_tag(cli_root, tag_name)?;
+        }
     }
 
     if !args.no_push {
@@ -477,15 +523,17 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
             )?;
         }
         if let Some(tag_name) = tag_to_create.as_deref() {
-            let cli_root = ctx.repo.git_root.as_ref().ok_or_else(|| {
-                AppError::GitState("cli repo is not a git repository".to_string())
-            })?;
-            push_tag(
-                cli_root,
-                tag_name,
-                resolved.cli_remote_url.as_deref(),
-                RemoteContext::Cli,
-            )?;
+            if !tag_created {
+                let cli_root = ctx.repo.git_root.as_ref().ok_or_else(|| {
+                    AppError::GitState("cli repo is not a git repository".to_string())
+                })?;
+                push_tag(
+                    cli_root,
+                    tag_name,
+                    resolved.cli_remote_url.as_deref(),
+                    RemoteContext::Cli,
+                )?;
+            }
         }
     }
 
@@ -830,6 +878,8 @@ fn run_dry_run_release(
         args.skip_tag,
         formula_changed,
         cli_changed,
+        false,
+        false,
         release_action,
     );
     Ok(())
@@ -2192,6 +2242,8 @@ fn print_planned_actions(
     skip_tag: bool,
     formula_changed: bool,
     cli_changed: bool,
+    tag_created: bool,
+    cli_updated: bool,
     release_action: ReleaseAction,
 ) {
     let summary = planned_actions_summary(
@@ -2199,6 +2251,8 @@ fn print_planned_actions(
         skip_tag,
         formula_changed,
         cli_changed,
+        tag_created,
+        cli_updated,
         release_action,
     );
     if !summary.trim().is_empty() {
@@ -2211,13 +2265,19 @@ fn planned_actions_summary(
     skip_tag: bool,
     formula_changed: bool,
     cli_changed: bool,
+    tag_created: bool,
+    cli_updated: bool,
     release_action: ReleaseAction,
 ) -> String {
     let mut lines = Vec::new();
     lines.push("Planned actions:".to_string());
 
     if let Some(tag) = tag_to_create {
-        lines.push(format!("  - will create tag '{tag}'"));
+        if tag_created {
+            lines.push(format!("  - created tag '{tag}'"));
+        } else {
+            lines.push(format!("  - will create tag '{tag}'"));
+        }
     } else if skip_tag {
         lines.push("  - will not create tag (--skip-tag)".to_string());
     } else {
@@ -2231,7 +2291,11 @@ fn planned_actions_summary(
     }
 
     if cli_changed {
-        lines.push("  - will update CLI version files".to_string());
+        if cli_updated {
+            lines.push("  - updated CLI version files".to_string());
+        } else {
+            lines.push("  - will update CLI version files".to_string());
+        }
     }
 
     match release_action {
@@ -2748,6 +2812,59 @@ end
     }
 
     #[test]
+    fn source_tarball_requires_push_for_tag_creation() {
+        let dir = tempdir().unwrap();
+        let cli_dir = dir.path().join("cli");
+        let tap_dir = dir.path().join("tap");
+        init_git_repo(&cli_dir);
+        init_git_repo(&tap_dir);
+
+        let formula_path = tap_dir.join("Formula").join("brewtool.rb");
+        fs::create_dir_all(formula_path.parent().expect("formula dir")).unwrap();
+        let initial_formula = r#"class Brewtool < Formula
+  desc "Brew tool"
+  homepage "https://example.com/brewtool"
+  url "https://example.com/brewtool-1.2.2.tar.gz"
+  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  license "MIT"
+  version "1.2.2"
+
+  def install
+    bin.install "brewtool"
+  end
+end
+"#;
+        fs::write(&formula_path, initial_formula).unwrap();
+        commit_all(&tap_dir, "init tap");
+
+        fs::write(cli_dir.join("README.md"), "cli\n").unwrap();
+        commit_all(&cli_dir, "init cli");
+
+        let mut config = base_config(&tap_dir);
+        config.artifact.strategy = Some("source-tarball".to_string());
+        config.artifact.asset_template = None;
+        config.artifact.asset_name = None;
+
+        let mut ctx = base_context(config, &cli_dir);
+        ctx.repo.git_root = Some(cli_dir.clone());
+
+        let mut args = base_release_args();
+        args.dry_run = false;
+        args.no_push = true;
+        args.skip_tag = false;
+        args.allow_dirty = true;
+        args.tap_path = Some(tap_dir);
+        args.version = Some("1.2.3".to_string());
+
+        let err = run(&ctx, &args).unwrap_err();
+        assert!(matches!(err, AppError::GitState(_)));
+        assert_eq!(
+            err.to_string(),
+            "source-tarball requires pushing the tag; re-run without --no-push or use --skip-tag"
+        );
+    }
+
+    #[test]
     fn release_requires_asset_selection_in_non_interactive_mode() {
         let dir = tempdir().unwrap();
         let tap_path = dir.path().join("homebrew-brewtool");
@@ -3032,6 +3149,8 @@ end
             false,
             true,
             false,
+            false,
+            false,
             ReleaseAction::None,
         );
         assert!(summary.contains("will create tag 'v1.2.3'"));
@@ -3041,7 +3160,7 @@ end
     #[test]
     fn planned_actions_respects_skip_tag_and_unchanged_formula() {
         let summary =
-            planned_actions_summary(None, true, false, false, ReleaseAction::None);
+            planned_actions_summary(None, true, false, false, false, false, ReleaseAction::None);
         assert!(summary.contains("will not create tag (--skip-tag)"));
         assert!(summary.contains("tap formula unchanged"));
     }

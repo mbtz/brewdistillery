@@ -6463,3 +6463,80 @@ Next steps (optional):
 2) Confirm if prerelease tagging should be driven by `--include-prerelease` or strictly by semver prerelease detection.
 ```
 
+## 2026-01-27T15:15:20Z
+
+- run_id: 84a504fd-e6f8-4071-8f9a-c9941f67a4b5
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-27T15:03:47Z
+- finished_at: 2026-01-27T15:15:20Z
+- exit_code: 0
+
+```
++                "source-tarball requires --version (or --tag)".to_string(),
++            ));
++        }
++
++        if std::io::stdin().is_terminal() {
++            version_tag = prompt_release_version()?;
++        } else {
++            return Err(AppError::MissingConfig(
++                "source-tarball requires --version (or --tag)".to_string(),
++            ));
++        }
++    }
+     let create_release = resolve_create_release(args);
+     if create_release && resolved.artifact_strategy != "release-asset" {
+         return Err(AppError::InvalidInput(
+@@ -1236,6 +1254,26 @@
+     args.create_release
+ }
+ 
++fn prompt_release_version() -> Result<ResolvedVersionTag, AppError> {
++    let theme = ColorfulTheme::default();
++    loop {
++        let value = Input::<String>::with_theme(&theme)
++            .with_prompt("Version")
++            .interact_text()
++            .map_err(|err| AppError::Other(format!("failed to read version: {err}")))?;
++        let trimmed = value.trim();
++        if trimmed.is_empty() {
++            println!("version cannot be empty");
++            continue;
++        }
++
++        match resolve_version_tag(Some(trimmed), None) {
++            Ok(resolved) => return Ok(resolved),
++            Err(err) => println!("invalid version: {err}"),
++        }
++    }
++}
++
+ fn release_missing_error(err: &AppError) -> bool {
+     match err {
+         AppError::InvalidInput(message) => {
+
+tokens used
+165 225
+Added an interactive version prompt for source‑tarball releases when `--version/--tag` is omitted, while keeping non‑TTY and dry‑run behavior strict. Updated the release orchestration notes accordingly and closed sv‑3np.
+
+Details:
+- Prompted for version on TTY when `artifact.strategy = "source-tarball"` and no version/tag is provided in `src/commands/release.rs`.
+- Clarified the interactive vs non‑interactive requirement in `docs/release-orchestration.md`.
+- Recorded the sv task state changes in `.tasks/`.
+
+Tests:
+- `cargo test -q`
+
+Also committed an unrelated pre‑existing ledger update as a separate chore commit per instructions.
+
+Next steps (pick one if you want me to continue):
+1) Start sv-w30 (tag‑first source‑tarball flow sequencing).
+2) Start sv-a09 (interactive release when no inputs provided).
+```
+
