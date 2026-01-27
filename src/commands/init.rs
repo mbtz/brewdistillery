@@ -1730,7 +1730,7 @@ fn apply_resolved(config: &mut Config, resolved: &ResolvedInit) {
     }
 
     if config.artifact.strategy.is_none() {
-        config.artifact.strategy = Some("release-asset".to_string());
+        config.artifact.strategy = Some("source-tarball".to_string());
     }
 
     if let Some(template) = resolved.asset_template.as_ref() {
@@ -1914,8 +1914,7 @@ mod tests {
         args.tap_path = Some(dir.join("homebrew-brewtool"));
         args.host_owner = Some("acme".to_string());
         args.host_repo = Some("brewtool".to_string());
-        args.artifact_strategy = Some("release-asset".to_string());
-        args.asset_template = Some("{name}-{version}.tar.gz".to_string());
+        args.artifact_strategy = Some("source-tarball".to_string());
         args
     }
 
@@ -2028,7 +2027,7 @@ mod tests {
         assert_eq!(config.project.name.as_deref(), Some("brewtool"));
         assert_eq!(config.tap.formula.as_deref(), Some("brewtool"));
         assert_eq!(config.cli.owner.as_deref(), Some("acme"));
-        assert_eq!(config.artifact.strategy.as_deref(), Some("release-asset"));
+        assert_eq!(config.artifact.strategy.as_deref(), Some("source-tarball"));
 
         let formula_path = tap_path.join("Formula").join("brewtool.rb");
         let formula = fs::read_to_string(formula_path).unwrap();
