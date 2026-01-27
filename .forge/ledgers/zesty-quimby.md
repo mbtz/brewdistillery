@@ -6694,3 +6694,80 @@ Next steps (pick one):
 2) Start sv-atv (interactive artifact strategy prompt + persist).
 ```
 
+## 2026-01-27T15:51:34Z
+
+- run_id: 47690b4e-8551-46a2-a77f-ec4c76f3d4c3
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-27T15:42:43Z
+- finished_at: 2026-01-27T15:51:34Z
+- exit_code: 0
+
+```
++        _ => 0,
++    };
++    let selection = Select::with_theme(theme)
++        .with_prompt("Artifact strategy")
++        .items(&options)
++        .default(default_index)
++        .interact()
++        .map_err(|err| AppError::Other(format!("failed to read artifact strategy: {err}")))?;
++    Ok(options
++        .get(selection)
++        .unwrap_or(&options[0])
++        .to_string())
++}
++
+ fn infer_owner_repo_defaults(
+     owner_flag: Option<&String>,
+     repo_flag: Option<&String>,
+@@ -1730,7 +1757,7 @@
+     }
+ 
+     if config.artifact.strategy.is_none() {
+-        config.artifact.strategy = Some("source-tarball".to_string());
++        config.artifact.strategy = Some("release-asset".to_string());
+     }
+ 
+     if let Some(template) = resolved.asset_template.as_ref() {
+@@ -1914,7 +1941,7 @@
+         args.tap_path = Some(dir.join("homebrew-brewtool"));
+         args.host_owner = Some("acme".to_string());
+         args.host_repo = Some("brewtool".to_string());
+-        args.artifact_strategy = Some("source-tarball".to_string());
++        args.artifact_strategy = Some("release-asset".to_string());
+         args
+     }
+ 
+@@ -2027,7 +2054,7 @@
+         assert_eq!(config.project.name.as_deref(), Some("brewtool"));
+         assert_eq!(config.tap.formula.as_deref(), Some("brewtool"));
+         assert_eq!(config.cli.owner.as_deref(), Some("acme"));
+-        assert_eq!(config.artifact.strategy.as_deref(), Some("source-tarball"));
++        assert_eq!(config.artifact.strategy.as_deref(), Some("release-asset"));
+ 
+         let formula_path = tap_path.join("Formula").join("brewtool.rb");
+         let formula = fs::read_to_string(formula_path).unwrap();
+
+tokens used
+93 257
+Implemented interactive artifact strategy selection during `bd init`, defaulting config to `release-asset` when no strategy is set, and aligned docs/tests with the new prompt behavior.
+
+- Prompted for artifact strategy when missing in interactive init/import flows and persisted the choice in config (`src/commands/init.rs`).
+- Switched the init default strategy to `release-asset` to match the PRD and config example (`src/commands/init.rs`).
+- Updated init prompt flow docs to reflect the new strategy prompt (`docs/init-prompt-flow.md`).
+- Task tracking updated: created missing PRD tasks (sv-k9f, sv-ywd, sv-x11, sv-2qc, sv-peq, sv-pvv, sv-9k9, sv-yww, sv-961, sv-mj3) and closed sv-atv.
+
+Tests:
+- `cargo test -q`
+
+Next steps (pick one):
+1) Start sv-a09 (make `bd release` interactive when no inputs provided).
+2) Start sv-fny (finalize non-interactive contract table + error messages).
+```
+

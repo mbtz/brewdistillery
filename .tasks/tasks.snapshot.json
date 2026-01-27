@@ -1,7 +1,22 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-27T15:50:04.855912Z",
+  "generated_at": "2026-01-27T15:58:34.198425Z",
   "tasks": [
+    {
+      "id": "sv-a09",
+      "title": "Make bd release interactive when no inputs provided",
+      "status": "closed",
+      "priority": "P0",
+      "created_at": "2026-01-27T13:23:19.052973Z",
+      "updated_at": "2026-01-27T15:58:34.189729Z",
+      "body": "Feedback: if bd release is run with no other input, enter interactive flow to gather version/tag/release inputs for deploying a release.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-27T15:57:08.986801Z",
+      "closed_at": "2026-01-27T15:58:34.189729Z",
+      "comments_count": 0
+    },
     {
       "id": "sv-atv",
       "title": "Add interactive artifact strategy choice and persist config",
@@ -161,19 +176,6 @@
       "created_at": "2026-01-27T13:38:33.384926Z",
       "updated_at": "2026-01-27T15:39:32.038873Z",
       "body": "Scope: PRD A3.\\nDoD:\\n- Required fields per command with autodetect sources.\\n- Exact error text + exit codes for missing inputs.\\n- Update docs table with final contract.",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-a09",
-      "title": "Make bd release interactive when no inputs provided",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-27T13:23:19.052973Z",
-      "updated_at": "2026-01-27T15:36:28.344572Z",
-      "body": "Feedback: if bd release is run with no other input, enter interactive flow to gather version/tag/release inputs for deploying a release.",
-      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
-      "workspace": "brewdistillery",
-      "branch": "main",
       "comments_count": 0
     },
     {

@@ -19,7 +19,7 @@ use crate::repo_detect::ProjectMetadata;
 use crate::version::{resolve_version_tag, ResolvedVersionTag};
 use crate::version_update::{plan_version_update, VersionUpdateChange};
 use dialoguer::theme::ColorfulTheme;
-use dialoguer::Input;
+use dialoguer::{Input, Select};
 use semver::Version;
 use std::collections::BTreeMap;
 use std::io::IsTerminal;
@@ -146,8 +146,9 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         tap_root.remote_url.as_deref(),
         require_asset_selection,
     )?;
-
-    let mut version_tag = resolve_version_tag(args.version.as_deref(), args.tag.as_deref())?;
+    let (version_input, tag_input) = resolve_release_inputs(args, &resolved.artifact_strategy)?;
+    let mut version_tag =
+        resolve_version_tag(version_input.as_deref(), tag_input.as_deref())?;
     if resolved.artifact_strategy == "source-tarball" && version_tag.version.is_none() {
         if args.dry_run {
             return Err(AppError::MissingConfig(
@@ -1306,6 +1307,85 @@ fn resolve_create_release(args: &ReleaseArgs) -> bool {
     args.create_release
 }
 
+fn resolve_release_inputs(
+    args: &ReleaseArgs,
+    strategy: &str,
+) -> Result<(Option<String>, Option<String>), AppError> {
+    if args.non_interactive || args.dry_run {
+        return Ok((args.version.clone(), args.tag.clone()));
+    }
+
+    if !std::io::stdin().is_terminal() {
+        return Ok((args.version.clone(), args.tag.clone()));
+    }
+
+    if !is_default_release_invocation(args) {
+        return Ok((args.version.clone(), args.tag.clone()));
+    }
+
+    let theme = ColorfulTheme::default();
+    if strategy == "source-tarball" {
+        let options = ["Specify version", "Specify tag"];
+        let selection = Select::with_theme(&theme)
+            .with_prompt("Release input")
+            .items(&options)
+            .default(0)
+            .interact()
+            .map_err(|err| AppError::Other(format!("failed to read release input: {err}")))?;
+        return match selection {
+            0 => {
+                let version = prompt_release_version()?;
+                Ok((version.version, None))
+            }
+            1 => Ok((None, Some(prompt_release_tag()?))),
+            _ => Ok((args.version.clone(), args.tag.clone())),
+        };
+    }
+
+    let options = [
+        "Use latest GitHub release (default)",
+        "Specify version",
+        "Specify tag",
+    ];
+    let selection = Select::with_theme(&theme)
+        .with_prompt("Release input")
+        .items(&options)
+        .default(0)
+        .interact()
+        .map_err(|err| AppError::Other(format!("failed to read release input: {err}")))?;
+
+    match selection {
+        0 => Ok((None, None)),
+        1 => {
+            let version = prompt_release_version()?;
+            Ok((version.version, None))
+        }
+        2 => Ok((None, Some(prompt_release_tag()?))),
+        _ => Ok((args.version.clone(), args.tag.clone())),
+    }
+}
+
+fn is_default_release_invocation(args: &ReleaseArgs) -> bool {
+    args.version.is_none()
+        && args.tag.is_none()
+        && !args.skip_tag
+        && !args.no_push
+        && args.tap_path.is_none()
+        && args.tap_remote.is_none()
+        && args.artifact_strategy.is_none()
+        && args.asset_template.is_none()
+        && args.asset_name.is_none()
+        && !args.include_prerelease
+        && !args.create_release
+        && !args.no_create_release
+        && !args.force
+        && args.host_owner.is_none()
+        && args.host_repo.is_none()
+        && !args.dry_run
+        && !args.allow_dirty
+        && !args.non_interactive
+}
+
 fn prompt_release_version() -> Result<ResolvedVersionTag, AppError> {
     let theme = ColorfulTheme::default();
     loop {
@@ -1322,6 +1402,26 @@ fn prompt_release_version() -> Result<ResolvedVersionTag, AppError> {
         match resolve_version_tag(Some(trimmed), None) {
             Ok(resolved) => return Ok(resolved),
             Err(err) => println!("invalid version: {err}"),
+        }
+    }
+}
+
+fn prompt_release_tag() -> Result<String, AppError> {
+    let theme = ColorfulTheme::default();
+    loop {
+        let value = Input::<String>::with_theme(&theme)
+            .with_prompt("Tag")
+            .interact_text()
+            .map_err(|err| AppError::Other(format!("failed to read tag: {err}")))?;
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            println!("tag cannot be empty");
+            continue;
+        }
+
+        match resolve_version_tag(None, Some(trimmed)) {
+            Ok(_) => return Ok(trimmed.to_string()),
+            Err(err) => println!("invalid tag: {err}"),
         }
     }
 }
