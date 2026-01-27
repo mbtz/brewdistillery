@@ -396,6 +396,7 @@ mod tests {
     fn base_args() -> DoctorArgs {
         DoctorArgs {
             tap_path: None,
+            non_interactive: false,
             strict: false,
             audit: false,
         }

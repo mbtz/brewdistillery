@@ -99,6 +99,9 @@ pub struct InitArgs {
 #[derive(Args, Debug)]
 pub struct ReleaseArgs {
     #[arg(long)]
+    pub non_interactive: bool,
+
+    #[arg(long)]
     pub version: Option<String>,
 
     #[arg(long)]
@@ -154,6 +157,9 @@ pub struct ReleaseArgs {
 pub struct DoctorArgs {
     #[arg(long, value_name = "PATH")]
     pub tap_path: Option<PathBuf>,
+
+    #[arg(long)]
+    pub non_interactive: bool,
 
     #[arg(long)]
     pub strict: bool,

@@ -112,6 +112,8 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         )));
     }
 
+    let require_asset_selection = args.non_interactive || args.dry_run;
+
     let tap_root = if args.dry_run {
         let tap_root = resolve_tap_root_for_release(ctx, args, true)?;
         if tap_root.path.is_none()
@@ -122,10 +124,10 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
                 "dry-run requires tap.path or an absolute tap.formula_path; tap.remote cannot be auto-cloned".to_string(),
             ));
         }
-        validate_release_preflight(ctx, args, args.dry_run)?;
+        validate_release_preflight(ctx, args, require_asset_selection)?;
         tap_root
     } else {
-        validate_release_preflight(ctx, args, args.dry_run)?;
+        validate_release_preflight(ctx, args, require_asset_selection)?;
         resolve_tap_root_for_release(ctx, args, false)?
     };
     if let (Some(path), Some(remote)) = (tap_root.path.as_ref(), tap_root.cloned_from.as_ref()) {
@@ -142,7 +144,7 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         args,
         tap_root.path.as_ref(),
         tap_root.remote_url.as_deref(),
-        args.dry_run,
+        require_asset_selection,
     )?;
 
     let mut version_tag = resolve_version_tag(args.version.as_deref(), args.tag.as_deref())?;
@@ -2335,6 +2337,7 @@ mod tests {
 
     fn base_release_args() -> ReleaseArgs {
         ReleaseArgs {
+            non_interactive: false,
             version: None,
             tag: None,
             skip_tag: false,
@@ -2615,8 +2618,14 @@ mod tests {
         let ctx = base_context(config, dir.path());
         let args = base_release_args();
 
-        let resolved =
-            resolve_release_context(&ctx, &args, Some(&tap_path), None, args.dry_run).unwrap();
+        let resolved = resolve_release_context(
+            &ctx,
+            &args,
+            Some(&tap_path),
+            None,
+            args.non_interactive || args.dry_run,
+        )
+        .unwrap();
         assert_eq!(resolved.checksum_max_bytes, DEFAULT_CHECKSUM_MAX_BYTES);
         assert_eq!(resolved.download_policy, DownloadPolicy::default());
     }
@@ -2636,8 +2645,14 @@ mod tests {
         let ctx = base_context(config, dir.path());
         let args = base_release_args();
 
-        let resolved =
-            resolve_release_context(&ctx, &args, Some(&tap_path), None, args.dry_run).unwrap();
+        let resolved = resolve_release_context(
+            &ctx,
+            &args,
+            Some(&tap_path),
+            None,
+            args.non_interactive || args.dry_run,
+        )
+        .unwrap();
         assert_eq!(resolved.checksum_max_bytes, 10 * 1024 * 1024);
         assert_eq!(
             resolved.download_policy,
@@ -2736,8 +2751,14 @@ end
         let mut args = base_release_args();
         args.dry_run = false;
 
-        let resolved =
-            resolve_release_context(&ctx, &args, Some(&tap_path), None, args.dry_run).unwrap();
+        let resolved = resolve_release_context(
+            &ctx,
+            &args,
+            Some(&tap_path),
+            None,
+            args.non_interactive || args.dry_run,
+        )
+        .unwrap();
         assert_eq!(resolved.description, "Brew tool");
         assert_eq!(resolved.homepage, "https://github.com/acme/brewtool");
         assert_eq!(resolved.license, "MIT");
@@ -2775,8 +2796,14 @@ end
         let mut args = base_release_args();
         args.tap_path = Some(tap_path.clone());
 
-        let resolved =
-            resolve_release_context(&ctx, &args, Some(&tap_path), None, args.dry_run).unwrap();
+        let resolved = resolve_release_context(
+            &ctx,
+            &args,
+            Some(&tap_path),
+            None,
+            args.non_interactive || args.dry_run,
+        )
+        .unwrap();
         let version_tag = resolve_version_tag(None, None).unwrap();
 
         let err = run_dry_run_release(&ctx, &args, &resolved, &version_tag).unwrap_err();
@@ -2870,10 +2897,18 @@ end
         let tap_path = dir.path().join("homebrew-brewtool");
         let config = base_config(&tap_path);
         let ctx = base_context(config, dir.path());
-        let args = base_release_args();
+        let mut args = base_release_args();
+        args.dry_run = false;
+        args.non_interactive = true;
 
-        let err =
-            resolve_release_context(&ctx, &args, Some(&tap_path), None, args.dry_run).unwrap_err();
+        let err = resolve_release_context(
+            &ctx,
+            &args,
+            Some(&tap_path),
+            None,
+            args.non_interactive || args.dry_run,
+        )
+        .unwrap_err();
         assert!(matches!(err, AppError::MissingConfig(_)));
         let message = err.to_string();
         assert!(message.contains("artifact.asset_name or artifact.asset_template"));
@@ -2888,8 +2923,14 @@ end
         let mut args = base_release_args();
         args.dry_run = false;
 
-        let resolved =
-            resolve_release_context(&ctx, &args, Some(&tap_path), None, args.dry_run).unwrap();
+        let resolved = resolve_release_context(
+            &ctx,
+            &args,
+            Some(&tap_path),
+            None,
+            args.non_interactive || args.dry_run,
+        )
+        .unwrap();
         assert!(resolved.asset_name.is_none());
         assert!(resolved.asset_template.is_none());
     }
@@ -3069,7 +3110,14 @@ end
         let ctx = base_context(config, dir.path());
         let args = base_release_args();
 
-        let err = resolve_release_context(&ctx, &args, None, None, args.dry_run).unwrap_err();
+        let err = resolve_release_context(
+            &ctx,
+            &args,
+            None,
+            None,
+            args.non_interactive || args.dry_run,
+        )
+        .unwrap_err();
         assert!(matches!(err, AppError::MissingConfig(_)));
         assert!(err.to_string().contains("tap.remote"));
     }
@@ -3103,8 +3151,14 @@ end
         let ctx = base_context(config, dir.path());
         let args = base_release_args();
 
-        let err =
-            resolve_release_context(&ctx, &args, Some(&tap_path), None, args.dry_run).unwrap_err();
+        let err = resolve_release_context(
+            &ctx,
+            &args,
+            Some(&tap_path),
+            None,
+            args.non_interactive || args.dry_run,
+        )
+        .unwrap_err();
         assert!(matches!(err, AppError::InvalidInput(_)));
         assert_eq!(
             err.to_string(),
@@ -3133,8 +3187,14 @@ end
         let ctx = base_context(config, dir.path());
         let args = base_release_args();
 
-        let err =
-            resolve_release_context(&ctx, &args, Some(&tap_path), None, args.dry_run).unwrap_err();
+        let err = resolve_release_context(
+            &ctx,
+            &args,
+            Some(&tap_path),
+            None,
+            args.non_interactive || args.dry_run,
+        )
+        .unwrap_err();
         assert!(matches!(err, AppError::InvalidInput(_)));
         assert_eq!(
             err.to_string(),
@@ -3194,8 +3254,14 @@ end
         let ctx = base_context(config, dir.path());
         let args = base_release_args();
 
-        let err =
-            resolve_release_context(&ctx, &args, Some(&tap_path), None, args.dry_run).unwrap_err();
+        let err = resolve_release_context(
+            &ctx,
+            &args,
+            Some(&tap_path),
+            None,
+            args.non_interactive || args.dry_run,
+        )
+        .unwrap_err();
         assert!(matches!(err, AppError::InvalidInput(_)));
         assert_eq!(
             err.to_string(),

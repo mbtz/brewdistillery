@@ -1,7 +1,33 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-27T15:36:28.354035Z",
+  "generated_at": "2026-01-27T15:41:29.916711Z",
   "tasks": [
+    {
+      "id": "sv-r2d",
+      "title": "Add --non-interactive flag to bd release/doctor",
+      "status": "closed",
+      "priority": "P0",
+      "created_at": "2026-01-27T15:39:29.424226Z",
+      "updated_at": "2026-01-27T15:41:29.906980Z",
+      "body": "Scope: PRD non-interactive contract. Add flags to CLI; gate release required-field checks/asset selection by --non-interactive; update tests.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-27T15:39:34.541998Z",
+      "closed_at": "2026-01-27T15:41:29.906980Z",
+      "comments_count": 1,
+      "last_comment_at": "2026-01-27T15:41:27.445045Z"
+    },
+    {
+      "id": "sv-fny",
+      "title": "Finalize non-interactive contract (init/release/doctor)",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-27T13:38:33.384926Z",
+      "updated_at": "2026-01-27T15:39:32.038873Z",
+      "body": "Scope: PRD A3.\\nDoD:\\n- Required fields per command with autodetect sources.\\n- Exact error text + exit codes for missing inputs.\\n- Update docs table with final contract.",
+      "comments_count": 0
+    },
     {
       "id": "sv-a09",
       "title": "Make bd release interactive when no inputs provided",
@@ -538,16 +564,6 @@
       "created_at": "2026-01-27T13:38:41.603590Z",
       "updated_at": "2026-01-27T13:38:45.078699Z",
       "body": "Scope: PRD A4.\\nDoD:\\n- Field-level merge table (formula wins for formula fields).\\n- Overwrite prompts and non-interactive overwrite policy.\\n- Examples for conflict resolution.",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-fny",
-      "title": "Finalize non-interactive contract (init/release/doctor)",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-27T13:38:33.384926Z",
-      "updated_at": "2026-01-27T13:38:35.677155Z",
-      "body": "Scope: PRD A3.\\nDoD:\\n- Required fields per command with autodetect sources.\\n- Exact error text + exit codes for missing inputs.\\n- Update docs table with final contract.",
       "comments_count": 0
     },
     {
