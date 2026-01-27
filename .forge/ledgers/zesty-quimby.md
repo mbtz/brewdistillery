@@ -5924,3 +5924,80 @@ Next steps:
 2) Re-run `cargo test init::` (or full suite).
 ```
 
+## 2026-01-27T13:51:35Z
+
+- run_id: b62163ac-5879-4fd9-b135-1fe9bf568da9
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-27T13:44:54Z
+- finished_at: 2026-01-27T13:51:35Z
+- exit_code: 0
+
+```
+**Summarizing task closures and next steps**
+
+Closed nine tasks related to identity, config, and formulas as reflected in updated `.tasks` files; no code changes were made. A separate commit handles the `.forge` ledger update as requested. No tests were run.
+
+- Closed tasks: sv-25d, sv-4y4, sv-tg1, sv-hc3, sv-j6t, sv-cdq, sv-b7j, sv-7re, sv-9qj  
+- Updated files: `.tasks`  
+- Commits include task closures and separate ledger update  
+
+Next suggestions:  
+1) Close identity/config docs tasks  
+2) Close formula/template tasks  
+3) Proceed to CLI core features  
+
+No user todo updates needed. If explicit actions are required, the user can write to `USER_TODO.md`.
+thinking
+**Updating task closures and suggesting next steps**
+
+No tests were run. Tasks already implemented and with existing docs were closed. 
+
+Suggested next steps:  
+1) Close identity/config tasks with existing docs (sv-1xy, sv-n2h, sv-x9g, sv-a49, sv-fny, sv-9yc)  
+2) Close formula/template tasks (sv-7pb, sv-6wk, sv-exc, sv-k0h)  
+3) Progress to remaining epics or new tasks, verifying before closing  
+
+No code changes; only task updates are reflected.
+codex
+Closed nine Release & Artifacts spec tasks in the tracker, since the corresponding behavior is already implemented and documented (asset selection, checksum policy, release discovery, version/tag handling, version update, and orchestration). This updates the task ledger files only, and I kept the unrelated ledger change in its own chore commit as requested.
+
+Details
+- Task status updates: `.tasks/tasks.jsonl`, `.tasks/tasks.snapshot.json`
+- Separate chore commit for pre-existing change: `.forge/ledgers/zesty-quimby.md`
+
+Tasks closed
+- sv-25d, sv-4y4, sv-tg1, sv-hc3, sv-j6t, sv-cdq, sv-b7j, sv-7re, sv-9qj
+
+Tests
+- Not run (no code changes)
+
+Next steps (pick one)
+1) Close Identity & Config tasks that already have docs (`sv-1xy`, `sv-n2h`, `sv-x9g`, `sv-a49`, `sv-fny`, `sv-9yc`) if you want me to proceed.
+2) Close Formula & Templates tasks that already have docs (`sv-7pb`, `sv-6wk`, `sv-exc`, `sv-k0h`) if you want me to proceed.
+3) Move on to any remaining open tasks you want implemented next (tell me the task ID).
+tokens used
+71 232
+Closed nine Release & Artifacts spec tasks in the tracker, since the corresponding behavior is already implemented and documented (asset selection, checksum policy, release discovery, version/tag handling, version update, and orchestration). This updates the task ledger files only, and I kept the unrelated ledger change in its own chore commit as requested.
+
+Details
+- Task status updates: `.tasks/tasks.jsonl`, `.tasks/tasks.snapshot.json`
+- Separate chore commit for pre-existing change: `.forge/ledgers/zesty-quimby.md`
+
+Tasks closed
+- sv-25d, sv-4y4, sv-tg1, sv-hc3, sv-j6t, sv-cdq, sv-b7j, sv-7re, sv-9qj
+
+Tests
+- Not run (no code changes)
+
+Next steps (pick one)
+1) Close Identity & Config tasks that already have docs (`sv-1xy`, `sv-n2h`, `sv-x9g`, `sv-a49`, `sv-fny`, `sv-9yc`) if you want me to proceed.
+2) Close Formula & Templates tasks that already have docs (`sv-7pb`, `sv-6wk`, `sv-exc`, `sv-k0h`) if you want me to proceed.
+3) Move on to any remaining open tasks you want implemented next (tell me the task ID).
+```
+
