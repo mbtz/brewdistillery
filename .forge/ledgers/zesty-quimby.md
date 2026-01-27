@@ -6617,3 +6617,80 @@ If you want, I can tackle the next release UX tasks:
 2) sv-atv (interactive artifact strategy prompt + persist)
 ```
 
+## 2026-01-27T15:42:13Z
+
+- run_id: 972315cc-d297-468b-ba0e-e5c25dc4ed91
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-27T15:31:48Z
+- finished_at: 2026-01-27T15:42:13Z
+- exit_code: 0
+
+```
++        let err = resolve_release_context(
++            &ctx,
++            &args,
++            Some(&tap_path),
++            None,
++            args.non_interactive || args.dry_run,
++        )
++        .unwrap_err();
+         assert!(matches!(err, AppError::InvalidInput(_)));
+         assert_eq!(
+             err.to_string(),
+@@ -3133,8 +3187,14 @@
+         let ctx = base_context(config, dir.path());
+         let args = base_release_args();
+ 
+-        let err =
+-            resolve_release_context(&ctx, &args, Some(&tap_path), None, args.dry_run).unwrap_err();
++        let err = resolve_release_context(
++            &ctx,
++            &args,
++            Some(&tap_path),
++            None,
++            args.non_interactive || args.dry_run,
++        )
++        .unwrap_err();
+         assert!(matches!(err, AppError::InvalidInput(_)));
+         assert_eq!(
+             err.to_string(),
+@@ -3194,8 +3254,14 @@
+         let ctx = base_context(config, dir.path());
+         let args = base_release_args();
+ 
+-        let err =
+-            resolve_release_context(&ctx, &args, Some(&tap_path), None, args.dry_run).unwrap_err();
++        let err = resolve_release_context(
++            &ctx,
++            &args,
++            Some(&tap_path),
++            None,
++            args.non_interactive || args.dry_run,
++        )
++        .unwrap_err();
+         assert!(matches!(err, AppError::InvalidInput(_)));
+         assert_eq!(
+             err.to_string(),
+
+tokens used
+108 963
+Using sv-issue-tracking for task work, workflow-pattern for status updates, session-protocol for git flow, and user-feedback to check `USER_FEEDBACK.md` (no new items).
+
+Added `--non-interactive` flags for release/doctor and enforced explicit asset selection when non-interactive or `--dry-run`, with updated call sites and tests in `src/commands/release.rs`.
+Added CLI flag wiring in `src/cli.rs` and updated doctor test helpers in `src/commands/doctor.rs`.
+Created and closed task sv-r2d under sv-fny; task logs updated in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`.
+
+Tests:
+- `cargo test -q release_requires_asset_selection_in_non_interactive_mode`
+
+Next steps (pick one):
+1) Start sv-a09 (interactive `bd release` when no inputs provided).
+2) Start sv-atv (interactive artifact strategy prompt + persist).
+```
+
