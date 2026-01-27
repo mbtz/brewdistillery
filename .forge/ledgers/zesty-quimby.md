@@ -6386,3 +6386,80 @@ If you want me to keep going, pick one:
 2) Implement a release confirmation prompt to match the “explicit confirmations” principle
 ```
 
+## 2026-01-27T15:03:17Z
+
+- run_id: 4d87f9fa-6baa-4466-89fb-49ffdc835b6f
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-27T14:37:00Z
+- finished_at: 2026-01-27T15:03:17Z
+- exit_code: 0
+
+```
++        assert!(updated.contains("version \"1.2.3\""));
++    }
++
++    #[test]
+     fn release_missing_tap_path_message_mentions_remote() {
+         let dir = tempdir().unwrap();
+         let tap_path = dir.path().join("homebrew-brewtool");
+@@ -2681,14 +2989,21 @@
+ 
+     #[test]
+     fn planned_actions_include_tag_and_formula() {
+-        let summary = planned_actions_summary(Some("v1.2.3"), false, true, false, false);
++        let summary = planned_actions_summary(
++            Some("v1.2.3"),
++            false,
++            true,
++            false,
++            ReleaseAction::None,
++        );
+         assert!(summary.contains("will create tag 'v1.2.3'"));
+         assert!(summary.contains("will update tap formula"));
+     }
+ 
+     #[test]
+     fn planned_actions_respects_skip_tag_and_unchanged_formula() {
+-        let summary = planned_actions_summary(None, true, false, false, false);
++        let summary =
++            planned_actions_summary(None, true, false, false, ReleaseAction::None);
+         assert!(summary.contains("will not create tag (--skip-tag)"));
+         assert!(summary.contains("tap formula unchanged"));
+     }
+diff --git a/src/git.rs b/src/git.rs
+index 413b7531bf304445917af74a6150feeda3ae7101..217582d6a9bfd70a7c1410786ab5edd6ea0448f1
+--- a/src/git.rs
++++ b/src/git.rs
+@@ -293,7 +293,7 @@
+     )))
+ }
+ 
+-fn tag_exists(repo: &Path, tag: &str) -> Result<bool, AppError> {
++pub fn tag_exists(repo: &Path, tag: &str) -> Result<bool, AppError> {
+     let exists = run_git(repo, &["tag", "--list", tag])?;
+     Ok(!String::from_utf8_lossy(&exists.stdout).trim().is_empty())
+ }
+
+tokens used
+182 197
+Implemented optional `--create-release` / `--no-create-release` handling for `bd release` so missing GitHub Releases can be created with a pushed tag, added coverage/docs, and fixed the missing `brewd` entrypoint.
+
+Details:
+- Wired flags and release creation flow in `src/cli.rs`, `src/commands/release.rs`, and exposed tag checks in `src/git.rs`; added a full create‑release test server + release path test in `src/commands/release.rs`.
+- Updated release docs and error catalog in `docs/release-orchestration.md`, `docs/release-discovery.md`, and `docs/errors.md`, plus a README note in `README.md`.
+- Added the missing binary entrypoint in `src/bin/brewd.rs` so `cargo test` builds all bins.
+
+Tests:
+- `cargo test -q`
+
+Next steps (optional):
+1) Decide whether `--create-release` should be persisted in config / added to interactive release prompts.
+2) Confirm if prerelease tagging should be driven by `--include-prerelease` or strictly by semver prerelease detection.
+```
+
