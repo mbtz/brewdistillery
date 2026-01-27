@@ -1,7 +1,22 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-27T13:50:38.427170Z",
+  "generated_at": "2026-01-27T13:58:15.979084Z",
   "tasks": [
+    {
+      "id": "sv-7pb",
+      "title": "Specify formula naming + class normalization rules",
+      "status": "closed",
+      "priority": "P0",
+      "created_at": "2026-01-27T13:39:08.447430Z",
+      "updated_at": "2026-01-27T13:58:15.970823Z",
+      "body": "Scope: PRD B6.\\nDoD:\\n- Transformation rules + validation.\\n- At least 8 examples (acronyms, digits, dashes, underscores).\\n- Exact error messages for invalid names.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-27T13:58:12.187532Z",
+      "closed_at": "2026-01-27T13:58:15.970823Z",
+      "comments_count": 0
+    },
     {
       "id": "sv-9qj",
       "title": "Design release orchestration + idempotency + dry-run UX",
@@ -330,16 +345,6 @@
       "created_at": "2026-01-27T13:39:14.209258Z",
       "updated_at": "2026-01-27T13:39:16.386418Z",
       "body": "Scope: PRD B7.\\nDoD:\\n- Default template and override contract.\\n- Validation checks list.\\n- Ruby output examples for single/multi-bin and universal/per-target.",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-7pb",
-      "title": "Specify formula naming + class normalization rules",
-      "status": "open",
-      "priority": "P0",
-      "created_at": "2026-01-27T13:39:08.447430Z",
-      "updated_at": "2026-01-27T13:39:10.422743Z",
-      "body": "Scope: PRD B6.\\nDoD:\\n- Transformation rules + validation.\\n- At least 8 examples (acronyms, digits, dashes, underscores).\\n- Exact error messages for invalid names.",
       "comments_count": 0
     },
     {

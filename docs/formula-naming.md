@@ -18,6 +18,10 @@ Validation rules (post-normalization):
 - Allowed characters: `a-z`, `0-9`, and `-` only.
 
 If any validation fails, surface an `InvalidInput` error and exit with code 3.
+Exact error messages:
+- `formula name cannot be empty`
+- `formula name must not start with 'homebrew-'`
+- `formula name may only contain lowercase letters, numbers, and dashes`
 
 ## Class name normalization rules
 
@@ -28,6 +32,10 @@ Class names are derived from the normalized formula name:
 - Preserve digits as-is.
 
 No acronym preservation is attempted (e.g., `http` -> `Http`).
+
+If class name normalization yields an empty string (e.g., invalid input), fail
+with:
+- `formula class name cannot be empty`
 
 ## Examples
 
