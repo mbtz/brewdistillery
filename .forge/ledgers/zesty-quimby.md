@@ -6001,3 +6001,80 @@ Next steps (pick one)
 3) Move on to any remaining open tasks you want implemented next (tell me the task ID).
 ```
 
+## 2026-01-27T13:59:31Z
+
+- run_id: 9d818871-5c91-440e-a6ff-cc6e688596a6
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-27T13:52:05Z
+- finished_at: 2026-01-27T13:59:31Z
+- exit_code: 0
+
+```
+All PRD items were already mapped to tasks; no new tasks or epics were created this round. The existing tasks were reviewed and some were started or closed, but no additional tasks were needed or added.
+thinking
+**Summarizing final updates and next steps**
+
+Added explicit formula naming error messages to documentation, including class-name empty error, and closed task sv-7pb. Updated docs/formula-naming.md and task files (.tasks/tasks.jsonl and .tasks/tasks.snapshot.json). Committed a separate chore for ledger update and pushed all changes. No tests were run as none were requested. Suggested natural next steps include tackling open tasks sv-6wk or sv-7a2. No USER_TODO remains.
+codex
+Added explicit formula-name error strings to the naming spec (plus the class-name empty error) and closed sv-7pb with the task snapshot updates.
+
+- Updated spec with exact error messages in `docs/formula-naming.md`
+- Synced task status to closed in `.tasks/tasks.jsonl`
+- Updated task snapshot in `.tasks/tasks.snapshot.json`
+- Committed the pre-existing ledger change separately as `chore: update ledger` in `.forge/ledgers/zesty-quimby.md`
+
+Tests not run (not requested).
+
+Next steps (pick one):
+1) Tackle `sv-6wk` and close it if `docs/formula-template.md` already satisfies the DoD.
+2) Tackle `sv-7a2` and align any remaining error-message gaps with `docs/errors.md`.
+file update:
+diff --git a/docs/formula-naming.md b/docs/formula-naming.md
+index a9bc2dcef241906a4820a2f3fbab2e79509a67ab..45a1f6fc08473c2f1e096de9fd15923cbc86c17d
+--- a/docs/formula-naming.md
++++ b/docs/formula-naming.md
+@@ -18,6 +18,10 @@
+ - Allowed characters: `a-z`, `0-9`, and `-` only.
+ 
+ If any validation fails, surface an `InvalidInput` error and exit with code 3.
++Exact error messages:
++- `formula name cannot be empty`
++- `formula name must not start with 'homebrew-'`
++- `formula name may only contain lowercase letters, numbers, and dashes`
+ 
+ ## Class name normalization rules
+ 
+@@ -29,6 +33,10 @@
+ 
+ No acronym preservation is attempted (e.g., `http` -> `Http`).
+ 
++If class name normalization yields an empty string (e.g., invalid input), fail
++with:
++- `formula class name cannot be empty`
++
+ ## Examples
+ 
+ | Input | Normalized formula | Class name |
+
+tokens used
+81 504
+Added explicit formula-name error strings to the naming spec (plus the class-name empty error) and closed sv-7pb with the task snapshot updates.
+
+- Updated spec with exact error messages in `docs/formula-naming.md`
+- Synced task status to closed in `.tasks/tasks.jsonl`
+- Updated task snapshot in `.tasks/tasks.snapshot.json`
+- Committed the pre-existing ledger change separately as `chore: update ledger` in `.forge/ledgers/zesty-quimby.md`
+
+Tests not run (not requested).
+
+Next steps (pick one):
+1) Tackle `sv-6wk` and close it if `docs/formula-template.md` already satisfies the DoD.
+2) Tackle `sv-7a2` and align any remaining error-message gaps with `docs/errors.md`.
+```
+

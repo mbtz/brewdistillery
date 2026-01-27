@@ -1,7 +1,22 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-27T13:58:15.979084Z",
+  "generated_at": "2026-01-27T14:04:43.049774Z",
   "tasks": [
+    {
+      "id": "sv-449",
+      "title": "Update release preview output with planned actions",
+      "status": "closed",
+      "priority": "P2",
+      "created_at": "2026-01-27T13:23:29.995018Z",
+      "updated_at": "2026-01-27T14:04:43.015462Z",
+      "body": "Feedback: preview should explicitly state will create tag, will update tap formula, and (if enabled) will create GitHub Release.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-27T14:02:46.610531Z",
+      "closed_at": "2026-01-27T14:04:43.015462Z",
+      "comments_count": 0
+    },
     {
       "id": "sv-7pb",
       "title": "Specify formula naming + class normalization rules",
@@ -465,16 +480,6 @@
       "created_at": "2026-01-27T13:23:33.216587Z",
       "updated_at": "2026-01-27T13:23:33.216587Z",
       "body": "Feedback: if release-asset and no release exists, suggest creating a release or switching to source-tarball; if source-tarball and version missing in non-interactive mode, require --version with clear error.",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-449",
-      "title": "Update release preview output with planned actions",
-      "status": "open",
-      "priority": "P2",
-      "created_at": "2026-01-27T13:23:29.995018Z",
-      "updated_at": "2026-01-27T13:23:29.995018Z",
-      "body": "Feedback: preview should explicitly state will create tag, will update tap formula, and (if enabled) will create GitHub Release.",
       "comments_count": 0
     },
     {
