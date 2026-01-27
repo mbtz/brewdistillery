@@ -93,15 +93,16 @@ impl GitHubClient {
     }
 
     fn require_token(&self) -> Result<&str, AppError> {
+        self.require_token_with_message(
+            "GitHub token missing; set GITHUB_TOKEN or GH_TOKEN to create the tap repo",
+        )
+    }
+
+    fn require_token_with_message(&self, message: &str) -> Result<&str, AppError> {
         self.token
             .as_deref()
             .filter(|token| !token.trim().is_empty())
-            .ok_or_else(|| {
-                AppError::Network(
-                    "GitHub token missing; set GITHUB_TOKEN or GH_TOKEN to create the tap repo"
-                        .to_string(),
-                )
-            })
+            .ok_or_else(|| AppError::Network(message.to_string()))
     }
 
     fn authenticated_user(&self) -> Result<GitHubUser, AppError> {
@@ -157,6 +158,66 @@ impl GitHubClient {
             repo,
             &path,
             response,
+        ))
+    }
+
+    pub fn create_release(
+        &self,
+        owner: &str,
+        repo: &str,
+        tag: &str,
+        name: Option<&str>,
+        prerelease: bool,
+    ) -> Result<Release, AppError> {
+        let owner = owner.trim();
+        let repo = repo.trim();
+        let tag = tag.trim();
+        if owner.is_empty() {
+            return Err(AppError::InvalidInput(
+                "release owner cannot be empty".to_string(),
+            ));
+        }
+        if repo.is_empty() {
+            return Err(AppError::InvalidInput(
+                "release repo cannot be empty".to_string(),
+            ));
+        }
+        if tag.is_empty() {
+            return Err(AppError::InvalidInput(
+                "release tag cannot be empty".to_string(),
+            ));
+        }
+
+        self.require_token_with_message(
+            "GitHub token missing; set GITHUB_TOKEN or GH_TOKEN to create a GitHub Release",
+        )?;
+
+        let payload = CreateReleaseRequest {
+            tag_name: tag.to_string(),
+            name: name
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(|value| value.to_string()),
+            draft: false,
+            prerelease,
+        };
+
+        let path = format!("/repos/{owner}/{repo}/releases");
+        let response = self
+            .request_with_method(Method::POST, &path)
+            .json(&payload)
+            .send()
+            .map_err(|err| AppError::Network(format!("GitHub API request failed: {err}")))?;
+
+        if response.status().is_success() {
+            let created: GitHubRelease = response.json().map_err(|err| {
+                AppError::Network(format!("failed to parse GitHub API response: {err}"))
+            })?;
+            return Ok(created.into());
+        }
+
+        Err(map_release_create_error(
+            owner, repo, tag, &path, response,
         ))
     }
 
@@ -392,6 +453,35 @@ fn map_repo_create_error(
     map_github_error_message(path, status, &headers, &message)
 }
 
+fn map_release_create_error(
+    owner: &str,
+    repo: &str,
+    tag: &str,
+    path: &str,
+    response: reqwest::blocking::Response,
+) -> AppError {
+    let status = response.status();
+    let headers = response.headers().clone();
+    let message = response
+        .json::<GitHubError>()
+        .map(|err| err.message)
+        .unwrap_or_else(|_| "unknown error".to_string());
+
+    if status == StatusCode::UNPROCESSABLE_ENTITY {
+        return AppError::InvalidInput(format!(
+            "GitHub release '{tag}' cannot be created for {owner}/{repo}: {message}",
+        ));
+    }
+
+    if status == StatusCode::NOT_FOUND {
+        return AppError::Network(format!(
+            "GitHub repo '{owner}/{repo}' not found or token lacks access"
+        ));
+    }
+
+    map_github_error_message(path, status, &headers, &message)
+}
+
 fn map_github_error_message(
     path: &str,
     status: StatusCode,
@@ -512,6 +602,15 @@ struct CreateRepoRequest {
     private: bool,
 }
 
+#[derive(Debug, Serialize)]
+struct CreateReleaseRequest {
+    tag_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
+    draft: bool,
+    prerelease: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CreatedRepo {
     pub clone_url: String,
@@ -553,6 +652,7 @@ impl From<GitHubRelease> for Release {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::Value;
 
     #[test]
     fn selects_first_non_draft_release() {
@@ -653,5 +753,39 @@ mod tests {
         assert!(second > first);
         assert!(third >= second);
         assert!(third <= Duration::from_millis(policy.retry_max_delay_ms));
+    }
+
+    #[test]
+    fn create_release_request_omits_empty_name() {
+        let request = CreateReleaseRequest {
+            tag_name: "v1.2.3".to_string(),
+            name: None,
+            draft: false,
+            prerelease: false,
+        };
+
+        let value: Value = serde_json::to_value(&request).unwrap();
+        let object = value.as_object().expect("object");
+        assert_eq!(object.get("tag_name").unwrap(), "v1.2.3");
+        assert!(!object.contains_key("name"));
+        assert_eq!(object.get("draft").unwrap(), false);
+        assert_eq!(object.get("prerelease").unwrap(), false);
+    }
+
+    #[test]
+    fn create_release_request_includes_name() {
+        let request = CreateReleaseRequest {
+            tag_name: "v1.2.3".to_string(),
+            name: Some("Release v1.2.3".to_string()),
+            draft: false,
+            prerelease: true,
+        };
+
+        let value: Value = serde_json::to_value(&request).unwrap();
+        let object = value.as_object().expect("object");
+        assert_eq!(object.get("tag_name").unwrap(), "v1.2.3");
+        assert_eq!(object.get("name").unwrap(), "Release v1.2.3");
+        assert_eq!(object.get("draft").unwrap(), false);
+        assert_eq!(object.get("prerelease").unwrap(), true);
     }
 }

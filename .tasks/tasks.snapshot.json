@@ -1,7 +1,32 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-27T14:17:23.004639Z",
+  "generated_at": "2026-01-27T14:29:24.215042Z",
   "tasks": [
+    {
+      "id": "sv-vxm",
+      "title": "Add GitHubClient create_release API helper",
+      "status": "closed",
+      "priority": "P2",
+      "created_at": "2026-01-27T14:27:34.262662Z",
+      "updated_at": "2026-01-27T14:29:24.205970Z",
+      "body": "Scope: release creation support for sv-mrc.\\nAcceptance:\\n- Add GitHubClient.create_release with request payload + error mapping.\\n- Token missing error message is release-specific.\\n- Unit tests cover request serialization for optional fields.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-27T14:27:39.332179Z",
+      "closed_at": "2026-01-27T14:29:24.205970Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-mrc",
+      "title": "Add optional GitHub Release creation for release-asset",
+      "status": "open",
+      "priority": "P2",
+      "created_at": "2026-01-27T13:23:27.814473Z",
+      "updated_at": "2026-01-27T14:27:36.679022Z",
+      "body": "Feedback: new flags --create-release/--no-create-release; when enabled and release missing create tag then GitHub Release; check .gitconfig for commit/push capability; fail with clear message when GITHUB_TOKEN/GH_TOKEN missing; support in interactive mode.",
+      "comments_count": 0
+    },
     {
       "id": "sv-nag",
       "title": "Improve release error messaging for missing release/version",
@@ -485,16 +510,6 @@
       "created_at": "2026-01-27T13:23:39.257005Z",
       "updated_at": "2026-01-27T13:23:39.257005Z",
       "body": "Feedback: update README, docs/config.example.toml, docs/release-discovery.md, docs/release-orchestration.md to reflect tag-first/source-tarball defaults.",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-mrc",
-      "title": "Add optional GitHub Release creation for release-asset",
-      "status": "open",
-      "priority": "P2",
-      "created_at": "2026-01-27T13:23:27.814473Z",
-      "updated_at": "2026-01-27T13:23:27.814473Z",
-      "body": "Feedback: new flags --create-release/--no-create-release; when enabled and release missing create tag then GitHub Release; check .gitconfig for commit/push capability; fail with clear message when GITHUB_TOKEN/GH_TOKEN missing; support in interactive mode.",
       "comments_count": 0
     },
     {
