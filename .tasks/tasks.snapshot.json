@@ -1,7 +1,22 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-27T15:00:06.302110Z",
+  "generated_at": "2026-01-27T15:13:58.072403Z",
   "tasks": [
+    {
+      "id": "sv-3np",
+      "title": "Prompt for version in interactive release when omitted",
+      "status": "closed",
+      "priority": "P2",
+      "created_at": "2026-01-27T13:23:10.996434Z",
+      "updated_at": "2026-01-27T15:13:58.063848Z",
+      "body": "Feedback: in interactive release, if --version is omitted prompt for version; keep non-interactive strict (require --version).",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-27T15:13:54.715960Z",
+      "closed_at": "2026-01-27T15:13:58.063848Z",
+      "comments_count": 0
+    },
     {
       "id": "sv-e2x",
       "title": "Add tests/docs for create-release behavior",
@@ -578,16 +593,6 @@
       "created_at": "2026-01-27T13:23:19.052973Z",
       "updated_at": "2026-01-27T13:23:19.052973Z",
       "body": "Feedback: if bd release is run with no other input, enter interactive flow to gather version/tag/release inputs for deploying a release.",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-3np",
-      "title": "Prompt for version in interactive release when omitted",
-      "status": "open",
-      "priority": "P2",
-      "created_at": "2026-01-27T13:23:10.996434Z",
-      "updated_at": "2026-01-27T13:23:10.996434Z",
-      "body": "Feedback: in interactive release, if --version is omitted prompt for version; keep non-interactive strict (require --version).",
       "comments_count": 0
     },
     {

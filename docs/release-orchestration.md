@@ -28,7 +28,7 @@ Notes:
 - In `--dry-run` mode, the command performs no network calls (no tap clone,
   no GitHub API requests, and no downloads).
 - Dry-run requires an explicit `--version` or `--tag`.
-- `source-tarball` strategy requires `--version` or `--tag`.
+- `source-tarball` strategy requires `--version` or `--tag` in non-interactive runs; in interactive terminals the command prompts for a version if omitted.
 - `--create-release` requires a GitHub token and a pushable tag; it is ignored
   unless `artifact.strategy = "release-asset"`.
 - `--create-release` requires `--version` or `--tag` when no release exists.

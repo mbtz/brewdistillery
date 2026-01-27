@@ -18,8 +18,11 @@ use crate::preview::{preview_and_apply, PlannedWrite, RepoPlan};
 use crate::repo_detect::ProjectMetadata;
 use crate::version::{resolve_version_tag, ResolvedVersionTag};
 use crate::version_update::{plan_version_update, VersionUpdateChange};
+use dialoguer::theme::ColorfulTheme;
+use dialoguer::Input;
 use semver::Version;
 use std::collections::BTreeMap;
+use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use tempfile::{Builder as TempBuilder, TempDir};
 
@@ -142,7 +145,22 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         args.dry_run,
     )?;
 
-    let version_tag = resolve_version_tag(args.version.as_deref(), args.tag.as_deref())?;
+    let mut version_tag = resolve_version_tag(args.version.as_deref(), args.tag.as_deref())?;
+    if resolved.artifact_strategy == "source-tarball" && version_tag.version.is_none() {
+        if args.dry_run {
+            return Err(AppError::MissingConfig(
+                "source-tarball requires --version (or --tag)".to_string(),
+            ));
+        }
+
+        if std::io::stdin().is_terminal() {
+            version_tag = prompt_release_version()?;
+        } else {
+            return Err(AppError::MissingConfig(
+                "source-tarball requires --version (or --tag)".to_string(),
+            ));
+        }
+    }
     let create_release = resolve_create_release(args);
     if create_release && resolved.artifact_strategy != "release-asset" {
         return Err(AppError::InvalidInput(
@@ -1234,6 +1252,26 @@ fn resolve_create_release(args: &ReleaseArgs) -> bool {
         return false;
     }
     args.create_release
+}
+
+fn prompt_release_version() -> Result<ResolvedVersionTag, AppError> {
+    let theme = ColorfulTheme::default();
+    loop {
+        let value = Input::<String>::with_theme(&theme)
+            .with_prompt("Version")
+            .interact_text()
+            .map_err(|err| AppError::Other(format!("failed to read version: {err}")))?;
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            println!("version cannot be empty");
+            continue;
+        }
+
+        match resolve_version_tag(Some(trimmed), None) {
+            Ok(resolved) => return Ok(resolved),
+            Err(err) => println!("invalid version: {err}"),
+        }
+    }
 }
 
 fn release_missing_error(err: &AppError) -> bool {
