@@ -1,7 +1,46 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-27T15:30:28.534001Z",
+  "generated_at": "2026-01-27T15:36:28.354035Z",
   "tasks": [
+    {
+      "id": "sv-a09",
+      "title": "Make bd release interactive when no inputs provided",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-27T13:23:19.052973Z",
+      "updated_at": "2026-01-27T15:36:28.344572Z",
+      "body": "Feedback: if bd release is run with no other input, enter interactive flow to gather version/tag/release inputs for deploying a release.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-atv",
+      "title": "Add interactive artifact strategy choice and persist config",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-27T13:23:21.781980Z",
+      "updated_at": "2026-01-27T15:36:15.399434Z",
+      "body": "Feedback: prompt during release for artifact strategy (tag tarball vs GitHub Release assets) and persist choice to config.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-mrc",
+      "title": "Add optional GitHub Release creation for release-asset",
+      "status": "open",
+      "priority": "P0",
+      "created_at": "2026-01-27T13:23:27.814473Z",
+      "updated_at": "2026-01-27T15:35:40.674963Z",
+      "body": "Feedback: new flags --create-release/--no-create-release; when enabled and release missing create tag then GitHub Release; check .gitconfig for commit/push capability; fail with clear message when GITHUB_TOKEN/GH_TOKEN missing; support in interactive mode.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "comments_count": 0
+    },
     {
       "id": "sv-w30",
       "title": "Implement tag-first release flow for source-tarball",
@@ -59,16 +98,6 @@
       "branch": "main",
       "started_at": "2026-01-27T14:45:42.834342Z",
       "closed_at": "2026-01-27T15:00:00.946943Z",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-mrc",
-      "title": "Add optional GitHub Release creation for release-asset",
-      "status": "open",
-      "priority": "P2",
-      "created_at": "2026-01-27T13:23:27.814473Z",
-      "updated_at": "2026-01-27T14:45:39.879220Z",
-      "body": "Feedback: new flags --create-release/--no-create-release; when enabled and release missing create tag then GitHub Release; check .gitconfig for commit/push capability; fail with clear message when GITHUB_TOKEN/GH_TOKEN missing; support in interactive mode.",
       "comments_count": 0
     },
     {
@@ -579,26 +608,6 @@
       "created_at": "2026-01-27T13:23:39.257005Z",
       "updated_at": "2026-01-27T13:23:39.257005Z",
       "body": "Feedback: update README, docs/config.example.toml, docs/release-discovery.md, docs/release-orchestration.md to reflect tag-first/source-tarball defaults.",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-atv",
-      "title": "Add interactive artifact strategy choice and persist config",
-      "status": "open",
-      "priority": "P2",
-      "created_at": "2026-01-27T13:23:21.781980Z",
-      "updated_at": "2026-01-27T13:23:21.781980Z",
-      "body": "Feedback: prompt during release for artifact strategy (tag tarball vs GitHub Release assets) and persist choice to config.",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-a09",
-      "title": "Make bd release interactive when no inputs provided",
-      "status": "open",
-      "priority": "P2",
-      "created_at": "2026-01-27T13:23:19.052973Z",
-      "updated_at": "2026-01-27T13:23:19.052973Z",
-      "body": "Feedback: if bd release is run with no other input, enter interactive flow to gather version/tag/release inputs for deploying a release.",
       "comments_count": 0
     },
     {

@@ -6540,3 +6540,80 @@ Next steps (pick one if you want me to continue):
 2) Start sv-a09 (interactive release when no inputs provided).
 ```
 
+## 2026-01-27T15:31:18Z
+
+- run_id: 6db9eb72-c1db-408d-93a0-582f8d179038
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-27T15:15:50Z
+- finished_at: 2026-01-27T15:31:18Z
+- exit_code: 0
+
+```
++
++        fs::write(cli_dir.join("README.md"), "cli\n").unwrap();
++        commit_all(&cli_dir, "init cli");
++
++        let mut config = base_config(&tap_dir);
++        config.artifact.strategy = Some("source-tarball".to_string());
++        config.artifact.asset_template = None;
++        config.artifact.asset_name = None;
++
++        let mut ctx = base_context(config, &cli_dir);
++        ctx.repo.git_root = Some(cli_dir.clone());
++
++        let mut args = base_release_args();
++        args.dry_run = false;
++        args.no_push = true;
++        args.skip_tag = false;
++        args.allow_dirty = true;
++        args.tap_path = Some(tap_dir);
++        args.version = Some("1.2.3".to_string());
++
++        let err = run(&ctx, &args).unwrap_err();
++        assert!(matches!(err, AppError::GitState(_)));
++        assert_eq!(
++            err.to_string(),
++            "source-tarball requires pushing the tag; re-run without --no-push or use --skip-tag"
++        );
++    }
++
++    #[test]
+     fn release_requires_asset_selection_in_non_interactive_mode() {
+         let dir = tempdir().unwrap();
+         let tap_path = dir.path().join("homebrew-brewtool");
+@@ -3032,6 +3149,8 @@
+             false,
+             true,
+             false,
++            false,
++            false,
+             ReleaseAction::None,
+         );
+         assert!(summary.contains("will create tag 'v1.2.3'"));
+@@ -3041,7 +3160,7 @@
+     #[test]
+     fn planned_actions_respects_skip_tag_and_unchanged_formula() {
+         let summary =
+-            planned_actions_summary(None, true, false, false, ReleaseAction::None);
++            planned_actions_summary(None, true, false, false, false, false, ReleaseAction::None);
+         assert!(summary.contains("will not create tag (--skip-tag)"));
+         assert!(summary.contains("tap formula unchanged"));
+     }
+
+tokens used
+126 353
+Tag‑first source‑tarball release flow is now enforced and tested. In `src/commands/release.rs` I moved version‑update planning earlier, added an early tag create+push for source‑tarball (with a hard error if `--no-push`), and adjusted planned‑actions output to reflect tags/CLI updates already done. Added a regression test for the new `--no-push` guard in `src/commands/release.rs`. Task sv-w30 is closed and tracked in `.tasks/tasks.jsonl` and `.tasks/tasks.snapshot.json`.
+
+Tests: `cargo test -q source_tarball_requires_push_for_tag_creation`
+
+If you want, I can tackle the next release UX tasks:
+1) sv-a09 (interactive `bd release` when no inputs)
+2) sv-atv (interactive artifact strategy prompt + persist)
+```
+
