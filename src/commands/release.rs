@@ -315,7 +315,21 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
     });
 
     let preview = preview_and_apply(&plans, args.dry_run)?;
+    let formula_changed = preview
+        .changed_files
+        .iter()
+        .any(|path| path == &resolved.formula_path);
+    let cli_changed = version_update_paths
+        .iter()
+        .any(|path| preview.changed_files.iter().any(|changed| changed == path));
     print_preview(&preview);
+    print_planned_actions(
+        tag_to_create.as_deref(),
+        args.skip_tag,
+        formula_changed,
+        cli_changed,
+        false,
+    );
 
     if args.dry_run {
         drop(tap_root);
@@ -327,14 +341,6 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         &resolved.formula_name,
         &version,
     );
-
-    let formula_changed = preview
-        .changed_files
-        .iter()
-        .any(|path| path == &resolved.formula_path);
-    let cli_changed = version_update_paths
-        .iter()
-        .any(|path| preview.changed_files.iter().any(|changed| changed == path));
 
     if !cli_changed && !formula_changed {
         println!("release: no changes to commit");
@@ -712,7 +718,22 @@ fn run_dry_run_release(
     });
 
     let preview = preview_and_apply(&plans, true)?;
+    let formula_changed = preview
+        .changed_files
+        .iter()
+        .any(|path| path == &resolved.formula_path);
+    let cli_changed = version_update_paths
+        .iter()
+        .any(|path| preview.changed_files.iter().any(|changed| changed == path));
+
     print_preview(&preview);
+    print_planned_actions(
+        tag_to_create.as_deref(),
+        args.skip_tag,
+        formula_changed,
+        cli_changed,
+        false,
+    );
     Ok(())
 }
 
@@ -2029,6 +2050,60 @@ fn print_preview(preview: &crate::preview::PreviewOutput) {
     }
 }
 
+fn print_planned_actions(
+    tag_to_create: Option<&str>,
+    skip_tag: bool,
+    formula_changed: bool,
+    cli_changed: bool,
+    create_release: bool,
+) {
+    let summary = planned_actions_summary(
+        tag_to_create,
+        skip_tag,
+        formula_changed,
+        cli_changed,
+        create_release,
+    );
+    if !summary.trim().is_empty() {
+        println!("{}", summary.trim_end());
+    }
+}
+
+fn planned_actions_summary(
+    tag_to_create: Option<&str>,
+    skip_tag: bool,
+    formula_changed: bool,
+    cli_changed: bool,
+    create_release: bool,
+) -> String {
+    let mut lines = Vec::new();
+    lines.push("Planned actions:".to_string());
+
+    if let Some(tag) = tag_to_create {
+        lines.push(format!("  - will create tag '{tag}'"));
+    } else if skip_tag {
+        lines.push("  - will not create tag (--skip-tag)".to_string());
+    } else {
+        lines.push("  - no tag will be created".to_string());
+    }
+
+    if formula_changed {
+        lines.push("  - will update tap formula".to_string());
+    } else {
+        lines.push("  - tap formula unchanged".to_string());
+    }
+
+    if cli_changed {
+        lines.push("  - will update CLI version files".to_string());
+    }
+
+    if create_release {
+        lines.push("  - will create GitHub release".to_string());
+    }
+
+    lines.join("\n")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2597,6 +2672,20 @@ end
             err.to_string(),
             "invalid target key 'darwin-arm64-extra': expected <os> or <os>-<arch>"
         );
+    }
+
+    #[test]
+    fn planned_actions_include_tag_and_formula() {
+        let summary = planned_actions_summary(Some("v1.2.3"), false, true, false, false);
+        assert!(summary.contains("will create tag 'v1.2.3'"));
+        assert!(summary.contains("will update tap formula"));
+    }
+
+    #[test]
+    fn planned_actions_respects_skip_tag_and_unchanged_formula() {
+        let summary = planned_actions_summary(None, true, false, false, false);
+        assert!(summary.contains("will not create tag (--skip-tag)"));
+        assert!(summary.contains("tap formula unchanged"));
     }
 
     #[test]
