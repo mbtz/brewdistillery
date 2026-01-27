@@ -11,7 +11,7 @@ use crate::preview::{PlannedWrite, RepoPlan};
 use crate::repo_detect::{MetadataConflict, ProjectMetadata};
 use crate::version::resolve_version_tag;
 use dialoguer::theme::ColorfulTheme;
-use dialoguer::{Confirm, Input};
+use dialoguer::{Confirm, Input, Select};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -203,11 +203,14 @@ fn run_interactive(ctx: &AppContext, args: &InitArgs) -> Result<(), AppError> {
         tap_repo = Some(prompt_required(&theme, "Tap repo", tap_repo.clone())?);
     }
 
-    let artifact_strategy = resolve_string(
+    let mut artifact_strategy = resolve_string(
         args.artifact_strategy.as_ref(),
         ctx.config.artifact.strategy.as_ref(),
         None,
     );
+    if artifact_strategy.is_none() {
+        artifact_strategy = Some(prompt_artifact_strategy(&theme, None)?);
+    }
     let asset_template = resolve_string(
         args.asset_template.as_ref(),
         ctx.config.artifact.asset_template.as_ref(),
@@ -445,11 +448,14 @@ fn run_interactive_import(ctx: &AppContext, args: &InitArgs) -> Result<(), AppEr
         tap_repo = Some(prompt_required(&theme, "Tap repo", tap_repo.clone())?);
     }
 
-    let artifact_strategy = resolve_string(
+    let mut artifact_strategy = resolve_string(
         args.artifact_strategy.as_ref(),
         ctx.config.artifact.strategy.as_ref(),
         None,
     );
+    if artifact_strategy.is_none() {
+        artifact_strategy = Some(prompt_artifact_strategy(&theme, None)?);
+    }
     let asset_template = resolve_string(
         args.asset_template.as_ref(),
         ctx.config.artifact.asset_template.as_ref(),
@@ -1643,6 +1649,27 @@ fn prompt_path(
     }
 }
 
+fn prompt_artifact_strategy(
+    theme: &ColorfulTheme,
+    default: Option<&str>,
+) -> Result<String, AppError> {
+    let options = ["release-asset", "source-tarball"];
+    let default_index = match default.map(str::trim) {
+        Some("source-tarball") => 1,
+        _ => 0,
+    };
+    let selection = Select::with_theme(theme)
+        .with_prompt("Artifact strategy")
+        .items(&options)
+        .default(default_index)
+        .interact()
+        .map_err(|err| AppError::Other(format!("failed to read artifact strategy: {err}")))?;
+    Ok(options
+        .get(selection)
+        .unwrap_or(&options[0])
+        .to_string())
+}
+
 fn infer_owner_repo_defaults(
     owner_flag: Option<&String>,
     repo_flag: Option<&String>,
@@ -1730,7 +1757,7 @@ fn apply_resolved(config: &mut Config, resolved: &ResolvedInit) {
     }
 
     if config.artifact.strategy.is_none() {
-        config.artifact.strategy = Some("source-tarball".to_string());
+        config.artifact.strategy = Some("release-asset".to_string());
     }
 
     if let Some(template) = resolved.asset_template.as_ref() {
@@ -1914,7 +1941,7 @@ mod tests {
         args.tap_path = Some(dir.join("homebrew-brewtool"));
         args.host_owner = Some("acme".to_string());
         args.host_repo = Some("brewtool".to_string());
-        args.artifact_strategy = Some("source-tarball".to_string());
+        args.artifact_strategy = Some("release-asset".to_string());
         args
     }
 
@@ -2027,7 +2054,7 @@ mod tests {
         assert_eq!(config.project.name.as_deref(), Some("brewtool"));
         assert_eq!(config.tap.formula.as_deref(), Some("brewtool"));
         assert_eq!(config.cli.owner.as_deref(), Some("acme"));
-        assert_eq!(config.artifact.strategy.as_deref(), Some("source-tarball"));
+        assert_eq!(config.artifact.strategy.as_deref(), Some("release-asset"));
 
         let formula_path = tap_path.join("Formula").join("brewtool.rb");
         let formula = fs::read_to_string(formula_path).unwrap();

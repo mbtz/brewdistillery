@@ -30,10 +30,11 @@ The interactive flow prompts in this order:
 9. Tap path
 10. Tap owner (when `--tap-new` or `--create-tap` is set)
 11. Tap repo (when `--tap-new` or `--create-tap` is set)
+12. Artifact strategy (when not supplied via flags or config)
 
 Optional inputs are resolved but not currently prompted unless needed:
 - `tap.remote`, `tap.owner`, `tap.repo`
-- `artifact.strategy`, `artifact.asset_template`
+- `artifact.asset_template`
 - Template overrides (`template.path`, `template.install_block`)
 
 ### Field defaults and behaviors
