@@ -1,7 +1,37 @@
 {
   "schema_version": "sv.tasks.v1",
-  "generated_at": "2026-01-27T14:29:24.215042Z",
+  "generated_at": "2026-01-27T14:35:31.100904Z",
   "tasks": [
+    {
+      "id": "sv-p5b",
+      "title": "Define preview/diff output for multi-repo changes",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-27T13:41:21.989387Z",
+      "updated_at": "2026-01-27T14:35:31.091279Z",
+      "body": "Scope: PRD E18b.\\nDoD:\\n- Diff format examples and ordering rules.\\n- Dry-run output contract across CLI + tap repos.\\n- Messaging for no-op changes.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-27T14:35:25.061672Z",
+      "closed_at": "2026-01-27T14:35:31.091279Z",
+      "comments_count": 0
+    },
+    {
+      "id": "sv-ht5",
+      "title": "Specify preview/confirm UX + atomic writes",
+      "status": "closed",
+      "priority": "P1",
+      "created_at": "2026-01-27T13:41:12.240790Z",
+      "updated_at": "2026-01-27T14:35:27.857907Z",
+      "body": "Scope: PRD E18.\\nDoD:\\n- Atomic write/rollback spec.\\n- Preview/confirm steps for init/release.\\n- Temp file strategy and cleanup rules.",
+      "workspace_id": "3eb0a7e2-c6d4-45cf-b611-16b6f197da8e",
+      "workspace": "brewdistillery",
+      "branch": "main",
+      "started_at": "2026-01-27T14:34:12.790667Z",
+      "closed_at": "2026-01-27T14:35:27.857907Z",
+      "comments_count": 0
+    },
     {
       "id": "sv-vxm",
       "title": "Add GitHubClient create_release API helper",
@@ -260,26 +290,6 @@
       "created_at": "2026-01-22T13:31:32.877452Z",
       "updated_at": "2026-01-27T13:41:25.342843Z",
       "body": "Scope: prompt flows, preview/confirm UX, error strategy, atomic writes.\\nDoD: Epics only; child tasks define acceptance criteria.",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-p5b",
-      "title": "Define preview/diff output for multi-repo changes",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-27T13:41:21.989387Z",
-      "updated_at": "2026-01-27T13:41:25.342843Z",
-      "body": "Scope: PRD E18b.\\nDoD:\\n- Diff format examples and ordering rules.\\n- Dry-run output contract across CLI + tap repos.\\n- Messaging for no-op changes.",
-      "comments_count": 0
-    },
-    {
-      "id": "sv-ht5",
-      "title": "Specify preview/confirm UX + atomic writes",
-      "status": "open",
-      "priority": "P1",
-      "created_at": "2026-01-27T13:41:12.240790Z",
-      "updated_at": "2026-01-27T13:41:18.268834Z",
-      "body": "Scope: PRD E18.\\nDoD:\\n- Atomic write/rollback spec.\\n- Preview/confirm steps for init/release.\\n- Temp file strategy and cleanup rules.",
       "comments_count": 0
     },
     {

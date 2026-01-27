@@ -6232,3 +6232,80 @@ Next steps
 1. Add or remove the `brewd` bin entry (e.g., create `src/bin/brewd.rs` or update `Cargo.toml`) and rerun `cargo test`.
 ```
 
+## 2026-01-27T14:30:26Z
+
+- run_id: a8b0e165-35c1-47b1-80dc-6a29032eec35
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-27T14:19:02Z
+- finished_at: 2026-01-27T14:30:26Z
+- exit_code: 0
+
+```
+use super::*;
++    use serde_json::Value;
+ 
+     #[test]
+     fn selects_first_non_draft_release() {
+@@ -654,4 +754,38 @@
+         assert!(third >= second);
+         assert!(third <= Duration::from_millis(policy.retry_max_delay_ms));
+     }
++
++    #[test]
++    fn create_release_request_omits_empty_name() {
++        let request = CreateReleaseRequest {
++            tag_name: "v1.2.3".to_string(),
++            name: None,
++            draft: false,
++            prerelease: false,
++        };
++
++        let value: Value = serde_json::to_value(&request).unwrap();
++        let object = value.as_object().expect("object");
++        assert_eq!(object.get("tag_name").unwrap(), "v1.2.3");
++        assert!(!object.contains_key("name"));
++        assert_eq!(object.get("draft").unwrap(), false);
++        assert_eq!(object.get("prerelease").unwrap(), false);
++    }
++
++    #[test]
++    fn create_release_request_includes_name() {
++        let request = CreateReleaseRequest {
++            tag_name: "v1.2.3".to_string(),
++            name: Some("Release v1.2.3".to_string()),
++            draft: false,
++            prerelease: true,
++        };
++
++        let value: Value = serde_json::to_value(&request).unwrap();
++        let object = value.as_object().expect("object");
++        assert_eq!(object.get("tag_name").unwrap(), "v1.2.3");
++        assert_eq!(object.get("name").unwrap(), "Release v1.2.3");
++        assert_eq!(object.get("draft").unwrap(), false);
++        assert_eq!(object.get("prerelease").unwrap(), true);
++    }
+ }
+
+tokens used
+153 818
+Added a GitHub release creation helper to the GitHub client so `bd release` can create releases later without duplicating request/response plumbing.
+
+Details:
+- Implemented `GitHubClient::create_release`, token messaging, and release-create error mapping in `src/host/github.rs`, plus the request payload struct and serialization tests to verify optional fields behavior.
+- Split out a reusable token check to keep tap creation messaging unchanged while enabling release-specific guidance.
+- Tracked task `sv-vxm` (created + closed) and committed the ledger update separately as a chore.
+
+Tests:
+- `cargo test -q` failed: missing `src/bin/brewd.rs` (compile error for bin "brewd").
+
+Next steps (pick one):
+1) Add `src/bin/brewd.rs` or remove the `brewd` bin target from `Cargo.toml`, then rerun `cargo test`.
+2) Continue with `sv-mrc` release-creation wiring in `src/commands/release.rs` once the bin issue is resolved.
+```
+
