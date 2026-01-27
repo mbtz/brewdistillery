@@ -76,8 +76,9 @@ must fail without writing files or making network requests.
   - `artifact.asset_name` or `artifact.asset_template` (or per-target override
     when OS/arch matrix is enabled).
 - Version input:
-  - `--version` or `--tag`, unless latest GitHub Release tag can be resolved
-    (stable only unless `--include-prerelease`).
+  - `--version` or `--tag` is required for `artifact.strategy=source-tarball`.
+  - For `release-asset`, `--version`/`--tag` may be omitted if the latest
+    GitHub Release tag can be resolved (stable only unless `--include-prerelease`).
   See `docs/release-discovery.md` for the discovery and prerelease rules.
 
 ### Dry-run notes

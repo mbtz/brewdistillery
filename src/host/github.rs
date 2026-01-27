@@ -442,7 +442,9 @@ fn rate_limit_message(headers: &HeaderMap) -> String {
 }
 
 fn no_releases_error(owner: &str, repo: &str) -> AppError {
-    AppError::InvalidInput(format!("no GitHub releases found for {owner}/{repo}"))
+    AppError::InvalidInput(format!(
+        "no GitHub releases found for {owner}/{repo}; create a GitHub Release or set artifact.strategy=source-tarball"
+    ))
 }
 
 fn ensure_release_allowed(
@@ -598,7 +600,10 @@ mod tests {
     #[test]
     fn formats_no_releases_error_message() {
         let err = no_releases_error("acme", "brewtool");
-        assert_eq!(err.to_string(), "no GitHub releases found for acme/brewtool");
+        assert_eq!(
+            err.to_string(),
+            "no GitHub releases found for acme/brewtool; create a GitHub Release or set artifact.strategy=source-tarball"
+        );
     }
 
     #[test]

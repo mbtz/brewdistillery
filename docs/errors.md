@@ -33,6 +33,8 @@ The following messages are intended to be stable and testable.
   - `missing required fields for --create-tap: tap-owner, tap-repo`
 - Missing required fields (dry-run):
   - `missing required fields for --dry-run: version or tag`
+- Missing required fields (source-tarball):
+  - `source-tarball requires --version (or --tag)`
 - Dry-run tap requirements:
   - `dry-run requires tap.path or an absolute tap.formula_path; tap.remote cannot be auto-cloned`
 - Tap requirements guidance (release):
@@ -82,7 +84,7 @@ The following messages are intended to be stable and testable.
   - `GitHub token missing; set GITHUB_TOKEN or GH_TOKEN to create the tap repo`
 - Release discovery failures:
   - `GitHub release tag '<tag>' not found for <owner>/<repo>`
-  - `no GitHub releases found for <owner>/<repo>`
+  - `no GitHub releases found for <owner>/<repo>; create a GitHub Release or set artifact.strategy=source-tarball`
   - `GitHub release '<tag>' is a draft; publish it before releasing`
   - `GitHub release '<tag>' is a prerelease; re-run with --include-prerelease`
 - Download/checksum failures:

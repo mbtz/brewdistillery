@@ -6078,3 +6078,80 @@ Next steps (pick one):
 2) Tackle `sv-7a2` and align any remaining error-message gaps with `docs/errors.md`.
 ```
 
+## 2026-01-27T14:05:40Z
+
+- run_id: 9a8d7f95-8525-4a17-96ef-f1d1b38cb0f0
+- loop_name: zesty-quimby
+- status: success
+- profile: codex
+- harness: codex
+- prompt_source: base
+- prompt_path: /Users/marius/Code/mbtz--brewdistillery/repos/brewdistillery/PROMPT.md
+- prompt_override: false
+- started_at: 2026-01-27T14:00:01Z
+- finished_at: 2026-01-27T14:05:40Z
+- exit_code: 0
+
+```
++    } else if skip_tag {
++        lines.push("  - will not create tag (--skip-tag)".to_string());
++    } else {
++        lines.push("  - no tag will be created".to_string());
++    }
++
++    if formula_changed {
++        lines.push("  - will update tap formula".to_string());
++    } else {
++        lines.push("  - tap formula unchanged".to_string());
++    }
++
++    if cli_changed {
++        lines.push("  - will update CLI version files".to_string());
++    }
++
++    if create_release {
++        lines.push("  - will create GitHub release".to_string());
++    }
++
++    lines.join("\n")
++}
++
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+@@ -2600,6 +2675,20 @@
+     }
+ 
+     #[test]
++    fn planned_actions_include_tag_and_formula() {
++        let summary = planned_actions_summary(Some("v1.2.3"), false, true, false, false);
++        assert!(summary.contains("will create tag 'v1.2.3'"));
++        assert!(summary.contains("will update tap formula"));
++    }
++
++    #[test]
++    fn planned_actions_respects_skip_tag_and_unchanged_formula() {
++        let summary = planned_actions_summary(None, true, false, false, false);
++        assert!(summary.contains("will not create tag (--skip-tag)"));
++        assert!(summary.contains("tap formula unchanged"));
++    }
++
++    #[test]
+     fn per_os_targets_reject_arch_template_placeholder() {
+         let dir = tempdir().unwrap();
+         let tap_path = dir.path().join("homebrew-brewtool");
+
+tokens used
+72 834
+Using skills: sv-issue-tracking (task workflow), workflow-pattern (status updates), session-protocol (git checklist), user-feedback (checked USER_FEEDBACK.md).
+
+Added planned-action output to release previews so users see tag creation and tap formula updates (plus CLI version file updates when applicable). Updated `src/commands/release.rs` and added unit tests for the summary helper.
+
+Tests:
+- `cargo test planned_actions --quiet` failed: missing `src/bin/brewd.rs` (os error 2).
+
+Next steps (optional):
+1) Fix the missing `src/bin/brewd.rs` or adjust the bin target so tests can run.
+2) Run `cargo test` once the bin target issue is resolved.
+```
+

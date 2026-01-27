@@ -27,6 +27,7 @@ Notes:
 - In `--dry-run` mode, the command performs no network calls (no tap clone,
   no GitHub API requests, and no downloads).
 - Dry-run requires an explicit `--version` or `--tag`.
+- `source-tarball` strategy requires `--version` or `--tag`.
 - Dry-run also requires `tap.path` or an absolute `tap.formula_path` when
   `tap.remote` is configured, because remotes are not auto-cloned.
 - In non-dry-run mode, tagging or version updates require the CLI repo to be a
@@ -79,6 +80,7 @@ Repo: tap (/path/to/homebrew-tool)
 Missing required config or inputs (exit code 2):
 - `missing required fields for --non-interactive: <fields>`
 - `missing required fields for --dry-run: version or tag`
+- `source-tarball requires --version (or --tag)`
 - `dry-run requires tap.path or an absolute tap.formula_path; tap.remote cannot be auto-cloned`
 - Tap path guidance must mention the remote option:
   `tap.path, tap.remote, or tap.formula_path`

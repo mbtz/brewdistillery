@@ -188,12 +188,8 @@ pub fn run(ctx: &AppContext, args: &ReleaseArgs) -> Result<(), AppError> {
         }
         "source-tarball" => {
             validate_source_tarball_inputs(&resolved)?;
-            let (version, source_tag) = resolve_source_tarball_version_and_tag(
-                &client,
-                &resolved,
-                &version_tag,
-                args.include_prerelease,
-            )?;
+            let (version, source_tag) =
+                resolve_source_tarball_version_and_tag(&resolved, &version_tag)?;
             let tag_to_create = if args.skip_tag {
                 None
             } else {
@@ -1662,30 +1658,15 @@ fn validate_source_tarball_inputs(resolved: &ReleaseContext) -> Result<(), AppEr
 }
 
 fn resolve_source_tarball_version_and_tag(
-    client: &GitHubClient,
     resolved: &ReleaseContext,
     version_tag: &ResolvedVersionTag,
-    include_prerelease: bool,
 ) -> Result<(String, String), AppError> {
-    let mut release_tag: Option<String> = None;
-    let version = if let Some(version) = version_tag.version.clone() {
-        version
-    } else {
-        let release = client.latest_release(
-            &resolved.host_owner,
-            &resolved.host_repo,
-            include_prerelease,
-        )?;
-        release_tag = Some(release.tag_name.clone());
-        normalized_version_from_tag(&release.tag_name)?
-    };
+    let version = version_tag.version.clone().ok_or_else(|| {
+        AppError::MissingConfig("source-tarball requires --version (or --tag)".to_string())
+    })?;
 
-    let source_tag = resolve_source_tarball_tag(
-        version_tag,
-        resolved.tag_format.as_deref(),
-        release_tag.as_deref(),
-        &version,
-    )?;
+    let source_tag =
+        resolve_source_tarball_tag(version_tag, resolved.tag_format.as_deref(), None, &version)?;
 
     Ok((version, source_tag))
 }
@@ -2488,6 +2469,30 @@ end
         assert_eq!(
             err.to_string(),
             "missing required fields for --dry-run: version or tag"
+        );
+    }
+
+    #[test]
+    fn source_tarball_requires_version_in_non_interactive_mode() {
+        let dir = tempdir().unwrap();
+        let tap_path = dir.path().join("homebrew-brewtool");
+        let mut config = base_config(&tap_path);
+        config.artifact.strategy = Some("source-tarball".to_string());
+        config.artifact.asset_template = None;
+        config.artifact.asset_name = None;
+
+        let ctx = base_context(config, dir.path());
+        let mut args = base_release_args();
+        args.dry_run = false;
+        args.allow_dirty = true;
+        args.skip_tag = true;
+        args.tap_path = Some(tap_path);
+
+        let err = run(&ctx, &args).unwrap_err();
+        assert!(matches!(err, AppError::MissingConfig(_)));
+        assert_eq!(
+            err.to_string(),
+            "source-tarball requires --version (or --tag)"
         );
     }
 

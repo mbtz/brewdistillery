@@ -33,7 +33,7 @@ Notes:
 
 Missing or invalid releases:
 - `GitHub release tag '<tag>' not found for <owner>/<repo>`
-- `no GitHub releases found for <owner>/<repo>`
+- `no GitHub releases found for <owner>/<repo>; create a GitHub Release or set artifact.strategy=source-tarball`
 - `GitHub release '<tag>' is a draft; publish it before releasing`
 - `GitHub release '<tag>' is a prerelease; re-run with --include-prerelease`
 
